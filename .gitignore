@@ -1,0 +1,50 @@
+# Secrets et configuration locale
+.env
+*.pem
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+!desktop/build/
+dist/
+
+# Frontend
+node_modules/
+frontend/dist/
+playwright-report/
+test-results/
+
+# Données et caches d'exécution
+data/
+!e2e/data/
+cache/
+*.duckdb
+*.duckdb.wal
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Sortie de bench volumineuse
+bench/data/
+
+# Éditeurs et système
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Application de bureau (Electron)
+desktop/node_modules/
+desktop/dist/
+desktop/release/
+desktop/build/runtime/
+desktop/build/install.json
+desktop/test-results/
+e2e/plugins/double_value.py

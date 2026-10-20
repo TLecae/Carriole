@@ -1,0 +1,24 @@
+[project]
+name = "etl-api"
+version = "0.1.0"
+description = "API HTTP : flux, runs, événements, service de données"
+requires-python = ">=3.12"
+dependencies = [
+    "etl-engine",
+    "etl-store",
+    "etl-assistant",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/etl_api"]
+
+[tool.uv.sources]
+etl-engine = { workspace = true }
+etl-store = { workspace = true }
+etl-assistant = { workspace = true }

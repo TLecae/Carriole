@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carriole — the geospatial-first ETL</title>
+<meta name="description" content="Carriole is a free, open source, geospatial-first ETL: build GIS data pipelines in a visual editor with Python modifiers, and inspect every step on a table and a map. Windows and Linux.">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<meta property="og:title" content="Carriole — the geospatial-first ETL">
+<meta property="og:description" content="Build GIS data pipelines visually, with Python modifiers. Inspect every step on a map. Free and open source.">
+<meta property="og:image" content="https://tlecae.github.io/Carriole/img/inspecteur-en.webp">
+<style>
+  :root {
+    --blue: #1f4e8c;
+    --blue-strong: #173d6e;
+    --amber: #ffc107;
+    --amber-text: #a86f00;
+    --bg: #ffffff;
+    --bg-soft: #f4f6f9;
+    --text: #1b2430;
+    --muted: #5b6573;
+    --line: #dde2ea;
+    --card: #ffffff;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1520;
+      --bg-soft: #151d2b;
+      --text: #e6ebf2;
+      --muted: #a3adbb;
+      --line: #273244;
+      --card: #172030;
+      --amber-text: #ffc940;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", sans-serif;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  /* barre du haut */
+  header {
+    position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+  }
+  .bar { display: flex; align-items: center; gap: 20px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 9px; text-decoration: none; font-weight: 700; font-size: 19px; }
+  .brand img { width: 30px; height: 30px; }
+  .io { color: var(--amber-text); }
+  nav { display: flex; gap: 18px; margin-left: auto; align-items: center; }
+  nav a { text-decoration: none; color: var(--muted); font-size: 15px; }
+  nav a:hover { color: var(--text); }
+  select {
+    font: inherit; font-size: 14px; color: var(--text); background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 8px; cursor: pointer;
+  }
+
+  /* accroche */
+  .hero { padding: 72px 0 40px; text-align: center; }
+  .eyebrow {
+    display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, transparent); padding: 4px 12px;
+    border-radius: 999px;
+  }
+  @media (prefers-color-scheme: dark) { .eyebrow { color: #9cc0f0; } }
+  h1 { font-size: clamp(34px, 6vw, 58px); line-height: 1.08; margin: 18px auto 16px; max-width: 20ch; letter-spacing: -.02em; }
+  h1 em { font-style: normal; color: var(--blue); }
+  @media (prefers-color-scheme: dark) { h1 em { color: #7fb0ef; } }
+  .lead { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 680px; margin: 0 auto 30px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 10px; font-weight: 600;
+    text-decoration: none; border: 1px solid var(--line); background: var(--card); color: var(--text);
+  }
+  .btn small { font-weight: 400; color: var(--muted); }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.primary small { color: #cfe0f7; }
+  .btn.primary:hover { background: var(--blue-strong); }
+  .btn svg { width: 18px; height: 18px; flex: none; }
+  .note { font-size: 14px; color: var(--muted); margin-top: 14px; }
+
+  .shot {
+    margin: 44px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow);
+    background: var(--bg-soft);
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+
+  section { padding: 72px 0; }
+  section.soft { background: var(--bg-soft); }
+  h2 { font-size: clamp(26px, 3.6vw, 36px); line-height: 1.2; margin: 0 0 12px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 36px; max-width: 720px; }
+
+  /* fonctionnalités */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .card h3 { margin: 12px 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .icon {
+    width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--amber-text);
+  }
+  .icon svg { width: 21px; height: 21px; }
+
+  /* étapes */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; counter-reset: s; }
+  .step { position: relative; padding: 22px 22px 22px 66px; border-left: 0; }
+  .step::before {
+    counter-increment: s; content: counter(s); position: absolute; left: 18px; top: 20px; width: 34px; height: 34px;
+    border-radius: 50%; background: var(--blue); color: #fff; display: grid; place-items: center; font-weight: 700;
+  }
+  .step h3 { margin: 0 0 6px; font-size: 17px; }
+  .step p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  /* formats */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 13px; font-size: 14px; }
+
+  /* code */
+  .split { display: grid; grid-template-columns: 1fr 1.15fr; gap: 36px; align-items: center; }
+  pre {
+    margin: 0; padding: 20px; border-radius: 12px; background: #0f1724; color: #dbe4f0; overflow-x: auto;
+    font: 13.5px/1.55 ui-monospace, "Cascadia Code", Consolas, "Liberation Mono", monospace; border: 1px solid #1f2a3c;
+  }
+  pre .k { color: #ff9e64; } pre .s { color: #9ece6a; } pre .c { color: #6b7a90; } pre .t { color: #7dcfff; }
+  ul.check { list-style: none; padding: 0; margin: 18px 0 0; }
+  ul.check li { padding-left: 26px; position: relative; margin: 8px 0; color: var(--muted); }
+  ul.check li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 9px; height: 5px; border-left: 2px solid var(--amber-text); border-bottom: 2px solid var(--amber-text); transform: rotate(-45deg); }
+
+  /* bibliothèques */
+  .built { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px 28px; }
+  .built h3 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  a.chip { text-decoration: none; }
+  a.chip:hover { border-color: var(--blue); }
+
+  /* téléchargement */
+  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .dl .card { display: flex; flex-direction: column; gap: 10px; }
+  .dl .card h3 { margin: 0; display: flex; align-items: center; gap: 10px; }
+  .dl .card .btn { align-self: flex-start; margin-top: 6px; }
+  code.inline { font: 13.5px ui-monospace, Consolas, monospace; background: var(--bg-soft); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 40px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
+
+  @media (max-width: 760px) {
+    nav a.hide-sm { display: none; }
+    .split { grid-template-columns: 1fr; }
+    .hero { padding-top: 48px; }
+    section { padding: 52px 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#" aria-label="Carriole"><img src="logo.svg" alt=""><span>Carr<span class="io">i/o</span>le</span></a>
+    <nav>
+      <a class="hide-sm" href="#features" data-i18n="nav.features">Features</a>
+      <a class="hide-sm" href="#download" data-i18n="nav.download">Download</a>
+      <a class="hide-sm" href="https://github.com/TLecae/Carriole">GitHub</a>
+      <select id="lang" aria-label="Language">
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+      </select>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <span class="eyebrow" data-i18n="hero.eyebrow">Free and open source · Windows and Linux</span>
+    <h1 data-i18n-html="hero.title">The <em>geospatial-first</em> ETL</h1>
+    <p class="lead" data-i18n="hero.lead">Build GIS data pipelines by wiring Python modifiers together in a visual editor. Run them in the background, and inspect every step on a table and a map.</p>
+    <div class="cta">
+      <a class="btn primary" id="cta-main" href="https://github.com/TLecae/Carriole/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>
+        <span><span data-i18n="cta.download">Download</span> <small id="cta-main-detail"></small></span>
+      </a>
+      <a class="btn" href="https://github.com/TLecae/Carriole">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        <span data-i18n="cta.source">Source code</span>
+      </a>
+    </div>
+    <p class="note" id="cta-other"></p>
+    <div class="shot"><img id="shot-main" src="img/editeur-en.webp" width="1500" height="900" alt="" data-i18n-alt="shot.editor"></div>
+  </div>
+
+  <section id="features" class="soft">
+    <div class="wrap">
+      <h2 data-i18n="features.title">Geometry is not just another column</h2>
+      <p class="sub" data-i18n="features.sub">Every connection carries features with their coordinate reference system, every modifier is geometry-aware, and any intermediate result can be looked at on a map.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></div>
+          <h3 data-i18n="f1.t">Spatial formats</h3>
+          <p data-i18n="f1.d">PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, GeoParquet, FlatGeobuf, CSV with WKT or X/Y, Excel, Oracle and SQLite.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="10" r="5"/><circle cx="15" cy="14" r="5"/></svg></div>
+          <h3 data-i18n="f2.t">Vector processing</h3>
+          <p data-i18n="f2.d">Buffer, clip, dissolve, spatial relations and filters, overlays, reprojection with official grids, geometry validation, area, centroids…</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></div>
+          <h3 data-i18n="f3.t">Rasters</h3>
+          <p data-i18n="f3.d">GeoTIFF, Cloud-Optimized GeoTIFF, JPEG 2000, NetCDF and STAC search; raster calculator, terrain, contours, mosaics, zonal statistics.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+          <h3 data-i18n="f4.t">Map inspector</h3>
+          <p data-i18n="f4.d">Click any connection: its features appear on a filterable table and a synchronized map, smooth on millions of features thanks to DuckDB Spatial.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="16" y="15" width="6" height="6" rx="1"/><path d="M8 12h4m0 0V6h4m-4 6v6h4"/></svg></div>
+          <h3 data-i18n="f5.t">Visual editor</h3>
+          <p data-i18n="f5.d">104 modifiers, keyboard quick add, forms with help and examples, undo, bookmarks, reusable components. Flows are plain JSON files.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <h3 data-i18n="f6.t">Background runs</h3>
+          <p data-i18n="f6.d">Parallel nodes, bounded memory, cancel and resume from cache, notifications and scheduled runs.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4L12 3Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg></div>
+          <h3 data-i18n="f7.t">AI assistant</h3>
+          <p data-i18n="f7.d">Claude, OpenAI, OpenRouter or a local model with Ollama: it reads your flow and proposes changes you apply in one click. You choose what it may see.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h3 data-i18n="f8.t">Your files, your rights</h3>
+          <p data-i18n="f8.d">Runs on your computer with your own permissions on local drives and network shares. No server to administer, works offline.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 data-i18n="how.title">Read, transform, look</h2>
+      <p class="sub" data-i18n="how.sub">The comfort of visual GIS workflows, with the transparency of Python.</p>
+      <div class="steps">
+        <div class="card step"><h3 data-i18n="s1.t">Connect your sources</h3><p data-i18n="s1.d">Drop readers on the canvas: files, folders, databases, rasters or STAC catalogs.</p></div>
+        <div class="card step"><h3 data-i18n="s2.t">Chain modifiers</h3><p data-i18n="s2.d">Wire ports together. Warnings and the schema of every port show up before running.</p></div>
+        <div class="card step"><h3 data-i18n="s3.t">Inspect each step</h3><p data-i18n="s3.d">Run up to a node, reuse the cache, and check the result on the table and the map.</p></div>
+      </div>
+      <div class="shot"><img id="shot-inspector" src="img/inspecteur-en.webp" width="1500" height="900" loading="lazy" alt="" data-i18n-alt="shot.inspector"></div>
+    </div>
+  </section>
+
+  <section class="soft">
+    <div class="wrap split">
+      <div>
+        <h2 data-i18n="code.title">Your own modifiers, in Python</h2>
+        <p class="sub" style="margin-bottom:0" data-i18n="code.sub">A modifier is a single Python file. Its parameters become a form in the editor; drop it in the plugins folder and it shows up in the palette.</p>
+        <ul class="check">
+          <li data-i18n="code.l1">Batches of features as Arrow tables, geometry ready for Shapely</li>
+          <li data-i18n="code.l2">Rejected features keep their reason, the run goes on</li>
+          <li data-i18n="code.l3">Unit tests with the provided helpers</li>
+        </ul>
+      </div>
+<pre><span class="k">class</span> <span class="t">SurfaceCalculator</span>(Modifier):
+    name = <span class="s">"SurfaceCalculator"</span>
+    label = <span class="s">"Surface area"</span>
+    category = <span class="s">"Geometry"</span>
+
+    <span class="k">class</span> <span class="t">Params</span>(Params):
+        attribute: str = <span class="s">"surface"</span>
+        unit: Literal[<span class="s">"m2"</span>, <span class="s">"ha"</span>] = <span class="s">"m2"</span>  <span class="c"># a drop-down list</span>
+
+    <span class="k">def</span> <span class="t">process</span>(self, batch):
+        area = shapely.area(geometries(batch))
+        <span class="k">if</span> self.params.unit == <span class="s">"ha"</span>:
+            area = area / <span class="t">10_000</span>
+        <span class="k">return</span> {<span class="s">"output"</span>: batch.append_column(
+            self.params.attribute, pa.array(area))}</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 data-i18n="formats.title">Speaks the formats of GIS</h2>
+      <p class="sub" data-i18n="formats.sub">One reader and one writer per format, with the coordinate reference system kept all along the flow.</p>
+      <div class="chips">
+        <span class="chip">PostgreSQL / PostGIS</span><span class="chip">GeoPackage</span><span class="chip">Shapefile</span>
+        <span class="chip">MapInfo TAB / MIF</span><span class="chip">GeoJSON</span><span class="chip">GeoParquet</span>
+        <span class="chip">FlatGeobuf</span><span class="chip">CSV (WKT, X/Y)</span><span class="chip">Excel</span>
+        <span class="chip">Oracle</span><span class="chip">SQLite</span>
+        <span class="chip">GeoTIFF / COG</span><span class="chip">JPEG 2000</span><span class="chip">NetCDF</span><span class="chip">STAC</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="built-with">
+    <div class="wrap">
+      <h2 data-i18n="built.title">Built on open source</h2>
+      <p class="sub" data-i18n="built.sub">Carriole stands on the shoulders of these projects. Thank you to their authors.</p>
+      <div class="built">
+        <div><h3 data-i18n="built.g1">Data engine</h3><div class="chips"><a class="chip" href="https://duckdb.org">DuckDB + Spatial</a><a class="chip" href="https://arrow.apache.org">Apache Arrow</a><a class="chip" href="https://gdal.org">GDAL</a><a class="chip" href="https://pyogrio.readthedocs.io">pyogrio</a><a class="chip" href="https://rasterio.readthedocs.io">Rasterio</a><a class="chip" href="https://shapely.readthedocs.io">Shapely / GEOS</a><a class="chip" href="https://proj.org">PROJ / pyproj</a><a class="chip" href="https://numpy.org">NumPy</a></div></div>
+        <div><h3 data-i18n="built.g2">Databases</h3><div class="chips"><a class="chip" href="https://www.psycopg.org">psycopg (PostgreSQL)</a><a class="chip" href="https://python-oracledb.readthedocs.io">python-oracledb</a><a class="chip" href="https://sqlite.org">SQLite</a><a class="chip" href="https://www.sqlalchemy.org">SQLAlchemy</a></div></div>
+        <div><h3 data-i18n="built.g3">Backend</h3><div class="chips"><a class="chip" href="https://fastapi.tiangolo.com">FastAPI</a><a class="chip" href="https://www.uvicorn.org">Uvicorn</a><a class="chip" href="https://docs.pydantic.dev">Pydantic</a><a class="chip" href="https://typer.tiangolo.com">Typer</a></div></div>
+        <div><h3 data-i18n="built.g4">Interface</h3><div class="chips"><a class="chip" href="https://react.dev">React</a><a class="chip" href="https://reactflow.dev">React Flow</a><a class="chip" href="https://maplibre.org">MapLibre GL JS</a><a class="chip" href="https://codemirror.net">CodeMirror</a><a class="chip" href="https://tanstack.com/virtual">TanStack Virtual</a><a class="chip" href="https://www.i18next.com">i18next</a><a class="chip" href="https://zustand.docs.pmnd.rs">Zustand</a><a class="chip" href="https://vite.dev">Vite</a></div></div>
+        <div><h3 data-i18n="built.g5">Desktop and packaging</h3><div class="chips"><a class="chip" href="https://www.electronjs.org">Electron</a><a class="chip" href="https://www.electron.build">electron-builder</a><a class="chip" href="https://docs.astral.sh/uv/">uv</a><a class="chip" href="https://github.com/astral-sh/python-build-standalone">python-build-standalone</a></div></div>
+        <div><h3 data-i18n="built.g6">Maps and data</h3><div class="chips"><a class="chip" href="https://www.openstreetmap.org/copyright">OpenStreetMap</a><a class="chip" href="https://geoservices.ign.fr">IGN (PROJ grids)</a></div></div>
+      </div>
+      <p class="note"><a href="https://github.com/TLecae/Carriole/blob/main/THIRD_PARTY_NOTICES.md" data-i18n="built.all">Full list of components and licenses</a></p>
+    </div>
+  </section>
+
+  <section id="download" class="soft">
+    <div class="wrap">
+      <h2 data-i18n="dl.title">Download</h2>
+      <p class="sub" data-i18n="dl.sub">Free, open source (MIT license). Everything is included: Python, GDAL, DuckDB Spatial and projection grids.</p>
+      <div class="dl">
+        <div class="card">
+          <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10 4.5v7H3v-6Zm8-1.1L21 3v8.5H11V4.4ZM3 12.5h7v7l-7-1v-6Zm8 0h10V21l-10-1.4v-7.1Z"/></svg>Windows 10 / 11</h3>
+          <p style="margin:0;color:var(--muted)" data-i18n="dl.win">Installer for all users of the computer. It is not code-signed yet: on the SmartScreen warning, click “More info”, then “Run anyway”.</p>
+          <a class="btn primary" id="dl-win" href="https://github.com/TLecae/Carriole/releases/latest"><span data-i18n="dl.winBtn">Download for Windows</span> <small id="dl-win-detail"></small></a>
+        </div>
+        <div class="card">
+          <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>Linux (AppImage)</h3>
+          <p style="margin:0;color:var(--muted)" data-i18n-html="dl.linux">One file, any recent distribution, no admin rights: make it executable with <code class="inline">chmod +x</code> and run it.</p>
+          <a class="btn primary" id="dl-linux" href="https://github.com/TLecae/Carriole/releases/latest"><span data-i18n="dl.linuxBtn">Download for Linux</span> <small id="dl-linux-detail"></small></a>
+        </div>
+      </div>
+      <p class="note"><a href="https://github.com/TLecae/Carriole/releases" data-i18n="dl.all">All versions and checksums</a> · <a href="https://github.com/TLecae/Carriole/blob/main/docs/installation.md" data-i18n="dl.guide">Installation guide</a></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Thomas Lecae · <a href="https://github.com/TLecae/Carriole/blob/main/LICENSE" data-i18n="foot.license">MIT license</a> · <a href="https://github.com/TLecae/Carriole">GitHub</a> · <a href="https://github.com/TLecae/Carriole/issues" data-i18n="foot.issues">Report a problem</a></span>
+    <span data-i18n="foot.fme">FME is a trademark of Safe Software Inc.; Carriole is not affiliated with it.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const REPO = "TLecae/Carriole";
+  const T = {
+    en: {
+      "title": "Carriole — the geospatial-first ETL",
+      "nav.features": "Features", "nav.download": "Download",
+      "hero.eyebrow": "Free and open source · Windows and Linux",
+      "hero.title": "The <em>geospatial-first</em> ETL",
+      "hero.lead": "Build GIS data pipelines by wiring Python modifiers together in a visual editor. Run them in the background, and inspect every step on a table and a map.",
+      "cta.download": "Download", "cta.source": "Source code",
+      "cta.other": "Also available for {os}.",
+      "shot.editor": "A flow in the editor, with the output of a buffer on the table and the map",
+      "shot.inspector": "The inspector: buffers colored by category on the map, synchronized with the table",
+      "features.title": "Geometry is not just another column",
+      "features.sub": "Every connection carries features with their coordinate reference system, every modifier is geometry-aware, and any intermediate result can be looked at on a map.",
+      "f1.t": "Spatial formats", "f1.d": "PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, GeoParquet, FlatGeobuf, CSV with WKT or X/Y, Excel, Oracle and SQLite.",
+      "f2.t": "Vector processing", "f2.d": "Buffer, clip, dissolve, spatial relations and filters, overlays, reprojection with official grids, geometry validation, area, centroids…",
+      "f3.t": "Rasters", "f3.d": "GeoTIFF, Cloud-Optimized GeoTIFF, JPEG 2000, NetCDF and STAC search; raster calculator, terrain, contours, mosaics, zonal statistics.",
+      "f4.t": "Map inspector", "f4.d": "Click any connection: its features appear on a filterable table and a synchronized map, smooth on millions of features thanks to DuckDB Spatial.",
+      "f5.t": "Visual editor", "f5.d": "104 modifiers, keyboard quick add, forms with help and examples, undo, bookmarks, reusable components. Flows are plain JSON files.",
+      "f6.t": "Background runs", "f6.d": "Parallel nodes, bounded memory, cancel and resume from cache, notifications and scheduled runs.",
+      "f7.t": "AI assistant", "f7.d": "Claude, OpenAI, OpenRouter or a local model with Ollama: it reads your flow and proposes changes you apply in one click. You choose what it may see.",
+      "f8.t": "Your files, your rights", "f8.d": "Runs on your computer with your own permissions on local drives and network shares. No server to administer, works offline.",
+      "how.title": "Read, transform, look", "how.sub": "The comfort of visual GIS workflows, with the transparency of Python.",
+      "s1.t": "Connect your sources", "s1.d": "Drop readers on the canvas: files, folders, databases, rasters or STAC catalogs.",
+      "s2.t": "Chain modifiers", "s2.d": "Wire ports together. Warnings and the schema of every port show up before running.",
+      "s3.t": "Inspect each step", "s3.d": "Run up to a node, reuse the cache, and check the result on the table and the map.",
+      "code.title": "Your own modifiers, in Python",
+      "code.sub": "A modifier is a single Python file. Its parameters become a form in the editor; drop it in the plugins folder and it shows up in the palette.",
+      "code.l1": "Batches of features as Arrow tables, geometry ready for Shapely",
+      "code.l2": "Rejected features keep their reason, the run goes on",
+      "code.l3": "Unit tests with the provided helpers",
+      "formats.title": "Speaks the formats of GIS",
+      "formats.sub": "One reader and one writer per format, with the coordinate reference system kept all along the flow.",
+      "dl.title": "Download",
+      "dl.sub": "Free, open source (MIT license). Everything is included: Python, GDAL, DuckDB Spatial and projection grids.",
+      "dl.win": "Installer for all users of the computer. It is not code-signed yet: on the SmartScreen warning, click “More info”, then “Run anyway”.",
+      "dl.winBtn": "Download for Windows",
+      "dl.linux": "One file, any recent distribution, no admin rights: make it executable with <code class=\"inline\">chmod +x</code> and run it.",
+      "dl.linuxBtn": "Download for Linux",
+      "dl.all": "All versions and checksums", "dl.guide": "Installation guide",
+      "built.title": "Built on open source",
+      "built.sub": "Carriole stands on the shoulders of these projects. Thank you to their authors.",
+      "built.g1": "Data engine",
+      "built.g2": "Databases",
+      "built.g3": "Backend",
+      "built.g4": "Interface",
+      "built.g5": "Desktop and packaging",
+      "built.g6": "Maps and data",
+      "built.all": "Full list of components and licenses",
+      "foot.license": "MIT license", "foot.issues": "Report a problem",
+      "foot.fme": "FME is a trademark of Safe Software Inc.; Carriole is not affiliated with it.",
+    },
+    fr: {
+      "title": "Carriole — l'ETL pensé pour la donnée géographique",
+      "nav.features": "Fonctionnalités", "nav.download": "Télécharger",
+      "hero.eyebrow": "Libre et gratuit · Windows et Linux",
+      "hero.title": "L'ETL pensé d'abord pour la <em>donnée géographique</em>",
+      "hero.lead": "Construisez vos traitements SIG en branchant des modificateurs Python dans un éditeur graphique. Exécutez-les en arrière-plan et regardez chaque étape sur une table et une carte.",
+      "cta.download": "Télécharger", "cta.source": "Code source",
+      "cta.other": "Existe aussi pour {os}.",
+      "shot.editor": "Un flux dans l'éditeur, avec la sortie d'une zone tampon sur la table et la carte",
+      "shot.inspector": "L'inspecteur : zones tampons colorées par catégorie sur la carte, synchronisée avec la table",
+      "features.title": "La géométrie n'est pas une colonne comme les autres",
+      "features.sub": "Chaque connexion transporte des entités avec leur système de coordonnées, chaque modificateur connaît la géométrie, et tout résultat intermédiaire se regarde sur une carte.",
+      "f1.t": "Formats géographiques", "f1.d": "PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, GeoParquet, FlatGeobuf, CSV en WKT ou X/Y, Excel, Oracle et SQLite.",
+      "f2.t": "Traitements vecteur", "f2.d": "Zone tampon, découpage, fusion, relations et filtres spatiaux, superpositions, reprojection avec les grilles officielles de l'IGN, validation des géométries, surface, centroïdes…",
+      "f3.t": "Rasters", "f3.d": "GeoTIFF, COG, JPEG 2000, NetCDF et recherche STAC ; calculatrice raster, relief, courbes de niveau, mosaïques, statistiques zonales.",
+      "f4.t": "Inspecteur cartographique", "f4.d": "Un clic sur une connexion : ses entités s'affichent dans une table filtrable et sur une carte synchronisée, fluide sur des millions d'entités grâce à DuckDB Spatial.",
+      "f5.t": "Éditeur graphique", "f5.d": "104 modificateurs, ajout rapide au clavier, formulaires avec aide et exemples, annuler, signets, composants réutilisables. Les flux sont de simples fichiers JSON.",
+      "f6.t": "Runs en arrière-plan", "f6.d": "Nœuds en parallèle, mémoire bornée, annulation et reprise depuis le cache, notifications et planification.",
+      "f7.t": "Assistant IA", "f7.d": "Claude, OpenAI, OpenRouter ou un modèle local avec Ollama : il lit votre flux et propose des modifications appliquées d'un clic. Vous choisissez ce qu'il peut voir.",
+      "f8.t": "Vos fichiers, vos droits", "f8.d": "Tourne sur votre poste, avec vos droits sur les disques locaux et les partages réseau. Aucun serveur à administrer, fonctionne hors ligne.",
+      "how.title": "Lire, transformer, regarder", "how.sub": "Le confort des chaînes de traitement SIG visuelles, avec la transparence de Python.",
+      "s1.t": "Branchez vos sources", "s1.d": "Posez des lecteurs sur le canevas : fichiers, dossiers, bases de données, rasters ou catalogues STAC.",
+      "s2.t": "Enchaînez les modificateurs", "s2.d": "Reliez les ports. Les avertissements et le schéma de chaque port apparaissent avant l'exécution.",
+      "s3.t": "Inspectez chaque étape", "s3.d": "Lancez jusqu'à un nœud, réutilisez le cache, et vérifiez le résultat sur la table et la carte.",
+      "code.title": "Vos propres modificateurs, en Python",
+      "code.sub": "Un modificateur est un seul fichier Python. Ses paramètres deviennent un formulaire dans l'éditeur ; déposez-le dans le dossier des plugins et il apparaît dans la palette.",
+      "code.l1": "Des lots d'entités en tables Arrow, géométrie prête pour Shapely",
+      "code.l2": "Les entités rejetées gardent leur motif, le run continue",
+      "code.l3": "Des tests unitaires avec les outils fournis",
+      "formats.title": "Parle les formats du SIG",
+      "formats.sub": "Un lecteur et un écrivain par format, et le système de coordonnées conservé tout au long du flux.",
+      "dl.title": "Télécharger",
+      "dl.sub": "Gratuit et libre (licence MIT). Tout est inclus : Python, GDAL, DuckDB Spatial et grilles de projection.",
+      "dl.win": "Installeur pour tous les utilisateurs du poste. Il n'est pas encore signé : sur l'avertissement SmartScreen, cliquez « Informations complémentaires » puis « Exécuter quand même ».",
+      "dl.winBtn": "Télécharger pour Windows",
+      "dl.linux": "Un seul fichier, toute distribution récente, sans droits d'administrateur : rendez-le exécutable avec <code class=\"inline\">chmod +x</code> et lancez-le.",
+      "dl.linuxBtn": "Télécharger pour Linux",
+      "dl.all": "Toutes les versions et sommes de contrôle", "dl.guide": "Guide d'installation",
+      "built.title": "Construit sur le logiciel libre",
+      "built.sub": "Carriole repose sur ces projets. Merci à leurs auteurs.",
+      "built.g1": "Moteur de données",
+      "built.g2": "Bases de données",
+      "built.g3": "Serveur local",
+      "built.g4": "Interface",
+      "built.g5": "Application de bureau et paquets",
+      "built.g6": "Cartes et données",
+      "built.all": "Liste complète des composants et de leurs licences",
+      "foot.license": "Licence MIT", "foot.issues": "Signaler un problème",
+      "foot.fme": "FME est une marque de Safe Software Inc. ; Carriole n'y est pas affilié.",
+    },
+    es: {
+      "title": "Carriole — el ETL pensado para datos geoespaciales",
+      "nav.features": "Funciones", "nav.download": "Descargar",
+      "hero.eyebrow": "Libre y gratuito · Windows y Linux",
+      "hero.title": "El ETL pensado primero para los <em>datos geoespaciales</em>",
+      "hero.lead": "Construya sus procesos SIG conectando modificadores Python en un editor visual. Ejecútelos en segundo plano e inspeccione cada paso en una tabla y un mapa.",
+      "cta.download": "Descargar", "cta.source": "Código fuente",
+      "cta.other": "También disponible para {os}.",
+      "shot.editor": "Un flujo en el editor, con la salida de un área de influencia en la tabla y el mapa",
+      "shot.inspector": "El inspector: áreas de influencia coloreadas por categoría en el mapa, sincronizado con la tabla",
+      "features.title": "La geometría no es una columna más",
+      "features.sub": "Cada conexión transporta entidades con su sistema de referencia de coordenadas, cada modificador entiende la geometría y cualquier resultado intermedio se puede ver en un mapa.",
+      "f1.t": "Formatos espaciales", "f1.d": "PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, GeoParquet, FlatGeobuf, CSV con WKT o X/Y, Excel, Oracle y SQLite.",
+      "f2.t": "Procesos vectoriales", "f2.d": "Áreas de influencia, recorte, disolución, relaciones y filtros espaciales, superposiciones, reproyección con mallas oficiales, validación de geometrías, superficie, centroides…",
+      "f3.t": "Ráster", "f3.d": "GeoTIFF, Cloud-Optimized GeoTIFF, JPEG 2000, NetCDF y búsqueda STAC; calculadora ráster, relieve, curvas de nivel, mosaicos, estadísticas zonales.",
+      "f4.t": "Inspector cartográfico", "f4.d": "Haga clic en una conexión: sus entidades aparecen en una tabla filtrable y en un mapa sincronizado, fluido con millones de entidades gracias a DuckDB Spatial.",
+      "f5.t": "Editor visual", "f5.d": "104 modificadores, alta rápida con el teclado, formularios con ayuda y ejemplos, deshacer, marcadores, componentes reutilizables. Los flujos son simples archivos JSON.",
+      "f6.t": "Ejecución en segundo plano", "f6.d": "Nodos en paralelo, memoria acotada, cancelación y reanudación desde la caché, notificaciones y programación.",
+      "f7.t": "Asistente de IA", "f7.d": "Claude, OpenAI, OpenRouter o un modelo local con Ollama: lee su flujo y propone cambios que se aplican con un clic. Usted decide lo que puede ver.",
+      "f8.t": "Sus archivos, sus permisos", "f8.d": "Se ejecuta en su equipo con sus propios permisos sobre discos locales y carpetas de red. Sin servidor que administrar, funciona sin conexión.",
+      "how.title": "Leer, transformar, mirar", "how.sub": "La comodidad de los flujos SIG visuales, con la transparencia de Python.",
+      "s1.t": "Conecte sus fuentes", "s1.d": "Coloque lectores en el lienzo: archivos, carpetas, bases de datos, ráster o catálogos STAC.",
+      "s2.t": "Encadene modificadores", "s2.d": "Conecte los puertos. Los avisos y el esquema de cada puerto aparecen antes de ejecutar.",
+      "s3.t": "Inspeccione cada paso", "s3.d": "Ejecute hasta un nodo, reutilice la caché y compruebe el resultado en la tabla y el mapa.",
+      "code.title": "Sus propios modificadores, en Python",
+      "code.sub": "Un modificador es un único archivo Python. Sus parámetros se convierten en un formulario del editor; colóquelo en la carpeta de plugins y aparece en la paleta.",
+      "code.l1": "Lotes de entidades como tablas Arrow, geometría lista para Shapely",
+      "code.l2": "Las entidades rechazadas conservan su motivo y la ejecución continúa",
+      "code.l3": "Pruebas unitarias con las herramientas incluidas",
+      "formats.title": "Habla los formatos del SIG",
+      "formats.sub": "Un lector y un escritor por formato, conservando el sistema de referencia de coordenadas a lo largo del flujo.",
+      "dl.title": "Descargar",
+      "dl.sub": "Gratuito y de código abierto (licencia MIT). Todo incluido: Python, GDAL, DuckDB Spatial y mallas de proyección.",
+      "dl.win": "Instalador para todos los usuarios del equipo. Todavía no está firmado: ante el aviso de SmartScreen, haga clic en «Más información» y luego en «Ejecutar de todas formas».",
+      "dl.winBtn": "Descargar para Windows",
+      "dl.linux": "Un solo archivo, cualquier distribución reciente, sin permisos de administrador: hágalo ejecutable con <code class=\"inline\">chmod +x</code> y ábralo.",
+      "dl.linuxBtn": "Descargar para Linux",
+      "dl.all": "Todas las versiones y sumas de verificación", "dl.guide": "Guía de instalación (francés)",
+      "built.title": "Construido sobre software libre",
+      "built.sub": "Carriole se apoya en estos proyectos. Gracias a sus autores.",
+      "built.g1": "Motor de datos",
+      "built.g2": "Bases de datos",
+      "built.g3": "Servidor local",
+      "built.g4": "Interfaz",
+      "built.g5": "Aplicación de escritorio y paquetes",
+      "built.g6": "Mapas y datos",
+      "built.all": "Lista completa de componentes y licencias",
+      "foot.license": "Licencia MIT", "foot.issues": "Informar de un problema",
+      "foot.fme": "FME es una marca de Safe Software Inc.; Carriole no está afiliado a ella.",
+    },
+  };
+  const LANGS = Object.keys(T);
+  const KEY = "carriole.lang";
+
+  function remembered() {
+    try { return localStorage.getItem(KEY); } catch { return null; }
+  }
+  function detect() {
+    const saved = remembered();
+    if (saved && LANGS.includes(saved)) return saved;
+    for (const l of navigator.languages || [navigator.language || ""]) {
+      const short = String(l).toLowerCase().split("-")[0];
+      if (LANGS.includes(short)) return short;
+    }
+    return "en";
+  }
+
+  let lang = detect();
+  const tr = (k) => T[lang][k] ?? T.en[k] ?? "";
+
+  // ---------------------------------------------------------------- téléchargements
+  const ua = navigator.userAgent;
+  const os = /Windows/i.test(ua) ? "win" : /Linux|X11/i.test(ua) && !/Android/i.test(ua) ? "linux" : null;
+  const assets = { win: null, linux: null };
+  let version = "";
+
+  function size(bytes) { return Math.round(bytes / 1048576) + " MB"; }
+  function renderDownloads() {
+    for (const kind of ["win", "linux"]) {
+      const a = assets[kind];
+      if (!a) continue;
+      document.getElementById(`dl-${kind}`).href = a.browser_download_url;
+      document.getElementById(`dl-${kind}-detail`).textContent = `${version} · ${size(a.size)}`;
+    }
+    const main = os && assets[os];
+    const cta = document.getElementById("cta-main");
+    const other = document.getElementById("cta-other");
+    if (main) {
+      cta.href = main.browser_download_url;
+      document.getElementById("cta-main-detail").textContent = `${version} · ${os === "win" ? "Windows" : "Linux"}`;
+      const otherOs = os === "win" ? "Linux" : "Windows";
+      other.innerHTML = tr("cta.other").replace("{os}", `<a href="#download">${otherOs}</a>`);
+    } else {
+      cta.href = "#download";
+      document.getElementById("cta-main-detail").textContent = version ? `${version} · Windows, Linux` : "Windows, Linux";
+      other.textContent = "";
+    }
+  }
+  fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((release) => {
+      version = release.tag_name || "";
+      for (const a of release.assets || []) {
+        if (/\.exe$/i.test(a.name)) assets.win = a;
+        if (/\.AppImage$/i.test(a.name)) assets.linux = a;
+      }
+      renderDownloads();
+    })
+    .catch(() => renderDownloads()); // pas encore de version publiée, ou limite de l'API : liens vers la page des versions
+
+  // ---------------------------------------------------------------- langue
+  function apply() {
+    document.documentElement.lang = lang;
+    document.title = tr("title");
+    document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = tr(el.dataset.i18n)));
+    document.querySelectorAll("[data-i18n-html]").forEach((el) => (el.innerHTML = tr(el.dataset.i18nHtml)));
+    document.querySelectorAll("[data-i18n-alt]").forEach((el) => (el.alt = tr(el.dataset.i18nAlt)));
+    const shots = lang === "fr" ? "fr" : "en"; // l'interface de Carriole existe en français et en anglais
+    document.getElementById("shot-main").src = `img/editeur-${shots}.webp`;
+    document.getElementById("shot-inspector").src = `img/inspecteur-${shots}.webp`;
+    document.getElementById("lang").value = lang;
+    renderDownloads();
+  }
+  document.getElementById("lang").addEventListener("change", (e) => {
+    lang = e.target.value;
+    try { localStorage.setItem(KEY, lang); } catch { /* navigation privée : choix non retenu */ }
+    apply();
+  });
+  apply();
+})();
+</script>
+</body>
+</html>

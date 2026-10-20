@@ -1,0 +1,27 @@
+{
+  "name": "carriole",
+  "productName": "Carriole",
+  "version": "0.1.0",
+  "description": "Carriole, the geospatial-first ETL (desktop application)",
+  "desktopName": "carriole.desktop",
+  "author": "Thomas Lecae",
+  "license": "MIT",
+  "homepage": "https://tlecae.github.io/Carriole/",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsc && electron .",
+    "pack": "tsc && electron-builder --dir",
+    "dist": "tsc && electron-builder",
+    "test": "tsc && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.0.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "rcedit": "^5.0.2",
+    "typescript": "^7.0.2"
+  }
+}

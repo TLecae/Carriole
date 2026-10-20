@@ -1,0 +1,50 @@
+# Continuous integration: same steps as scripts/ci.ps1 (without Playwright or PostgreSQL), on Windows and Linux.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff format --check .
+      - run: uv run --frozen pytest engine api store worker assistant -q -p no:cacheprovider -m "not slow" --ignore=engine/tests/test_postgres.py
+      - name: Catalogue and translations up to date
+        shell: bash
+        run: |
+          uv run --frozen etl modifiers doc --out "$RUNNER_TEMP/catalogue.md"
+          diff docs/catalogue.md "$RUNNER_TEMP/catalogue.md"
+          uv run --frozen etl modifiers doc --lang en --out "$RUNNER_TEMP/catalogue.en.md"
+          diff docs/en/catalogue.md "$RUNNER_TEMP/catalogue.en.md"
+          uv run --frozen etl i18n check --lang en
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npx vite build

@@ -1,0 +1,28 @@
+name: Bug report
+description: Something does not work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: Steps to reproduce, error message, screenshot. Do not paste passwords or confidential data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: input
+    id: version
+    attributes:
+      label: Carriole version and operating system
+      placeholder: "0.1.0, Windows 11 / Ubuntu 24.04"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "File menu → Application data folder → logs"
+      render: text

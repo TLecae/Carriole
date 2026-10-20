@@ -1,0 +1,58 @@
+appId: io.github.tlecae.carriole
+productName: Carriole
+copyright: Copyright (c) 2026 Thomas Lecae
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - package.json
+asar: true
+afterPack: build/afterPack.js
+# Ressources hors archive : Python embarqué, interface compilée, lanceur « etl », marqueur d'installation.
+extraResources:
+  - { from: build/runtime, to: runtime }
+  - { from: ../frontend/dist, to: frontend }
+  - { from: build/install.json, to: install.json }
+  - { from: build/icon.png, to: icon.png }
+  - { from: ../LICENSE, to: LICENSE.txt }
+  - { from: ../THIRD_PARTY_NOTICES.md, to: THIRD_PARTY_NOTICES.md }
+win:
+  target:
+    - { target: nsis, arch: [x64] }
+  extraResources:
+    - { from: bin, to: bin, filter: ["*.cmd", "*.ps1"] }   # lanceur « etl » et scripts de l'installeur
+  icon: build/icon.ico
+  # Pas de signature de code : SmartScreen avertit à l'installation (docs/installation.md). Cela évite aussi le
+  # téléchargement de winCodeSign, qui exige le droit de créer des liens symboliques.
+  signAndEditExecutable: false   # l'icône est posée par build/afterPack.js (rcedit)
+  requestedExecutionLevel: asInvoker   # l'application elle-même n'a pas besoin des droits d'administrateur
+nsis:
+  oneClick: false                    # assistant d'installation : langue, dossier, installation
+  # Langue de l'installeur choisie par l'utilisateur ; l'application la reprend (settings.json) puis se règle dans les paramètres.
+  displayLanguageSelector: true
+  installerLanguages: [fr_FR, en_US]
+  multiLanguageInstaller: true
+  perMachine: true           # installation pour tous les utilisateurs (C:\Program Files) : demande les droits d'administrateur
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  artifactName: Carriole-Setup-${version}.exe
+linux:
+  # AppImage : un seul fichier, toutes distributions, sans droits d'administrateur (docs/installation.md).
+  target:
+    - { target: AppImage, arch: [x64] }
+  icon: build/icon.png
+  category: Science
+  synopsis: The geospatial-first ETL
+  syncDesktopName: true   # fenêtre associée à son raccourci (WM_CLASS)
+  executableName: carriole
+  artifactName: Carriole-${version}-x86_64.${ext}
+  extraResources:
+    - { from: bin, to: bin, filter: [etl] }   # lanceur « etl »

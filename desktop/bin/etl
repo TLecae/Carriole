@@ -1,0 +1,4 @@
+#!/bin/sh
+# Ligne de commande « etl » de Carriole (Linux) : lance le Python embarqué.
+here="$(dirname "$(readlink -f "$0")")"
+exec "$here/../runtime/python/bin/python3" -X utf8 -m etl_engine.cli "$@"

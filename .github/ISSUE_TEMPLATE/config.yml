@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and discussions
+    url: https://github.com/TLecae/Carriole/discussions
+    about: For usage questions rather than bugs.
+  - name: Security vulnerability
+    url: https://github.com/TLecae/Carriole/security/advisories/new
+    about: Private report; do not post it in issues.

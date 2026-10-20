@@ -1,0 +1,58 @@
+[project]
+name = "etl-workspace"
+version = "0.1.0"
+description = "Carriole, the geospatial-first ETL (uv workspace root)"
+requires-python = ">=3.12"
+readme = "README.md"
+# Ce que les images installent (`uv sync --no-dev`).
+dependencies = ["etl-engine", "etl-store", "etl-api", "etl-worker", "etl-assistant"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["engine", "store", "api", "worker", "assistant"]
+
+[tool.uv.sources]
+etl-engine = { workspace = true }
+etl-store = { workspace = true }
+etl-api = { workspace = true }
+etl-worker = { workspace = true }
+etl-assistant = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",
+    "mapbox-vector-tile>=2.1",
+    "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["engine/tests", "store/tests", "api/tests", "worker/tests", "assistant/tests"]
+addopts = "-ra"
+markers = [
+    "slow: tests lents (non-régression sur données réelles, bench)",
+    "pg: tests nécessitant PostgreSQL",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["samples", "frontend"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Requêtes SQL en chaînes : le formateur ne les coupe pas.
+"api/src/etl_api/data_service.py" = ["E501"]
+# Prompts et descriptions d'outils : de longs textes anglais lus par le modèle, pas du code.
+"assistant/**" = ["E501"]
+"engine/src/etl_engine/view.py" = ["E501"]
+# Textes d'aide des modificateurs (titres, descriptions, aide) : des chaînes que le formateur ne coupe pas.
+"engine/src/etl_engine/modifiers/*.py" = ["E501"]
+# La fixture `make_backend` est importée de serve_support (pas de conftest.py : voir ce module)
+"api/tests/test_serve.py" = ["F811"]
+"api/tests/test_background_runs.py" = ["F811"]
+"api/tests/test_cli_backend.py" = ["F811"]
