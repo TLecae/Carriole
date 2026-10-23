@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Installers rebuilt from the cleaned-up sources: documentation, comments and the AI assistant's instructions no
+  longer compare Carriole with other tools.
+- Simpler website.
+
 ## 0.1.0 — first public release
 
 - Geospatial-first visual ETL: flow editor, 104 modifiers (vector, raster, databases), table and map inspector,

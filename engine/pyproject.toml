@@ -1,6 +1,6 @@
 [project]
 name = "etl-engine"
-version = "0.1.0"
+version = "0.1.1"
 description = "Moteur d'exécution, SDK des modificateurs et CLI"
 requires-python = ">=3.12"
 dependencies = [
