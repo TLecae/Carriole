@@ -5,9 +5,9 @@
 - **Modifie** : ADR 0008 (SDK), et les noms de types de toutes les ADR précédentes
 
 ## Contexte
-Carriole est publié en open source (ADR 0039). Ses briques s'appelaient « transformers » et la plupart portaient le
-même nom technique que leur équivalent dans FME (`AttributeCreator`, `Tester`, `Bufferer`…), jusqu'aux noms de
-certains ports (`requestor` / `supplier`, `clippee` / `clipper`). L'auteur ne veut pas qu'on puisse y voir une copie.
+Carriole est publié en open source (ADR 0039). Ses briques s'appelaient « transformers » et leurs noms techniques
+(`AttributeCreator`, `Tester`, `Bufferer`…, ports `requestor` / `supplier`, `clippee` / `clipper`) reprenaient ceux
+d'un logiciel commercial. L'auteur veut un vocabulaire propre au projet.
 
 ## Décision
 1. **Le concept s'appelle « modifier »** dans le code et en anglais, **« modificateur »** en français : classe
@@ -18,7 +18,7 @@ certains ports (`requestor` / `supplier`, `clippee` / `clipper`). L'auteur ne ve
    `JoinByField`, `LookupJoin`, `FixGeometries`, `CountPointsInPolygon`, `ExecuteSql`… Gardés tels quels : les
    noms génériques (`Counter`, `RasterCalculator`, `ZonalStatistics`, `STACSearch`) et les lecteurs / écrivains de
    formats (`CsvReader`, `PostgresWriter`…).
-3. **Ports renommés** quand ils reprenaient FME : `Clip` (`input`, `overlay`), `ClipRasterByMask` (`mask`),
+3. **Ports renommés** quand ils reprenaient ces noms : `Clip` (`input`, `overlay`), `ClipRasterByMask` (`mask`),
    `LookupJoin` (`input`, `lookup` ; `Joined`, `Unjoined`, `UnusedLookup` ; paramètres `input_keys`,
    `lookup_keys`), sorties `output` pour `Aggregate`, `Dissolve`, `OverlayPolygons`.
 4. **Migration à la lecture** (`etl_engine/renames.py`) : un flux, un composant publié ou un flux en base enregistré
@@ -30,4 +30,3 @@ certains ports (`requestor` / `supplier`, `clippee` / `clipper`). L'auteur ne ve
 ## Conséquences
 - Les flux écrits avant le renommage restent lisibles ; ceux écrits après ne s'ouvrent plus dans une version
   antérieure.
-- Les documents de suivi qui comparent explicitement à FME (`plan_jalons.md`, `ecarts_fme.md`) gardent les noms FME.

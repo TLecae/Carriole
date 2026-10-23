@@ -6,7 +6,7 @@
 ## Contexte
 « Lecture de fichier » et « Écriture de fichier » servaient tous les formats : leur formulaire mêlait le séparateur
 et les colonnes X/Y du CSV, la couche du GeoPackage, la feuille et la plage d'Excel, la compression de GeoParquet…
-chacun annoté « (CSV) », « (Excel) ». L'utilisateur demande, comme dans FME, un modificateur par format, pour
+chacun annoté « (CSV) », « (Excel) ». L'utilisateur demande un modificateur par format, pour
 séparer les réglages et faciliter la prise en main.
 
 ## Décision

@@ -1643,7 +1643,7 @@ Writes the features to a table of a SpatiaLite database (.sqlite), created if ne
 
 - **Inputs** : `input` — **Outputs** : none — **Processing** : streaming
 
-Several writers can target different tables of the same database: in "overwrite" mode, only the targeted table is replaced. A database created by Carriole is a SpatiaLite database (read by QGIS, FME…). On a network share, the file is written locally then published in one go: an error or a stop along the way leaves the existing file intact.
+Several writers can target different tables of the same database: in "overwrite" mode, only the targeted table is replaced. A database created by Carriole is a SpatiaLite database (read by QGIS…). On a network share, the file is written locally then published in one go: an error or a stop along the way leaves the existing file intact.
 
 | Parameter | Role | Default |
 | --- | --- | --- |

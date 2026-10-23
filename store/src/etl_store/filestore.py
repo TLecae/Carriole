@@ -1,6 +1,6 @@
 """Flux et composants en fichiers (poste de bureau).
 
-Comme les .fmw de FME : un flux est un fichier JSON rangé où l'équipe veut (le plus souvent sur le partage), et
+Un flux est un fichier JSON rangé où l'équipe veut (le plus souvent sur le partage), et
 l'application ne garde que la liste des flux récents. Les runs, événements, connexions et planifications restent dans
 la base locale (`Store`) : ils sont propres au poste.
 

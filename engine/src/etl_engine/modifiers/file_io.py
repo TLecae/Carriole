@@ -1,4 +1,4 @@
-"""Un lecteur et un écrivain par format de fichier (comme FME) : chacun n'a que les réglages de son format.
+"""Un lecteur et un écrivain par format de fichier : chacun n'a que les réglages de son format.
 
 `FileReader` et `FileWriter` portent la mécanique commune (motifs de fichiers, schéma, lots, écriture locale puis
 publiée sur un partage) ; chaque format déclare ses extensions et ses paramètres. Les anciens « Lecture de fichier »
@@ -535,7 +535,7 @@ class SpatiaLiteWriter(FileWriter):
     description = "Écrit les entités dans une table d'une base SpatiaLite (.sqlite), créée si besoin."
     help = (
         "Plusieurs écritures peuvent viser des tables différentes de la même base : en mode « overwrite », seule la "
-        "table visée est remplacée. Une base créée par Carriole est une base SpatiaLite (lue par QGIS, FME…). " + SHARE
+        "table visée est remplacée. Une base créée par Carriole est une base SpatiaLite (lue par QGIS…). " + SHARE
     )
     formats = ("sqlite",)
 

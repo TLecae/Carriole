@@ -4,7 +4,7 @@ import path from "node:path";
 import { IN } from "./paths";
 import { addFromPalette, chooseMenu } from "./ui";
 
-// Mode « fichiers » (poste de bureau) : un flux est un fichier JSON, comme un .fmw. Lancé avec E2E_MODE=files.
+// Mode « fichiers » (poste de bureau) : un flux est un fichier JSON. Lancé avec E2E_MODE=files.
 const folder = () => process.env.E2E_FILES!;
 
 /** Dans l'explorateur de la page (l'application de bureau ouvre à la place le dialogue natif du système). */

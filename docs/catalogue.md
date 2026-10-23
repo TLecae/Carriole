@@ -1643,7 +1643,7 @@ Modes : « create » échoue si la table existe ; « overwrite » la recrée ; �
 
 - **Entrées** : `input` — **Sorties** : aucune — **Traitement** : au fil de l'eau
 
-Plusieurs écritures peuvent viser des tables différentes de la même base : en mode « overwrite », seule la table visée est remplacée. Une base créée par Carriole est une base SpatiaLite (lue par QGIS, FME…). Sur un partage réseau, le fichier est écrit en local puis publié d'un bloc : une erreur ou un arrêt en cours de route laisse le fichier existant intact.
+Plusieurs écritures peuvent viser des tables différentes de la même base : en mode « overwrite », seule la table visée est remplacée. Une base créée par Carriole est une base SpatiaLite (lue par QGIS…). Sur un partage réseau, le fichier est écrit en local puis publié d'un bloc : une erreur ou un arrêt en cours de route laisse le fichier existant intact.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |

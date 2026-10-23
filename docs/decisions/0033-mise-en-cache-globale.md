@@ -1,4 +1,4 @@
-# ADR 0033 — Mise en cache globale, comme FME
+# ADR 0033 — Mise en cache globale
 
 - **Statut** : accepté ; point 3 précisé par l'[ADR 0038](0038-carte-fluide-et-run-jusqu-au-noeud.md) (« jusqu'au nœud » reprend les lectures)
 - **Date** : 2026-10-13
@@ -6,7 +6,7 @@
 
 ## Contexte
 Chaque nœud avait son réglage de cache, et la reprise des nœuds inchangés passait par une commande à part
-(« Relancer (cache) »). L'utilisateur demande de gérer le cache au niveau global, comme la mise en cache de FME.
+(« Relancer (cache) »). L'utilisateur demande de gérer le cache au niveau global, pour tout le flux.
 
 ## Décision
 1. **Un interrupteur** « Cache » à côté de « Lancer » (et dans le menu *Exécution*), retenu d'une session à l'autre

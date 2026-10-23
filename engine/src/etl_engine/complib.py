@@ -2,7 +2,7 @@
 
 Un composant est un fichier de flux JSON qui déclare `component` (voir `etl_engine.components`), rangé dans un
 dossier de composants : `ETL_COMPONENTS_DIR` (plusieurs dossiers séparés par `os.pathsep`) et le réglage
-`component_dirs`. Les dossiers sont typiquement sur le partage de l'équipe, comme les custom modificateurs de FME.
+`component_dirs`. Les dossiers sont typiquement sur le partage de l'équipe.
 
 Versions (ADR 0017) : une version publiée est un instantané immuable rangé à côté du fichier, `<nom>.v<N>.json`,
 dans une enveloppe `{"component_version": {version, note, author, created_at}, "flow": {...}}`. Le fichier du

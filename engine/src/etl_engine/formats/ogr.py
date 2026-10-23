@@ -213,7 +213,7 @@ class OgrWriter:
             os.remove(self.path)
         creation: dict[str, Any] = {"FORMAT": "MIF"} if self.fmt == "mif" else {}
         if self.fmt == "sqlite" and not os.path.exists(self.path):
-            creation["SPATIALITE"] = "YES"  # base SpatiaLite (métadonnées géométriques lues par QGIS, FME…)
+            creation["SPATIALITE"] = "YES"  # base SpatiaLite (métadonnées géométriques lues par QGIS…)
         pyogrio.raw.write_arrow(
             data,
             self.path,

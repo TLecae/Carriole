@@ -1240,7 +1240,7 @@
   "SpatiaLiteReader.params.where.description": "SQL condition applied while reading; empty = every feature.",
   "SpatiaLiteReader.params.where.title": "Attribute filter",
   "SpatiaLiteWriter.description": "Writes the features to a table of a SpatiaLite database (.sqlite), created if needed.",
-  "SpatiaLiteWriter.help": "Several writers can target different tables of the same database: in \"overwrite\" mode, only the targeted table is replaced. A database created by Carriole is a SpatiaLite database (read by QGIS, FME…). On a network share, the file is written locally then published in one go: an error or a stop along the way leaves the existing file intact.",
+  "SpatiaLiteWriter.help": "Several writers can target different tables of the same database: in \"overwrite\" mode, only the targeted table is replaced. A database created by Carriole is a SpatiaLite database (read by QGIS…). On a network share, the file is written locally then published in one go: an error or a stop along the way leaves the existing file intact.",
   "SpatiaLiteWriter.label": "SQLite / SpatiaLite writer",
   "SpatiaLiteWriter.params.layer.description": "Table name; empty = the file name.",
   "SpatiaLiteWriter.params.layer.title": "Table",

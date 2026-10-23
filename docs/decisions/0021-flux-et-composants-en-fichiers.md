@@ -5,7 +5,7 @@
 - **Complète** : [0002](0002-format-json-des-flux.md), [0014](0014-composants.md), [0017](0017-versions-de-composants.md)
 
 ## Contexte
-L'équipe range ses flux FME sur le serveur de fichiers commun et s'y retrouve. L'atelier de bureau doit faire pareil,
+L'équipe range ses flux de traitement sur le serveur de fichiers commun et s'y retrouve. L'atelier de bureau doit faire pareil,
 sans serveur de métadonnées partagé : chaque poste a sa base locale (runs, planifications, connexions).
 
 ## Décision
@@ -27,7 +27,7 @@ sans serveur de métadonnées partagé : chaque poste a sa base locale (runs, pl
   et l'enregistrement. Les routes, l'exécuteur et le planificateur ne voient pas la différence.
 
 ## Conséquences
-- Pas de verrou d'édition entre collègues (comme FME) : la détection de changement évite d'écraser, pas de co-édition.
+- Pas de verrou d'édition entre collègues : la détection de changement évite d'écraser, pas de co-édition.
 - Un flux planifié dont le fichier a disparu ou est sur un lecteur injoignable échoue avec un message dans
   `last_error` ; préférer les chemins UNC (`\\serveur\…`) aux lettres de lecteur pour les planifications.
 - Les composants d'une équipe se partagent en pointant `component_dirs` vers le même dossier du partage.

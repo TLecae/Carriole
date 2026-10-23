@@ -151,7 +151,7 @@ def fingerprint(node_type: str, inst: Any, upstream: list[tuple[str, str, str]])
 
 def reusable_kind(inst: Any, partial: bool = False) -> bool:
     """Un nœud peut-il être repris d'un run précédent ? Jamais une écriture (sans sortie). Une source externe
-    (`reusable = "partial"` : base, API…) seulement dans un run « jusqu'au nœud » (`partial`), comme le cache de FME."""
+    (`reusable = "partial"` : base, API…) seulement dans un run « jusqu'au nœud » (`partial`)."""
     cls = type(inst)
     kind = getattr(cls, "reusable", True)
     return bool(cls.outputs) and (kind is True or (partial and kind == "partial"))
@@ -305,7 +305,7 @@ def run_flow(
     # empreintes de tous les nœuds, dans l'ordre topologique (celle d'un nœud dépend de celles de son amont) : un run
     # « jusqu'au nœud » reprend aussi, sans les exécuter, les nœuds hors de sa branche encore valables
     partial = target is not None
-    effective_cache = {nid: cache for nid in plan.order}  # réglage global du run (comme la mise en cache de FME)
+    effective_cache = {nid: cache for nid in plan.order}  # réglage global du run
     prints: dict[str, str] = {}
     fresh = uuid.uuid4().hex  # empreinte propre à ce run : un nœud toujours relancé invalide aussi son aval
     for nid in plan.order:

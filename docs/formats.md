@@ -65,7 +65,7 @@ charge ([ADR 0040](decisions/0040-retrait-de-sql-server.md)).
 
 Bases fichiers (`.sqlite`, `.db`). La lecture prend une table **ou** une requête SQL (dialecte SQLite). Plusieurs
 écritures peuvent remplir des tables différentes de la même base ; *overwrite* ne remplace que la table visée. Une
-base créée par Carriole est une base **SpatiaLite** (métadonnées géométriques lues par QGIS ou FME). Pour un
+base créée par Carriole est une base **SpatiaLite** (métadonnées géométriques lues par QGIS). Pour un
 GeoPackage (qui est aussi une base SQLite), utiliser les modificateurs GeoPackage.
 
 ## PostgreSQL / PostGIS

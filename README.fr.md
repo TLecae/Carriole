@@ -26,7 +26,7 @@ Application de bureau (Windows, Linux) : elle lit et écrit vos fichiers (`Z:`, 
 - **Éditeur graphique** : flux récents, palette, ajout rapide au clavier, formulaires générés depuis le code des
   modificateurs (aide et exemples sur chaque champ), dialogues de fichiers, annuler/rétablir, copier-coller, signets,
   annotations.
-- **Des flux en fichiers JSON**, rangés où l'équipe veut (comme les .fmw) ; composants partagés par un dossier commun.
+- **Des flux en fichiers JSON**, rangés où l'équipe veut ; composants partagés par un dossier commun.
 - **104 modificateurs** (un lecteur et un écrivain par format de fichier, attributs, filtres, jointures, statistiques, géométrie, bases SQL (PostgreSQL, Oracle, SQLite), rasters et STAC…) : [catalogue](docs/catalogue.md).
 - **Assistant IA** (Claude, OpenAI, OpenRouter, Ollama) : il lit le flux, les fichiers et les runs, et propose des modifications que l'on applique d'un clic ; confidentialité réglable : [ADR 0027](docs/decisions/0027-assistant-ia.md).
 - **Formats géographiques** : PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, GeoParquet, FlatGeobuf, CSV (WKT ou X/Y), Excel ; rasters GeoTIFF/COG, JPEG 2000, NetCDF, catalogues STAC : [formats](docs/formats.md).
@@ -85,7 +85,7 @@ PostgreSQL de test facultatif : `ETL_TEST_PG` (voir `.env.example`). Navigateur 
 
 ## Construit avec
 
-Carriole repose sur ces projets libres :
+Principales bibliothèques libres utilisées :
 
 - **Moteur de données** : [DuckDB](https://duckdb.org) et son extension Spatial, [Apache Arrow](https://arrow.apache.org),
   [GDAL](https://gdal.org) (par [pyogrio](https://pyogrio.readthedocs.io) et
@@ -109,4 +109,3 @@ Liste complète avec les licences : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES
 ## Licence
 
 [MIT](LICENSE) © Thomas Lecae. Composants tiers livrés : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-FME est une marque de Safe Software Inc. ; Carriole n'est pas affilié à Safe Software.

@@ -3,10 +3,6 @@
 Les questions sont regroupées ici pour ne pas interrompre l'avancement. Chacune porte
 l'hypothèse retenue en attendant la réponse.
 
-## Q1. Mots de passe chiffrés dans des flux FME de l'échantillon — sans objet
-
-Les flux FME d'exemple et leur inventaire ont été retirés du dépôt (2026-10-13).
-
 ## Q2. Droits et authentification — tranchée : pas de droits fins
 
 Décision : pas de droits par flux ou par connexion pour l'instant. L'atelier n'authentifie pas ; un proxy

@@ -6,7 +6,7 @@ body:
     id: need
     attributes:
       label: What you want to do
-      description: The use case (and the FME equivalent, if any).
+      description: The use case, with an example if possible.
     validations:
       required: true
   - type: textarea

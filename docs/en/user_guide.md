@@ -20,7 +20,7 @@ Each node has **ports**: inputs on the left, outputs on the right. A node that k
 
 ## 2. Building a flow
 
-A **flow is a `.json` file**, stored wherever you like (usually on the team share, like an .fmw). When the application
+A **flow is a `.json` file**, stored wherever you like (usually on the team share). When the application
 opens, the **home page** lists your **recent** flows (description, location, node count, state of the last run): a click
 opens a flow, **Open a flow…** picks another file, **+ New flow** starts one, the search box filters the list. The cross
 **removes** a flow from the list and never deletes its file. In the editor, **⌂ Home** goes back without losing
@@ -58,9 +58,9 @@ any node parameter: `${NAME}`; environment variable of the machine: `${env:NAME}
 ## 3. Running and following
 
 - **Run** executes the flow; **Up to node** (*Run* menu or node bar) stops at the selected node, reusing the cache
-  of everything unchanged, **database reads included** (like FME's cache); nodes of the other branches stay
+  of everything unchanged, **database reads included**; nodes of the other branches stay
   inspectable.
-- **Caching** (*Cache* button next to *Run*, or *Run* menu), as in FME, one setting for the whole flow, remembered
+- **Caching** (*Cache* button next to *Run*, or *Run* menu): one setting for the whole flow, remembered
   between sessions:
   - **on** (default): the data of every node is kept, for the inspector; on the next run, **only the changed nodes
     (and their downstream) run**, the others are reused from the previous run (*cache* state). Writers, database,

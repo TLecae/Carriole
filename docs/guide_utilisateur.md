@@ -17,7 +17,7 @@ absent) arrête en revanche le flux, avec un message qui dit quel nœud et pourq
 
 ## 2. Construire un flux
 
-Un **flux est un fichier** `.json`, rangé où vous voulez (le plus souvent sur le partage de l'équipe, comme un .fmw).
+Un **flux est un fichier** `.json`, rangé où vous voulez (le plus souvent sur le partage de l'équipe).
 À l'ouverture, la **page d'accueil** liste vos flux **récents** (description, emplacement, nombre de nœuds, état du
 dernier run) : un clic ouvre un flux, **Ouvrir un flux…** en choisit un autre fichier, **+ Nouveau flux** en commence un,
 la recherche filtre la liste. La croix **retire** un flux de la liste sans jamais supprimer son fichier. Dans l'éditeur,
@@ -60,9 +60,9 @@ millésime, un fichier). Dans n'importe quel paramètre de nœud : `${NOM}` ; va
 ## 3. Lancer et suivre
 
 - **Lancer** exécute le flux ; **Jusqu'au nœud** (menu *Exécution* ou bandeau du nœud) s'arrête au nœud
-  sélectionné, en reprenant le cache de tout ce qui n'a pas changé, **y compris les lectures de base de données**
-  (comme le cache de FME) ; les nœuds des autres branches restent consultables.
-- **Mise en cache** (bouton *Cache* à côté de *Lancer*, ou menu *Exécution*), comme dans FME, un réglage pour tout
+  sélectionné, en reprenant le cache de tout ce qui n'a pas changé, **y compris les lectures de base de données** ;
+  les nœuds des autres branches restent consultables.
+- **Mise en cache** (bouton *Cache* à côté de *Lancer*, ou menu *Exécution*) : un réglage pour tout
   le flux, retenu d'une session à l'autre :
   - **activée** (par défaut) : les données de chaque nœud sont gardées, pour l'inspecteur ; au run suivant, **seuls
     les nœuds modifiés (et leur aval) tournent**, les autres sont repris du run précédent (état *cache*). Les

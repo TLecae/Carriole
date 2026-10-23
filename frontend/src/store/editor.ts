@@ -600,7 +600,7 @@ export const useEditor = create<EditorState>((set, get) => {
     // ---------------------------------------------------------------- exécution
     startRun: async ({ target = null, fresh = false, params } = {}) => {
       const { meta, nodes, edges, flowId, run, caching } = get();
-      // mise en cache (comme FME) : les nœuds inchangés depuis le dernier run sont repris, seuls les autres tournent
+      // mise en cache : les nœuds inchangés depuis le dernier run sont repris, seuls les autres tournent
       const reuse = caching && !fresh && run.id && run.cache ? run.id : null;
       const doc = toFlowDoc(meta, nodes, edges);
       try {

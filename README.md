@@ -24,7 +24,7 @@ a visual editor, run them in the background, and inspect every connection on a s
 
 In Carriole, geometry is not an afterthought. Every connection carries features with their coordinate reference
 system, modifiers are geometry-aware, and any intermediate result can be looked at on a map. It is a desktop
-application for GIS teams who want the comfort of visual workflows (in the spirit of FME) with modifiers that are
+application for GIS teams who want visual workflows with modifiers that are
 plain Python files they can read and write.
 
 - **Spatial formats, read and written**: PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo (TAB, MIF), GeoJSON,
@@ -116,7 +116,7 @@ in French; issues and pull requests are welcome in English or French.
 
 ## Built with
 
-Carriole stands on the shoulders of these open source projects:
+Main open source libraries used:
 
 - **Data engine**: [DuckDB](https://duckdb.org) and its Spatial extension, [Apache Arrow](https://arrow.apache.org),
   [GDAL](https://gdal.org) (through [pyogrio](https://pyogrio.readthedocs.io) and
@@ -139,4 +139,3 @@ Full list with licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 ## License
 
 [MIT](LICENSE) © Thomas Lecae. Bundled third-party components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-FME is a trademark of Safe Software Inc.; Carriole is not affiliated with Safe Software.

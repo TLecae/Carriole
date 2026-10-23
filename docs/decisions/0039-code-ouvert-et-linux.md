@@ -12,7 +12,7 @@ des tâches. Des utilisateurs travaillent sous Linux.
 ## Décision
 1. **Licence MIT** (`LICENSE`), auteur Thomas Lecae. Les composants tiers livrés dans les installeurs sont listés
    dans `THIRD_PARTY_NOTICES.md` (`scripts/third_party_notices.py`), livré avec l'application.
-2. **Dépôt public sans l'historique de développement** : il contenait des flux FME et des références internes. Le
+2. **Dépôt public sans l'historique de développement** : il contenait des flux de l'équipe et des références internes. Le
    dépôt public part d'un commit initial.
 3. **Logo** : seulement « i/o » en ambre sur le carré bleu (mêmes couleurs), lisible en 16 px. Le nom s'écrit
    « Carr**i/o**le » (le « i/o » en ambre) dans la barre du haut et la fenêtre d'ouverture.

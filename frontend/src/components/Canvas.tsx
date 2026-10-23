@@ -52,7 +52,7 @@ export function Canvas() {
   }, []);
   const [quick, setQuick] = useState<{ text: string; at: { x: number; y: number } } | null>(null);
 
-  // Saisie directe sur le canvas : taper un caractère ouvre l'ajout rapide, comme dans FME.
+  // Saisie directe sur le canvas : taper un caractère ouvre l'ajout rapide.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;

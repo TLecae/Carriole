@@ -8,7 +8,7 @@
   ([ADR 0040](decisions/0040-retrait-de-sql-server.md)). Restent PostgreSQL / PostGIS, Oracle et SQLite / SpatiaLite.
   104 modificateurs.
 - « Transformers » devient **modificateurs** (« modifiers » dans le code et en anglais) ; noms techniques originaux,
-  inspirés des outils SIG (QGIS) plutôt que de FME ; ports `requestor` / `supplier`, `clippee` / `clipper` renommés ;
+  inspirés des outils SIG (QGIS) ; ports `requestor` / `supplier`, `clippee` / `clipper` renommés ;
   anciens flux migrés à la lecture, anciens plugins acceptés : [ADR 0041](decisions/0041-modificateurs.md).
 - Site et README : bibliothèques libres sur lesquelles repose Carriole.
 
@@ -94,14 +94,14 @@ Le moteur tient un journal (`logs/server.log`, pile des plantages natifs) :
 
 ## Mise en cache globale (2026-10-13)
 
-Comme FME : un interrupteur « Cache » à côté de « Lancer » remplace le réglage de chaque nœud
+Un interrupteur « Cache » à côté de « Lancer » remplace le réglage de chaque nœud
 ([ADR 0033](decisions/0033-mise-en-cache-globale.md)). Activé, « Lancer » ne recalcule que les nœuds modifiés et leur
 aval ; les écritures et les sources externes (base, API web, STAC, SQL, flux lancés) sont toujours relancées, avec
 leur aval. « Tout relancer » force un run complet. Désactivé : rien n'est gardé, l'inspecteur l'explique.
 
 ## Un lecteur et un écrivain par format (2026-10-13)
 
-« Lecture de fichier » / « Écriture de fichier » remplacés par un modificateur par format, comme dans FME : CSV,
+« Lecture de fichier » / « Écriture de fichier » remplacés par un modificateur par format : CSV,
 Excel, GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GeoParquet, MapInfo ([ADR 0032](decisions/0032-un-lecteur-par-format.md)).
 Chacun n'a que ses réglages, et « Parcourir… » ne montre que ses fichiers. Catégories « Lecture » et « Écriture »
 (PostgreSQL compris). Les flux existants sont convertis à l'ouverture ; un chemin sans format déductible garde
@@ -297,7 +297,7 @@ Retours après essai : le logiciel doit pouvoir être diffusé (ouvert ou vendu)
   vrais dossiers temporaires (`tests/paths.ts`).
 - **Écriture en deux temps automatique** sur tout chemin UNC ou lecteur réseau mappé (elle n'était active que par
   variable d'environnement : sur le poste, un GeoPackage écrit sur `Z:` ne la recevait pas).
-- **Barre du haut** : menus *Fichier*, *Édition*, *Exécution*, *Outils* (comme FME), actions courantes visibles
+- **Barre du haut** : menus *Fichier*, *Édition*, *Exécution*, *Outils*, actions courantes visibles
   (Enregistrer, Annuler/Rétablir, Lancer, Arrêter), *Runs*, *Assistant* et *Paramètres* à droite ; icônes ; composants
   communs à l'accueil et à l'éditeur (`AppBar`, `Menu`) ; la barre native d'Electron est masquée. Les champs
   « utilisateur » et « e-mail » quittent la barre pour *Paramètres*.
@@ -485,7 +485,6 @@ navigateurs.
 
 ## Suites des questions ouvertes (2026-10-08)
 
-- **Q1** : mots de passe `fme_decrypt` masqués dans les trois flux d'échantillon, désormais versionnés.
 - **Q2** : pas de droits fins (décision).
 - **Q3** : versions de composants publiées et épinglables dans le nœud ([ADR 0017](decisions/0017-versions-de-composants.md)).
 - **Q4** : essai R-tree sur 10 M de points : 5 à 10 s par tuile à z7-z9, abandonné ([ADR 0010](decisions/0010-cache-geoparquet-vue-et-tuiles.md)).
@@ -566,7 +565,6 @@ message qui renvoie vers Reproject).
 - Les modificateurs bloquants chargent leurs entrées en mémoire (voie plus économe au jalon 7).
 - Pas d'équivalent « overlay » complet (OverlayPolygons) : Clip en mode « each » couvre
   l'intersection avec attributs.
-- Écarts d'usage par rapport à FME : aucun import de flux n'étant prévu, ils ne sont pas suivis.
 
 ## Jalon 5 — Formats (2026-10-07)
 
@@ -686,10 +684,9 @@ Objectifs tenus. Le GeoPackage est le goulot (écriture lot par lot) : à retrav
 
 **Livré**
 - Dépôt git, secrets hors du dépôt (`.env` non versionné).
-- Analyse d'un échantillon de flux FME (non publié) : sert à ordonner le catalogue.
-  Pas d'importeur FME (recadrage du 2026-10-07).
+- Analyse d'un échantillon de flux de l'équipe (non publié) : sert à ordonner le catalogue.
 - 12 [ADR](decisions/), squelette `engine/ api/ worker/ frontend/`, CI locale.
 
 **Constats**
-- Top des modificateurs FME (nombre de flux) : AddAttributes, RefactorAttributes, RouteByExpression,
+- Modificateurs les plus utilisés dans l'échantillon : AddAttributes, RefactorAttributes, RouteByExpression,
   StatisticsByGroup, RenameAttributes, RetainAttributes, ExtractByExpression, DatabaseQuery, Reproject, JoinByField.

@@ -6,7 +6,7 @@ from etl_engine.registry import Registry
 
 from etl_assistant.privacy import Privacy
 
-RULES = """You are the assistant of Carriole, a visual data-flow tool for GIS teams (like FME). A flow is a graph of
+RULES = """You are the assistant of Carriole, a visual data-flow tool for GIS teams. A flow is a graph of
 nodes (modifiers) joined by links from an output port to an input port. Users build flows to read files and
 databases, transform tabular, vector and raster data, and write the results.
 

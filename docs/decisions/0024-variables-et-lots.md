@@ -6,7 +6,7 @@
 ## Contexte
 Un flux ne sait traiter qu'un fichier à la fois, avec des paramètres saisis au lancement. Les équipes SIG ont des
 dossiers de dizaines de fichiers (une commune par Shapefile), des valeurs qui dépendent des données (« la date la plus
-récente de la table ») et des flux qui en appellent d'autres, comme dans FME.
+récente de la table ») et des flux qui en appellent d'autres.
 
 ## Décisions
 **Variables** (une seule syntaxe, `${…}`, dans n'importe quel paramètre de nœud) :
