@@ -1,7 +1,7 @@
 {
   "name": "carriole",
   "productName": "Carriole",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Carriole, the geospatial-first ETL (desktop application)",
   "desktopName": "carriole.desktop",
   "author": "Thomas Lecae",

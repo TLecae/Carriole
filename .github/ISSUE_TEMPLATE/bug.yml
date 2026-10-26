@@ -17,7 +17,7 @@ body:
     id: version
     attributes:
       label: Carriole version and operating system
-      placeholder: "0.1.1, Windows 11 / Ubuntu 24.04"
+      placeholder: "0.1.2, Windows 11 / Ubuntu 24.04"
     validations:
       required: true
   - type: textarea

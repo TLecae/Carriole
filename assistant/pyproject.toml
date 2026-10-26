@@ -1,6 +1,6 @@
 [project]
 name = "etl-assistant"
-version = "0.1.1"
+version = "0.1.2"
 description = "Assistant IA : fournisseurs (Anthropic, compatibles OpenAI), outils de lecture et d'action, boucle d'agent"
 requires-python = ">=3.12"
 dependencies = [

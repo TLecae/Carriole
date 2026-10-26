@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- GeoParquet reader: reads an `https://` address by ranges, so only the needed parts of the file are downloaded
+  (with *Maximum rows read*, little more than those rows); uses the proxy from the settings, and a file changed on the
+  server is read again on the next run. DuckDB's `httpfs` extension ships with the installers.
+- Other readers reject a web address with a clear message.
+
 ## 0.1.1
 
 - Installers rebuilt from the cleaned-up sources: documentation, comments and the AI assistant's instructions no
