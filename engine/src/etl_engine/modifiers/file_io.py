@@ -27,12 +27,19 @@ READ_OPTIONS = (
 )  # fmt: skip
 
 
-def path_field(extensions: tuple[str, ...], example: str, access: Literal["read", "write"] = "read") -> Any:
-    """Champ « Fichier » : l'explorateur ne montre que les fichiers de ces extensions."""
+def path_field(
+    extensions: tuple[str, ...], example: str, access: Literal["read", "write"] = "read", web: bool = False
+) -> Any:
+    """Champ « Fichier » : l'explorateur ne montre que les fichiers de ces extensions ; `web` : une adresse https://
+    est aussi acceptée (lecteur `web`)."""
     extra: dict[str, Any] = {"x-etl-extensions": list(extensions)}
     if access == "write":
         extra["x-etl-access"] = "write"
-    if access == "read":
+    if access == "read" and web:
+        description = (
+            "Chemin du fichier, motif (*.ext, dossier/**/*.ext : tous les fichiers trouvés) ou adresse web https://."
+        )
+    elif access == "read":
         description = "Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés."
     else:
         description = "Chemin du fichier à écrire (dossiers créés si besoin)."
@@ -96,6 +103,7 @@ class FileReader(Modifier):
     outputs = ("output",)
     rejected = False
     formats: ClassVar[tuple[str, ...]] = ()  # formats de `etl_engine.formats` (le premier : par défaut)
+    web: ClassVar[bool] = False  # accepte aussi une adresse http(s) (lue par plages, sans téléchargement complet)
 
     def _patterns(self) -> list[str]:
         return [x for x in [getattr(self.params, "path", ""), *getattr(self.params, "paths", [])] if x]
@@ -122,10 +130,15 @@ class FileReader(Modifier):
     def _files(self) -> list[str]:
         files: list[str] = []
         for pattern in self._patterns():
-            found = sorted(glob.glob(pattern, recursive=True))
+            if formats.is_remote(pattern):
+                if not self.web:
+                    raise ConfigError(f"ce lecteur ne lit pas d'adresse web : {pattern}")
+                found = [pattern]
+            else:
+                found = sorted(glob.glob(pattern, recursive=True))
+                for f in found:
+                    paths.check(f, "read")  # dossiers autorisés (ETL_READ_ROOTS)
             files.extend(f for f in found if f not in files)
-        for f in files:
-            paths.check(f, "read")  # dossiers autorisés (ETL_READ_ROOTS)
         return files
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
@@ -142,23 +155,34 @@ class FileReader(Modifier):
             return {"output": None}
 
     def fingerprint_extra(self) -> str:
-        return "|".join(f"{f}:{os.stat(f).st_mtime_ns}:{os.stat(f).st_size}" for f in self._files())
+        def version(f: str) -> str:
+            if formats.is_remote(f):
+                return formats.remote_stamp(f)  # ETag ou date : un fichier web modifié est relu
+            st = os.stat(f)
+            return f"{st.st_mtime_ns}:{st.st_size}"
+
+        return "|".join(f"{f}:{version(f)}" for f in self._files())
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
         fmt = self._fmt()
         files = self._files()
         for pattern in self._patterns():
-            if not glob.glob(pattern, recursive=True):
+            if not formats.is_remote(pattern) and not glob.glob(pattern, recursive=True):
                 raise ConfigError(f"fichier introuvable : {pattern}")
         opts = self._options()
         sources = self._patterns() if fmt == "csv" else files  # le CSV gère lui-même les motifs (union par nom)
         add_filename = getattr(self.params, "add_filename", False) and fmt != "csv"
+        if fmt == "parquet" and self.params.max_rows:
+            opts["limit"] = (
+                self.params.max_rows
+            )  # au plus autant par fichier : une adresse web n'en télécharge pas plus
 
         def batches() -> Iterator[pa.Table]:
             for src in sources:
                 for batch in formats.read_batches(fmt, src, self.ctx.batch_rows, **opts):
                     if add_filename and "filename" not in batch.column_names:
-                        batch = batch.append_column("filename", pa.array([os.path.basename(src)] * batch.num_rows))
+                        name = os.path.basename(src.split("?")[0])
+                        batch = batch.append_column("filename", pa.array([name] * batch.num_rows))
                     yield batch
 
         total = 0
@@ -300,12 +324,16 @@ class FlatGeobufReader(FileReader):
 class GeoParquetReader(FileReader):
     name = "GeoParquetReader"
     label = "Lecture GeoParquet"
-    description = "Lit un fichier Parquet ou GeoParquet."
-    help = "La géométrie et son système de coordonnées sont lus dans les métadonnées GeoParquet."
+    description = "Lit un fichier Parquet ou GeoParquet, sur le disque ou à une adresse web (https://)."
+    help = (
+        "La géométrie et son système de coordonnées sont lus dans les métadonnées GeoParquet. Une adresse https:// "
+        "est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des Paramètres)."
+    )
     formats = ("parquet",)
+    web = True
 
     class Params(Params):
-        path: str = path_field((".parquet", ".geoparquet"), "D:/donnees/communes.parquet")
+        path: str = path_field((".parquet", ".geoparquet"), "D:/donnees/communes.parquet", web=True)
         paths: list[FilePath] = other_files()
         add_filename: bool = filename_column()
         max_rows: int = row_limit()

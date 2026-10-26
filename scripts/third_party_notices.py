@@ -85,8 +85,9 @@ les composants ci-dessous, chacun sous sa propre licence (texte complet dans cha
 `resources/runtime/python` de l'installation). Le code source de Carriole : {REPOSITORY}.
 
 Également livrés : l'interpréteur **Python** (licence PSF), **Electron** et **Chromium** (MIT et licences listées
-dans `LICENSES.chromium.html` à côté de l'exécutable), l'extension **spatial** de DuckDB (MIT ; GDAL, GEOS, PROJ)
-et les grilles de transformation de l'**IGN** (Licence Ouverte Etalab 2.0).
+dans `LICENSES.chromium.html` à côté de l'exécutable), les extensions **spatial** (MIT ; GDAL, GEOS, PROJ) et
+**httpfs** (MIT ; OpenSSL, licence Apache 2.0) de DuckDB et les grilles de transformation de l'**IGN** (Licence
+Ouverte Etalab 2.0).
 
 ## Python
 

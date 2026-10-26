@@ -133,6 +133,9 @@ chargées depuis internet ; voir l'[installation](installation.md#fonds-de-plan-
   enregistrés avec l'ancienne *Lecture de fichier* sont convertis à l'ouverture.
 - **Lignes lues au plus** (tous les lecteurs, fichiers et bases) : pour essayer un flux sur un extrait, seules les N
   premières entités sont lues (0 = toutes). Le nœud porte alors une pastille « ≤ N » ; au survol, une bulle le rappelle.
+- **GeoParquet sur le web** : *Lecture GeoParquet* accepte une adresse `https://…/fichier.parquet`. Le fichier est lu
+  par plages : seules les parties utiles sont téléchargées (avec *Lignes lues au plus*, à peine plus que ces lignes).
+  Le proxy des *Paramètres* est utilisé ; un fichier modifié sur le serveur (ETag, date) est relu au run suivant.
 - **Écrire sur le partage** : un écrivain peut viser le partage de l'équipe. Deux flux qui modifient en même
   temps le même GeoPackage s'écrasent : éviter. Pour une tâche planifiée, préférer un chemin réseau (`//serveur/partage/…`)
   à une lettre de lecteur, que la session de la tâche ne voit pas toujours.

@@ -6,18 +6,22 @@ import contextlib
 import json
 import os
 import re
+import time
 from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any
 
+import duckdb
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pyproj
 import shapely
 
+from etl_engine import duck
 from etl_engine.atomic import part_name
 from etl_engine.data import GEOM, get_crs, has_geometry, with_crs
+from etl_engine.sdk import ConfigError
 
 _TYPE_NAMES = {
     0: "Point",
@@ -53,23 +57,97 @@ def _prepare(schema: pa.Schema, metadata: dict[bytes, bytes]) -> tuple[pa.Schema
     return with_crs(schema.remove_metadata(), crs), column, crs
 
 
+def is_remote(path: str) -> bool:
+    """Adresse web (http, https) : le fichier est lu par plages, par DuckDB, sans être téléchargé en entier."""
+    return path.lower().startswith(("http://", "https://"))
+
+
+_web_schemas: dict[str, tuple[float, pa.Schema, dict[bytes, bytes]]] = {}
+_web_failures: dict[str, tuple[float, str]] = {}
+WEB_SCHEMA_SECONDS = 60.0  # l'éditeur redemande le schéma à chaque modification du flux : pas une requête à chaque fois
+
+
+@contextlib.contextmanager
+def _web(url: str) -> Iterator[duckdb.DuckDBPyConnection]:
+    con = duck.connect("expr")
+    try:
+        con.execute(f"SET threads = {min(4, duck.machine_threads())}")  # plusieurs plages demandées à la fois
+        duck.load_httpfs(con)
+        con.execute("SET enable_geoparquet_conversion = false")  # géométrie en WKB, comme un fichier local
+        yield con
+    except duckdb.Error as exc:
+        raise ConfigError(f"lecture impossible : {url} : {str(exc).splitlines()[0]}") from None
+    finally:
+        con.close()
+
+
+def _web_footer(con: duckdb.DuckDBPyConnection, url: str) -> tuple[pa.Schema, dict[bytes, bytes]]:
+    """Schéma Arrow et métadonnées (« geo ») d'un fichier web, lus dans son pied de page."""
+    known = _web_schemas.get(url)
+    if known and time.monotonic() - known[0] < WEB_SCHEMA_SECONDS:
+        return known[1], known[2]
+    metadata = {
+        bytes(k): bytes(v) for k, v in con.execute("SELECT key, value FROM parquet_kv_metadata(?)", [url]).fetchall()
+    }
+    schema = con.execute("SELECT * FROM read_parquet(?) LIMIT 0", [url]).to_arrow_table().schema
+    _web_schemas[url] = (time.monotonic(), schema, metadata)
+    return schema, metadata
+
+
 def read_schema(path: str, **_: Any) -> pa.Schema:
-    pf = pq.ParquetFile(path)
-    schema, _, _ = _prepare(pf.schema_arrow, pf.metadata.metadata or {})
-    return schema
+    if is_remote(path):
+        failed = _web_failures.get(path)
+        if failed and time.monotonic() - failed[0] < WEB_SCHEMA_SECONDS:
+            raise ConfigError(failed[1])  # adresse injoignable : l'éditeur n'attend pas le réseau à chaque modification
+        try:
+            with _web(path) as con:
+                schema, metadata = _web_footer(con, path)
+        except ConfigError as exc:
+            _web_failures[path] = (time.monotonic(), str(exc))
+            raise
+    else:
+        pf = pq.ParquetFile(path)
+        schema, metadata = pf.schema_arrow, pf.metadata.metadata or {}
+    return _prepare(schema, metadata)[0]
 
 
-def read_batches(path: str, batch_rows: int, columns: list[str] | None = None, **_: Any) -> Iterator[pa.Table]:
+def read_batches(
+    path: str, batch_rows: int, columns: list[str] | None = None, limit: int | None = None, **_: Any
+) -> Iterator[pa.Table]:
+    """Lots du fichier ; `limit` : au plus autant de lignes (une adresse web n'en télécharge pas plus)."""
+    if is_remote(path):
+        yield from _read_web(path, batch_rows, columns, limit)
+        return
     pf = pq.ParquetFile(path)
     _, column, crs = _prepare(pf.schema_arrow, pf.metadata.metadata or {})
-    wanted = None
-    if columns is not None:
-        wanted = [column if (c == GEOM and column) else c for c in columns]
-    for rb in pf.iter_batches(batch_size=batch_rows, columns=wanted):
-        table = pa.Table.from_batches([rb])
-        if column and column != GEOM:
-            table = table.rename_columns([GEOM if n == column else n for n in table.column_names])
-        yield with_crs(table, crs)
+    for rb in pf.iter_batches(batch_size=batch_rows, columns=_wanted(columns, column)):
+        yield _named(pa.Table.from_batches([rb]), column, crs)
+
+
+def _wanted(columns: list[str] | None, column: str | None) -> list[str] | None:
+    """Colonnes à lire, la géométrie sous son nom dans le fichier."""
+    return None if columns is None else [column if (c == GEOM and column) else c for c in columns]
+
+
+def _named(table: pa.Table, column: str | None, crs: str | None) -> pa.Table:
+    if column and column != GEOM:
+        table = table.rename_columns([GEOM if n == column else n for n in table.column_names])
+    if GEOM in table.column_names:  # sans l'extension « geoarrow.wkb » que DuckDB pose : comme un fichier local
+        index = table.column_names.index(GEOM)
+        table = table.set_column(index, table.field(index).remove_metadata(), table.column(index))
+    return with_crs(table, crs)
+
+
+def _read_web(url: str, batch_rows: int, columns: list[str] | None, limit: int | None) -> Iterator[pa.Table]:
+    with _web(url) as con:
+        schema, metadata = _web_footer(con, url)
+        _, column, crs = _prepare(schema, metadata)
+        wanted = _wanted(columns, column)
+        select = "*" if wanted is None else ", ".join('"' + c.replace('"', '""') + '"' for c in wanted)
+        bound = f" LIMIT {int(limit)}" if limit else ""
+        reader = con.execute(f"SELECT {select} FROM read_parquet(?){bound}", [url]).to_arrow_reader(batch_rows)
+        for rb in reader:
+            yield _named(pa.Table.from_batches([rb]), column, crs)
 
 
 class ParquetWriter:

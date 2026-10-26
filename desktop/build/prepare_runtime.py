@@ -1,4 +1,4 @@
-"""Prépare le Python embarqué : extension spatiale de DuckDB, grilles PROJ françaises, bytecode.
+"""Prépare le Python embarqué : extensions spatiale et web (httpfs) de DuckDB, grilles PROJ françaises, bytecode.
 
 Lancé PAR le Python embarqué (voir scripts/build_desktop.ps1) : `python prepare_runtime.py <dossier runtime>`.
 Ce qui est téléchargé ici ne l'est donc jamais chez l'utilisateur : le poste n'a pas besoin d'internet pour fonctionner.
@@ -20,12 +20,15 @@ def main(runtime: Path) -> None:
     ext.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
     con.execute("SET extension_directory = ?", [str(ext)])
-    con.execute("INSTALL spatial")
-    # contrôle : l'extension se charge depuis ce dossier, sans réseau
+    for name in ("spatial", "httpfs"):  # httpfs : GeoParquet lu à une adresse https://
+        con.execute(f"INSTALL {name}")
+    # contrôle : les extensions se chargent depuis ce dossier, sans réseau
     check = duckdb.connect()
     check.execute("SET extension_directory = ?", [str(ext)])
-    check.execute("LOAD spatial")
-    print("extension spatiale DuckDB :", sorted(p.name for p in ext.rglob("*.duckdb_extension")))
+    check.execute("SET autoinstall_known_extensions = false")
+    for name in ("spatial", "httpfs"):
+        check.execute(f"LOAD {name}")
+    print("extensions DuckDB :", sorted(p.name for p in ext.rglob("*.duckdb_extension")))
 
     proj = runtime / "proj"
     proj.mkdir(parents=True, exist_ok=True)

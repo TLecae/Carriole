@@ -1400,15 +1400,15 @@ Give the layer if the GeoPackage holds several (empty: the first one).
 
 ### GeoParquet reader — `GeoParquetReader` {#geoparquetreader}
 
-Reads a Parquet or GeoParquet file.
+Reads a Parquet or GeoParquet file, on disk or at a web address (https://).
 
 - **Inputs** : none — **Outputs** : `output` — **Processing** : streaming
 
-The geometry and its coordinate system are read from the GeoParquet metadata.
+The geometry and its coordinate system are read from the GeoParquet metadata. An https:// address is read by ranges: only the useful parts of the file are downloaded (proxy from Settings).
 
 | Parameter | Role | Default |
 | --- | --- | --- |
-| File | File path; patterns accepted (*.ext, folder/**/*.ext): every file found. |  |
+| File | File path, pattern (*.ext, folder/**/*.ext: every file found) or https:// web address. |  |
 | Other files | Files or patterns read in addition to "File" (their schemas must be compatible). |  |
 | Add the file name | Adds the "filename" column (useful with a file pattern). | false |
 | Maximum rows read | To try a flow on a sample: only the first N features are read; 0 = all. | `0` |

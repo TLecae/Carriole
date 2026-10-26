@@ -126,6 +126,9 @@ basemap (offline) or a custom tile address. Tiles are loaded from the internet; 
   *File reader* are converted when opened.
 - **Maximum rows read** (every reader, files and databases): to try a flow on a sample, only the first N features
   are read (0 = all). The node then shows a “≤ N” badge; hovering it shows a reminder.
+- **GeoParquet on the web**: *GeoParquet reader* accepts an `https://…/file.parquet` address. The file is read by
+  ranges: only the useful parts are downloaded (with *Maximum rows read*, barely more than those rows). The proxy from
+  *Settings* is used; a file changed on the server (ETag, date) is read again on the next run.
 - **Writing to the share**: a writer can target the team share. Two flows modifying the same GeoPackage at the
   same time overwrite each other: avoid it. For a scheduled task, prefer a network path (`//server/share/…`) to a
   drive letter, which the task's session does not always see.

@@ -1022,15 +1022,15 @@ Indiquer la couche si le GeoPackage en contient plusieurs (vide : la première).
 
 ### Lecture GeoParquet — `GeoParquetReader` {#geoparquetreader}
 
-Lit un fichier Parquet ou GeoParquet.
+Lit un fichier Parquet ou GeoParquet, sur le disque ou à une adresse web (https://).
 
 - **Entrées** : aucune — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-La géométrie et son système de coordonnées sont lus dans les métadonnées GeoParquet.
+La géométrie et son système de coordonnées sont lus dans les métadonnées GeoParquet. Une adresse https:// est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des Paramètres).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| Fichier | Chemin du fichier, motif (*.ext, dossier/**/*.ext : tous les fichiers trouvés) ou adresse web https://. |  |
 | Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
 | Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
 | Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |

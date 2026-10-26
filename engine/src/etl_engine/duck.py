@@ -16,6 +16,7 @@ import threading
 import uuid
 from pathlib import Path
 from typing import Literal
+from urllib.parse import unquote, urlsplit
 
 import duckdb
 import psutil
@@ -51,6 +52,24 @@ def load_spatial(con: duckdb.DuckDBPyConnection) -> None:
     # La géométrie d'un fichier GeoParquet (métadonnées « geo », gardées par un port qui le lit) reste du WKB, comme
     # partout ailleurs : convertie en GEOMETRY, elle cassait ST_GeomFromWKB et la lecture de l'en-tête WKB.
     con.execute("SET enable_geoparquet_conversion = false")
+
+
+def load_httpfs(con: duckdb.DuckDBPyConnection) -> None:
+    """Charge l'extension de lecture sur le web (http, https), préinstallée comme l'extension spatiale, avec le proxy
+    des paramètres (`HTTPS_PROXY`, voir `settings.apply_environment`). Lève `duckdb.Error`."""
+    configure(con)
+    try:
+        con.execute("LOAD httpfs")
+    except duckdb.Error:
+        con.execute("INSTALL httpfs")
+        con.execute("LOAD httpfs")
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or os.environ.get("HTTP_PROXY")
+    if proxy:
+        found = urlsplit(proxy if "://" in proxy else f"http://{proxy}")
+        con.execute("SET http_proxy = ?", [f"{found.hostname}:{found.port or 80}"])
+        if found.username:
+            con.execute("SET http_proxy_username = ?", [unquote(found.username)])
+            con.execute("SET http_proxy_password = ?", [unquote(found.password or "")])
 
 
 def spatial_available() -> bool:

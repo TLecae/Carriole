@@ -2,7 +2,7 @@
 
 | Format | Lecture | Écriture | Modificateur | Notes |
 | --- | --- | --- | --- | --- |
-| GeoParquet | oui | oui (partitionnée possible) | Reader / Writer | format natif du cache ; compression zstd, snappy, gzip |
+| GeoParquet | oui, aussi à une adresse https:// (lecture par plages) | oui (partitionnée possible) | Reader / Writer | format natif du cache ; compression zstd, snappy, gzip |
 | GeoPackage | oui (couche) | oui (plusieurs couches, ajout) | Reader / Writer | un Writer par couche dans le même fichier |
 | Shapefile | oui | oui | Reader / Writer | voir limites ci-dessous |
 | MapInfo TAB / MIF-MID | oui | oui | Reader / Writer | précision ~1 cm en Lambert-93 |

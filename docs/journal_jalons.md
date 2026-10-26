@@ -1,5 +1,14 @@
 # Journal des jalons
 
+## GeoParquet sur le web ; point sur Python 3.14 sans GIL (2026-10-26)
+
+- *Lecture GeoParquet* accepte une adresse `https://` : lecture par plages avec l'extension `httpfs` de DuckDB,
+  embarquée comme `spatial` (aucun téléchargement à l'exécution), proxy des paramètres, `LIMIT` transmis (10 lignes
+  d'un fichier de 10 Mo : 5 % téléchargés), cache du run invalidé par l'ETag ou la date du fichier.
+- Python 3.14 sans GIL, revérifié : DuckDB 2.0.0 (2026-10-21) ne publie que des paquets `abi3` (3.12 à 3.14
+  classiques), que les versions sans GIL ne peuvent pas charger ; aucun paquet `cp314t`, ni en 2.0.0 ni dans les
+  versions de développement ; installation refusée sur un 3.14.3t. Passage toujours reporté.
+
 ## Code ouvert, Linux, retrait de SQL Server (2026-10-20)
 
 - Publication sous licence MIT, version Linux (AppImage), logo « i/o », site vitrine : [ADR 0039](decisions/0039-code-ouvert-et-linux.md).
