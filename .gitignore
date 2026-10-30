@@ -1,5 +1,6 @@
 # Secrets et configuration locale
 .env
+CLAUDE.md
 *.pem
 secrets/
 
