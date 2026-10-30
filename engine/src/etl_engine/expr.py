@@ -103,7 +103,7 @@ def evaluate(table: pa.Table, expressions: dict[str, str]) -> pa.Table:
     select = ", ".join(f'({text}) AS "{name}"' for name, text in expressions.items())
     con.register("src", table)
     try:
-        return con.execute(f"SELECT {select} FROM ({base})").to_arrow_table()
+        return con.sql(f"SELECT {select} FROM ({base})").to_arrow_table()
     except _CONFIG_ERRORS as exc:
         raise ConfigError(f"expression invalide : {exc}") from exc
     except duckdb.OutOfMemoryException as exc:  # pas une erreur de donnée : les lignes ne doivent pas être rejetées

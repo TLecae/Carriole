@@ -642,9 +642,9 @@ def _generalized_geometry(port: Port, fid: int) -> tuple[dict[str, Any], list[fl
     level = max(finest) if finest else min(views.LEVELS)
     found = (
         port.duck.con()
-        .execute(
+        .sql(
             f"SELECT geom_3857, bbox FROM read_parquet({_lit(port.view.as_posix())}) WHERE lvl = ? AND fid = ?",
-            [level, fid],
+            params=[level, fid],
         )
         .to_arrow_table()
     )
@@ -679,8 +679,9 @@ def _cells(cx: np.ndarray, cy: np.ndarray, size: float) -> np.ndarray:
     return shapely.get_parts(merged)
 
 
-def export_batches(port: Port, q: Query):
-    """Lots Arrow de la vue filtrée (tous les attributs + géométrie d'origine) pour l'export."""
+def export_batches(port: Port, q: Query) -> Iterator[pa.RecordBatch]:
+    """Lots Arrow de la vue filtrée (tous les attributs + géométrie d'origine) pour l'export ; le résultat est fermé
+    même si l'export s'arrête (sinon la connexion du thread refuserait toute autre requête)."""
     types = port.types()
     geom = _needs_geometry(q)
     where, params = _where(port, q, types)
@@ -688,7 +689,8 @@ def export_batches(port: Port, q: Query):
     if port.has_geometry:  # la clause WHERE a pu typer la géométrie en GEOMETRY : on la rend en WKB
         cols.append(f"ST_AsWKB({GEOM}) AS {GEOM}" if geom else GEOM)
     sql = f"SELECT {', '.join(cols)} FROM {port.src(geometry=geom)}{where} ORDER BY {_order(q, types)}"
-    return port.duck.con().execute(sql, params).to_arrow_reader(50_000)
+    with port.duck.con().sql(sql, params=params).to_arrow_reader(50_000) as reader:
+        yield from reader
 
 
 # ------------------------------------------------------------------------------------------ tuiles
@@ -943,8 +945,9 @@ def _make_tile(
     count = port.duck.scalar(f"SELECT count(*) FROM {source} AND v.geom_3857 IS NOT NULL", [*params, *box])
     sample = f" AND hash(v.fid, v.bbox.xmin) % {math.ceil(count / TILE_CAP)} = 0" if count > TILE_CAP else ""
     c = ", a.c AS c" if color else ""
-    found = con.execute(
-        f"SELECT v.fid AS fid{c}, v.geom_3857 FROM {source} AND v.geom_3857 IS NOT NULL{sample}", [*params, *box]
+    found = con.sql(
+        f"SELECT v.fid AS fid{c}, v.geom_3857 FROM {source} AND v.geom_3857 IS NOT NULL{sample}",
+        params=[*params, *box],
     ).to_arrow_table()
     shapes, keep = _tile_shapes(found.column("geom_3857").to_numpy(zero_copy_only=False), x0, y1, size)
     rows = found.drop_columns(["geom_3857"]).filter(pa.array(keep))
@@ -952,11 +955,11 @@ def _make_tile(
     # morceaux de moins d'un pixel (cellules de la vue, sans géométrie) : un carré d'un pixel par pixel occupé
     px = size / (EXTENT / PIXEL)
     c = ", arg_min(a.c, v.fid) AS c" if color else ""
-    dots = con.execute(
+    dots = con.sql(
         f"""SELECT min(v.fid) AS fid{c}, floor(((v.bbox.xmin + v.bbox.xmax) / 2 - {x0}) / {px})::INTEGER AS i,
                    floor(({y1} - (v.bbox.ymin + v.bbox.ymax) / 2) / {px})::INTEGER AS j
             FROM {source} AND v.geom_3857 IS NULL GROUP BY i, j""",
-        [*params, *box],
+        params=[*params, *box],
     ).to_arrow_table()
     if dots.num_rows:
         i, j = (dots.column(k).to_numpy().astype(float) * PIXEL for k in ("i", "j"))
@@ -971,7 +974,7 @@ def _make_tile(
         blob = con.execute(
             f"SELECT ST_AsMVT({{'geom': ST_GeomFromWKB(wkb), 'fid': fid{prop}}}, "
             f"'data', {EXTENT}, 'geom', 'fid') FROM {name}"
-        ).fetchone()[0]
+        ).fetchall()[0][0]  # lu jusqu'au bout : DuckDB 2 refuse `con.sql` après un résultat inachevé
     finally:
         con.unregister(name)
     return bytes(blob) if blob else b""

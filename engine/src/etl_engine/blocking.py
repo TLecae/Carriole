@@ -73,7 +73,7 @@ def duck(sql: str, **tables: pa.Table) -> pa.Table:
     try:
         for name, table in tables.items():
             con.register(name, table)
-        return con.execute(sql).to_arrow_table()
+        return con.sql(sql).to_arrow_table()
     except duckdb.OutOfMemoryException as exc:
         raise MemoryError(str(exc)) from exc
     finally:

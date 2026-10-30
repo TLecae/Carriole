@@ -1,5 +1,16 @@
 # Journal des jalons
 
+## DuckDB 2.0.0 (2026-10-28)
+
+- DuckDB 1.5.6 → 2.0.0 (version LTS, extensions `spatial` et `httpfs` correspondantes embarquées). Résultats Arrow
+  lus par `con.sql(…)` (en 2.0, `execute(…).to_arrow_table()` fait une copie de plus et avertit) ; un résultat ouvert
+  bloque sa connexion : l'export de l'inspecteur ferme le sien, les tuiles lisent leur résultat jusqu'au bout.
+- Résultats des flux inchangés (`duck.keep_results`) : `NULL` seul reste une colonne typée (sans cela, un attribut
+  vide ne s'écrivait plus en GeoPackage), `//` et `%` par zéro donnent NULL, `~` compare toute la valeur. Seule la
+  lambda `x -> …` n'est plus acceptée : `lambda x : …`.
+- GeoParquet sur le web : la lecture anticipée de la 2.0 téléchargeait 80 % d'un fichier de 10 Mo pour 10 lignes ;
+  coupée quand le nombre de lignes est borné (5 %), gardée pour une lecture complète.
+
 ## GeoParquet sur le web ; point sur Python 3.14 sans GIL (2026-10-26)
 
 - *Lecture GeoParquet* accepte une adresse `https://` : lecture par plages avec l'extension `httpfs` de DuckDB,

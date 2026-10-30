@@ -160,8 +160,18 @@ def apply_limits(con: duckdb.DuckDBPyConnection, kind: Kind, spill: Path | None 
     con.execute("SET temp_directory=?", [(parent / uuid.uuid4().hex[:12]).as_posix()])
 
 
+def keep_results(con: duckdb.DuckDBPyConnection) -> None:
+    """Les expressions des flux donnent les mêmes résultats qu'avec DuckDB 1.5 (avant `lock_configuration`) :
+    `NULL` seul reste une colonne typée (les écrivains n'ont pas de colonne sans type), `//` et `%` par zéro donnent
+    NULL au lieu d'une erreur, et `~` compare toute la valeur (pas une partie)."""
+    con.execute("SET legacy_disable_null_type = true")
+    con.execute("SET error_on_division_by_zero = false")
+    con.execute("SET regex_match_operator_semantics = 'full'")
+
+
 def connect(kind: Kind, spill: Path | None = None) -> duckdb.DuckDBPyConnection:
     """Connexion DuckDB en mémoire, bornée selon `kind` (voir `limits`)."""
     con = duckdb.connect()
     apply_limits(con, kind, spill)
+    keep_results(con)
     return con

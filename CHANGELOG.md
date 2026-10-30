@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- DuckDB 2.0.0 (LTS). Flows give the same results as with 1.5: an empty (`NULL`) attribute keeps a type and can
+  be written to GeoPackage, `//` and `%` by zero give NULL, `~` matches the whole value. Lambdas are written
+  `lambda x : x + 1`; the old `x -> x + 1` form is no longer accepted.
+- GeoParquet reader on the web: with *Maximum rows read*, DuckDB 2.0's read-ahead is turned off, so only the needed
+  parts of the file are downloaded.
+
 ## 0.1.2
 
 - GeoParquet reader: reads an `https://` address by ranges, so only the needed parts of the file are downloaded

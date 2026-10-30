@@ -83,7 +83,7 @@ def read_schema(
     **_: Any,
 ) -> pa.Schema:
     con, sql, args = _relation(path, delimiter, encoding, header, detect_types, add_filename)
-    empty = con.execute(f"{sql} LIMIT 0", args).to_arrow_table()
+    empty = con.sql(f"{sql} LIMIT 0", params=args).to_arrow_table()
     return _geometry(empty, wkt_column, x_column, y_column, crs).schema
 
 
@@ -102,9 +102,9 @@ def read_batches(
     **_: Any,
 ) -> Iterator[pa.Table]:
     con, sql, args = _relation(path, delimiter, encoding, header, detect_types, add_filename)
-    reader = con.execute(sql, args).to_arrow_reader(batch_rows)
-    for rb in reader:
-        yield _geometry(pa.Table.from_batches([rb]), wkt_column, x_column, y_column, crs)
+    with con.sql(sql, params=args).to_arrow_reader(batch_rows) as reader:
+        for rb in reader:
+            yield _geometry(pa.Table.from_batches([rb]), wkt_column, x_column, y_column, crs)
 
 
 class CsvWriter:

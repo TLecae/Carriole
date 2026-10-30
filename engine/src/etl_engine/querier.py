@@ -63,7 +63,7 @@ def run_query(sql: str, tables: Mapping[str, pa.Table]) -> pa.Table:
             if geometry_columns:
                 swap = ", ".join(f'ST_AsWKB("{c}") AS "{c}"' for c in geometry_columns)
                 final = f"SELECT * REPLACE ({swap}) FROM ({text})"
-            out = con.execute(final).to_arrow_table()
+            out = con.sql(final).to_arrow_table()
         except (duckdb.ParserException, duckdb.BinderException, duckdb.CatalogException) as exc:
             raise ConfigError(f"requête SQL invalide : {exc}") from exc
         except duckdb.Error as exc:

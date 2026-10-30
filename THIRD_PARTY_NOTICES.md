@@ -27,7 +27,7 @@ Ouverte Etalab 2.0).
 | contourpy | 1.4.0 | BSD-3-Clause |
 | cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause |
 | docstring-parser | 0.18.0 | MIT License |
-| duckdb | 1.5.6 | MIT License |
+| duckdb | 2.0.0 | MIT License |
 | et-xmlfile | 2.0.0 | MIT License |
 | fastapi | 0.142.2 | MIT |
 | h11 | 0.16.0 | MIT License |

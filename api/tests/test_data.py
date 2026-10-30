@@ -169,6 +169,16 @@ def test_export_filtered_view(env, tmp_path):
     assert not list((env.cache / "_exports").glob("*/*"))  # fichiers temporaires nettoyés
 
 
+def test_an_interrupted_export_leaves_the_connection_usable(env):
+    """DuckDB 2 refuse toute requête sur une connexion dont un résultat reste ouvert : l'export ferme le sien."""
+    port = ds.open_port(env.app.state.duck, RUN, "r", "output", prepare=False)
+    batches = iter(ds.export_batches(port, ds.Query()))
+    assert next(batches).num_rows == N
+    del batches  # export arrêté (erreur d'écriture, client parti) avant la fin du résultat
+    assert port.duck.scalar("SELECT 42") == 42
+    assert port.duck.con().sql("SELECT 43").fetchall() == [(43,)]
+
+
 def b64(q: dict) -> str:
     return base64.urlsafe_b64encode(json.dumps(q).encode()).decode().rstrip("=")
 

@@ -89,7 +89,7 @@ def _web_footer(con: duckdb.DuckDBPyConnection, url: str) -> tuple[pa.Schema, di
     metadata = {
         bytes(k): bytes(v) for k, v in con.execute("SELECT key, value FROM parquet_kv_metadata(?)", [url]).fetchall()
     }
-    schema = con.execute("SELECT * FROM read_parquet(?) LIMIT 0", [url]).to_arrow_table().schema
+    schema = con.sql("SELECT * FROM read_parquet(?) LIMIT 0", params=[url]).to_arrow_table().schema
     _web_schemas[url] = (time.monotonic(), schema, metadata)
     return schema, metadata
 
@@ -144,10 +144,15 @@ def _read_web(url: str, batch_rows: int, columns: list[str] | None, limit: int |
         _, column, crs = _prepare(schema, metadata)
         wanted = _wanted(columns, column)
         select = "*" if wanted is None else ", ".join('"' + c.replace('"', '""') + '"' for c in wanted)
-        bound = f" LIMIT {int(limit)}" if limit else ""
-        reader = con.execute(f"SELECT {select} FROM read_parquet(?){bound}", [url]).to_arrow_reader(batch_rows)
-        for rb in reader:
-            yield _named(pa.Table.from_batches([rb]), column, crs)
+        bound = ""
+        if limit:  # la lecture anticipée de DuckDB 2 téléchargerait la plupart des groupes de lignes pour 10 lignes
+            con.execute("SET disable_parquet_prefetching = true")
+            bound = f" LIMIT {int(limit)}"
+        with con.sql(f"SELECT {select} FROM read_parquet(?){bound}", params=[url]).to_arrow_reader(
+            batch_rows
+        ) as reader:
+            for rb in reader:
+                yield _named(pa.Table.from_batches([rb]), column, crs)
 
 
 class ParquetWriter:
