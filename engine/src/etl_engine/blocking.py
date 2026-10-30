@@ -67,6 +67,23 @@ def group_slices(codes: np.ndarray, count: int) -> tuple[np.ndarray, np.ndarray]
     return order, bounds
 
 
+def group_ranks(codes: np.ndarray, count: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(rang de chaque ligne dans son groupe à partir de 0, première ligne de chaque groupe, taille de chaque groupe),
+    dans l'ordre d'origine des lignes."""
+    order, bounds = group_slices(codes, count)
+    sizes = np.diff(bounds)
+    rank = np.empty(len(codes), dtype=np.int64)
+    rank[order] = np.arange(len(codes)) - np.repeat(bounds[:-1], sizes)
+    return rank, order[bounds[:-1]], sizes
+
+
+def group_keys(table: pa.Table, columns: list[str], rows: np.ndarray) -> list[tuple]:
+    """Valeurs des `columns` aux lignes `rows`, une clé par ligne, utilisable dans un dictionnaire (une liste ou une
+    structure est comparée par son texte)."""
+    values = [table.column(c).take(pa.array(rows, pa.int64())).to_pylist() for c in columns]
+    return [tuple(v if not isinstance(v, (list, dict)) else repr(v) for v in key) for key in zip(*values, strict=True)]
+
+
 def duck(sql: str, **tables: pa.Table) -> pa.Table:
     """Exécute `sql` dans un DuckDB éphémère où chaque argument nommé est une table Arrow."""
     con = duck_.connect("heavy")
@@ -74,8 +91,10 @@ def duck(sql: str, **tables: pa.Table) -> pa.Table:
         for name, table in tables.items():
             con.register(name, table)
         return con.sql(sql).to_arrow_table()
-    except duckdb.OutOfMemoryException as exc:
-        raise MemoryError(str(exc)) from exc
+    except duckdb.Error as exc:
+        if (found := duck_.resource_error(exc)) is not None:
+            raise found from exc
+        raise
     finally:
         con.close()
 
@@ -145,4 +164,5 @@ def join_result(
     elif geometry == "none" and GEOM in result.column_names:
         result = result.drop_columns([GEOM])
     unmatched = np.setdiff1d(np.arange(base.num_rows), bi, assume_unique=False)
-    return with_crs(result, get_crs(base)), unmatched, bi, ji
+    crs = get_crs(other) if geometry == "other" and GEOM in other.column_names else get_crs(base)
+    return with_crs(result, crs), unmatched, bi, ji

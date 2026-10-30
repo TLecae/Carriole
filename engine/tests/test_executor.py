@@ -3,6 +3,10 @@ import time
 
 import pyarrow.parquet as pq
 import pytest
+from etl_engine import executor
+from etl_engine.analysis import analyze
+from etl_engine.cache import has_port
+from etl_engine.data import get_crs
 from etl_engine.executor import run_flow
 from etl_engine.sdk import Modifier, Params
 
@@ -49,9 +53,49 @@ def test_end_to_end_counts_and_outputs(registry, communes, tmp_path):
 def test_cache_off_removes_intermediate_ports(registry, communes, tmp_path):
     run_dir = tmp_path / "run"
     run_flow(basic_flow(communes, tmp_path / "o"), registry, run_dir, cache=False)
-    assert not (run_dir / "read" / "output.parquet").exists()
+    assert not has_port(run_dir / "read" / "output.parquet") and communes.is_file()
     run_flow(basic_flow(communes, tmp_path / "o"), registry, tmp_path / "run2", cache=True)
-    assert (tmp_path / "run2" / "read" / "output.parquet").exists()
+    assert has_port(tmp_path / "run2" / "read" / "output.parquet")
+
+
+def test_cache_off_counts_unread_ports_without_writing_them(registry, communes, tmp_path, monkeypatch):
+    """Sans cache, un port que rien ne lit sur un nœud dont d'autres ports sont lus n'est pas écrit : compté (« Failed »
+    d'un filtre, voie Python), ou défini par sa requête (ports non joints, voie SQL, ADR 0044). Un nœud de la voie
+    Python sans consommateur écrit tout : c'est un résultat."""
+    stored, routed = {}, {}
+    real_sink, real_sql = executor.PortSink, executor.run_sql_route
+
+    def sink(path, declared, on_rows, taps=None, store=True):
+        stored[(path.parent.name, path.stem)] = store
+        return real_sink(path, declared, on_rows, taps=taps, store=store)
+
+    def sql(inst, port_files, out_paths, *args, **kw):
+        routed.update({(inst.ctx.node_id, port): path is not None for port, path in out_paths.items()})
+        return real_sql(inst, port_files, out_paths, *args, **kw)
+
+    monkeypatch.setattr(executor, "PortSink", sink)
+    monkeypatch.setattr(executor, "run_sql_route", sql)
+    nodes = [
+        {"id": "read", "type": "Reader", "params": {"path": str(communes)}},
+        # random() : non déterministe, le filtre passe par la voie par lots (ses ports ne sont pas définis à la demande)
+        {"id": "test", "type": "ExtractByExpression", "params": {"conditions": ['"pop" >= 1000 AND random() >= 0']}},
+        {"id": "join", "type": "JoinByField", "params": {"base_keys": ["id"], "join_keys": ["id"]}},
+        {"id": "calc", "type": "AddAttributes", "params": {"attributes": [{"name": "k", "expression": "random()"}]}},
+    ]
+    links = [
+        ("read", "output", "test", "input"),
+        ("test", "Passed", "join", "base"),
+        ("read", "output", "join", "join"),
+        ("join", "Joined", "calc", "input"),
+    ]
+    res = run_flow(make_flow(nodes, links), registry, tmp_path / "run", cache=False)
+    assert res.status == "done", res.error
+    assert stored[("test", "Passed")] and not stored[("test", "Failed")]
+    assert routed[("join", "Joined")] and not routed[("join", "UnjoinedJoin")]
+    assert stored[("calc", "output")] and stored[("calc", "Rejected")]  # résultat du run : écrit
+    rows = res.nodes["test"].rows
+    assert rows["Passed"] + rows["Failed"] == 20 and rows["Failed"] > 0
+    assert res.nodes["join"].rows["UnjoinedJoin"] == rows["Failed"]
 
 
 def test_reuse_unchanged_nodes_and_recompute_downstream(registry, communes, tmp_path):
@@ -232,6 +276,38 @@ def test_external_sources_always_rerun_and_refresh_their_downstream(registry, tm
     assert pq.read_table(tmp_path / "run2" / "keep" / "Passed.parquet").column("n").to_pylist() == [2]
 
 
+class Rebuild(Modifier):
+    """Plugin qui reconstruit sa table colonne par colonne : sans les métadonnées du schéma, donc sans le SCR."""
+
+    name = "TestRebuild"
+
+    class Params(Params):
+        pass
+
+    def output_schema(self, inputs):
+        import pyarrow as pa
+
+        schema = inputs.get("input")
+        return {"output": pa.schema(list(schema)) if schema is not None else None}
+
+    def process(self, batch):
+        import pyarrow as pa
+
+        return {"output": pa.Table.from_arrays(batch.columns, names=batch.column_names)}
+
+
+def test_a_geometry_rebuilt_without_its_metadata_keeps_the_crs_of_its_input(registry, communes, tmp_path):
+    """Sans SCR, la carte de l'inspecteur ne s'affiche pas et un export n'a plus de projection : la sortie reprend
+    celui de son entrée, à l'exécution comme dans le schéma déclaré (contrôles avant le run, voie SQL)."""
+    registry.register(Rebuild)
+    nodes = [{"id": "r", "type": "Reader", "params": {"path": str(communes)}}, {"id": "p", "type": "TestRebuild"}]
+    flow = make_flow(nodes, [("r", "output", "p", "input")])
+    res = run_flow(flow, registry, tmp_path / "run")
+    assert res.status == "done", res.error
+    assert get_crs(pq.read_schema(tmp_path / "run" / "p" / "output.parquet")) == "EPSG:2154"
+    assert analyze(flow, registry)["schemas"]["p/output"]["crs"] == "EPSG:2154"
+
+
 class Database(Clock):
     """Lecture d'une base : relue à chaque run, reprise dans un run « jusqu'au nœud »."""
 
@@ -272,3 +348,71 @@ def test_run_to_a_node_reuses_the_cache_even_of_a_database(registry, tmp_path):
     )
     edited = run_flow(changed, registry, tmp_path / "run5", reuse_from=tmp_path / "run4", target="a")
     assert edited.nodes["db"].status == "cached" and edited.nodes["a"].status == "done" and Clock.calls == 2
+
+
+def test_run_to_a_node_keeps_the_results_of_the_other_branches(registry, communes, tmp_path):
+    """« Jusqu'au nœud » sur une branche : les autres gardent leurs derniers résultats, même une source toujours
+    relancée et son aval ; annoncés après `run_started` (sinon l'interface les efface)."""
+    registry.register(Clock)
+    Clock.calls = 0
+    nodes = [
+        {"id": "clock", "type": "TestClock", "params": {}},
+        {"id": "keep", "type": "ExtractByExpression", "params": {"conditions": ['"n" > 0']}},
+        {"id": "read", "type": "Reader", "params": {"path": str(communes)}},
+        {"id": "test", "type": "ExtractByExpression", "params": {"conditions": ["\"dep\" = '31'"]}},
+    ]
+    flow = make_flow(nodes, [("clock", "output", "keep", "input"), ("read", "output", "test", "input")])
+    full = run_flow(flow, registry, tmp_path / "run1")
+    assert full.status == "done" and Clock.calls == 1
+
+    events = []
+    to_test = run_flow(
+        flow, registry, tmp_path / "run2", reuse_from=tmp_path / "run1", target="test", on_event=events.append
+    )
+    assert {k: v.status for k, v in to_test.nodes.items()} == {
+        "clock": "cached",
+        "keep": "cached",
+        "read": "cached",
+        "test": "cached",
+    }
+    assert Clock.calls == 1 and to_test.nodes["keep"].rows == full.nodes["keep"].rows
+    assert pq.read_table(tmp_path / "run2" / "keep" / "Passed.parquet").column("n").to_pylist() == [1]
+    kinds = [e["type"] for e in events]
+    assert kinds.index("run_started") < min(i for i, e in enumerate(events) if e["type"] == "node")
+
+    # un run complet relance toujours la source et son aval
+    again = run_flow(flow, registry, tmp_path / "run3", reuse_from=tmp_path / "run2")
+    assert again.nodes["clock"].status == again.nodes["keep"].status == "done" and Clock.calls == 2
+    assert again.nodes["test"].status == "cached"
+
+    # un réglage changé hors de la branche visée : ce nœud n'est pas gardé (ses données seraient périmées)
+    edited = make_flow(
+        [*nodes[:1], {**nodes[1], "params": {"conditions": ['"n" > 5']}}, *nodes[2:]],
+        [("clock", "output", "keep", "input"), ("read", "output", "test", "input")],
+    )
+    partial = run_flow(edited, registry, tmp_path / "run4", reuse_from=tmp_path / "run3", target="test")
+    assert partial.nodes["clock"].status == "cached" and partial.nodes["keep"].status == "not_run"
+
+
+def test_reused_nodes_are_available_before_a_slow_node_ends(registry_with_test_nodes, communes, tmp_path):
+    """Un nœud repris passe dès le début du run, sans attendre que le seul thread libre ait fini un nœud long."""
+    nodes = [
+        {"id": "r", "type": "Reader", "params": {"path": str(communes)}},
+        {"id": "s", "type": "Slow", "params": {"seconds": 0.0}},
+        {"id": "x", "type": "ExtractByExpression", "params": {"conditions": ["\"dep\" = '31'"]}},
+    ]
+    links = [("r", "output", "s", "input"), ("r", "output", "x", "input")]
+    run_flow(make_flow(nodes, links), registry_with_test_nodes, tmp_path / "run1")
+    slower = [nodes[0], {**nodes[1], "params": {"seconds": 0.5}}, nodes[2]]
+    events = []
+    res = run_flow(
+        make_flow(slower, links),
+        registry_with_test_nodes,
+        tmp_path / "run2",
+        reuse_from=tmp_path / "run1",
+        max_workers=1,
+        on_event=events.append,
+    )
+    assert res.status == "done" and res.nodes["x"].status == "cached" and res.nodes["s"].status == "done"
+    order = [(e["node"], e["status"]) for e in events if e["type"] == "node"]
+    assert order.index(("x", "cached")) < order.index(("s", "running"))

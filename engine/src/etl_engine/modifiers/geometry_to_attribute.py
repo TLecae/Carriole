@@ -39,7 +39,7 @@ class GeometryToAttribute(Modifier):
             title="Décimales (WKT, GeoJSON)",
             description="Décimales conservées dans les coordonnées ; vide = précision complète.",
         )
-        remove: bool = Field(
+        remove_geometry: bool = Field(
             False,
             title="Retirer la géométrie",
             description="Retire la géométrie de l'entité une fois copiée dans l'attribut.",
@@ -59,7 +59,7 @@ class GeometryToAttribute(Modifier):
         out = schema
         f = pa.field(self.params.attribute, pa.string())
         out = out.set(out.get_field_index(f.name), f) if f.name in out.names else out.append(f)
-        return {"output": out.remove(out.get_field_index(GEOM)) if self.params.remove else out}
+        return {"output": out.remove(out.get_field_index(GEOM)) if self.params.remove_geometry else out}
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         self._check()
@@ -80,6 +80,6 @@ class GeometryToAttribute(Modifier):
             out = out.set_column(out.column_names.index(p.attribute), p.attribute, column)
         else:
             out = out.append_column(p.attribute, column)
-        if p.remove:
+        if p.remove_geometry:
             out = out.drop_columns([GEOM])
         return {"output": with_crs(out, get_crs(batch))}

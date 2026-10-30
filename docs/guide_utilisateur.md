@@ -69,7 +69,8 @@ millésime, un fichier). Dans n'importe quel paramètre de nœud : `${NOM}` ; va
     écritures, les lectures de base de données, d'API web ou de STAC, le SQL et les flux lancés sont **toujours
     relancés** par *Lancer* (leur source peut changer sans que le flux change), avec tout leur aval ; *Jusqu'au
     nœud* reprend les lectures (pas les écritures). *Tout relancer* (menu *Exécution*) recalcule tout ;
-  - **désactivée** : tout est recalculé et rien n'est gardé : plus rapide et moins de disque, mais pas d'inspecteur.
+  - **désactivée** : tout est recalculé et rien n'est gardé : plus rapide et moins de disque, mais pas d'inspecteur
+    (sauf pour les derniers nœuds du flux). Une sortie non reliée (`Failed` d'un filtre…) est seulement comptée.
 - **Place sur le disque** (application de bureau) : seules les données du **dernier run de chaque flux ouvert** sont
   gardées, ainsi que celles des runs en cours. Fermer le flux (ouvrir un autre flux, *Nouveau flux*) ou la fenêtre
   les supprime dans les secondes qui suivent ; après un plantage, au redémarrage. Le journal et les comptes des runs
@@ -86,8 +87,19 @@ millésime, un fichier). Dans n'importe quel paramètre de nœud : `${NOM}` ; va
 
 Onglet **Données** : cliquer sur un nœud ou une connexion (l'onglet s'affiche). Table (tri, filtre par colonne, recherche, clause
 `WHERE` libre) et **carte** synchronisées : sélectionner une ligne la surligne sur la carte et inversement. Tout est
-calculé côté serveur, même avec des millions d'entités. *Exporter* : CSV, GeoPackage ou GeoParquet de la vue
+calculé côté serveur, même avec des millions d'entités. *Exporter* : CSV, GeoPackage ou Parquet de la vue
 filtrée.
+
+Les filtres et les opérations sur les attributs (*Filtrer par expression*, *Filtre à plusieurs sorties*, *Créer des
+attributs*, *Gérer des attributs*, *Convertir le type d'attributs*, *Garder des attributs*, *Retirer des attributs*,
+*Renommer des attributs*, *Renommer en masse*) n'écrivent pas leur résultat pendant le run : il est calculé quand un nœud suivant le lit, ou
+quand on l'ouvre ici. La première ouverture affiche « Préparation des données… » le temps du calcul (quelques
+secondes pour un fichier courant ; plusieurs minutes pour des millions de lignes de centaines de colonnes, lues sur un
+lecteur réseau), puis le résultat est gardé avec le run. Le tri, les statistiques et la jointure attributaire font de
+même pour une sortie qu'aucun nœud ne lit : par exemple les entités avec les statistiques de leur groupe, quand seul
+le résumé sert. Si l'on passe à un autre port pendant la préparation, elle s'arrête.
+
+Pendant un run, le nœud sélectionné reste affiché : « … en cours de calcul » jusqu'à ce que ses données soient là.
 
 La table montre **toutes les entités** du port : les lignes arrivent au fil du défilement, et filtres, tri,
 recherche, statistiques et export portent sur tout le port. Le nombre d'entités est affiché une fois (« 11 / 20
@@ -101,7 +113,9 @@ La première ouverture d'un port prépare sa carte **en arrière-plan** : la tab
 carte affiche « Chargement de la carte… » (environ 30 secondes pour 1,6 million de parcelles, une seule fois).
 Si les géométries sont trop volumineuses pour la mémoire, la carte le dit à sa place (la table reste consultable).
 La carte est faite de tuiles vectorielles, généralisées selon le zoom : les contours sont simplifiés au
-demi-pixel, une entité plus petite qu'un pixel est un point d'un pixel ; le détail revient en zoomant. La carte
+demi-pixel, une entité plus petite qu'un pixel est un point d'un pixel ; le détail revient en zoomant. Un polygone
+énorme (sortie d'un *Dissolve* ou d'un *Buffer* fusionné, des milliers de trous) est découpé en pièces pour la
+carte : seul son contour est tracé, les découpes ne se voient pas. La carte
 dessine **au plus 50 000 entités par zone** (4 × 4 tuiles) : au-delà, **les plus grandes** (les mêmes dans toutes
 les tuiles de la zone), les plus petites apparaissent en zoomant ; pour des points, un échantillon. Une tuile a toujours le même contenu, quelle que soit la vue : déplacer ou
 zoomer ne recharge rien de ce qui est déjà venu, et les tuiles des petites échelles sont calculées d'avance
@@ -109,6 +123,12 @@ zoomer ne recharge rien de ce qui est déjà venu, et les tuiles des petites éc
 à un autre port ne le fait pas attendre les tuiles du précédent. Changer le filtre ou la couleur
 garde l'ancienne image jusqu'à l'arrivée de la nouvelle. La table, elle, montre toujours toutes les entités. Sélectionner une entité énorme la surligne avec un contour
 simplifié.
+
+**Couleur** : colore la carte selon un attribut, calculé sur les lignes filtrées. Un attribut numérique donne cinq
+classes d'effectifs égaux, du clair au foncé ; un autre attribut, une couleur par valeur fréquente (les dix plus
+fréquentes, les autres en gris). **Superposer** ajoute d'autres ports du run sur la carte. Dès qu'il y a une couleur
+ou plusieurs couches, le bouton **Légende**, sous ceux du zoom, les explique. Cliquer une entité sur la carte la
+sélectionne et fait défiler la table jusqu'à sa ligne (« Recherche de l'entité dans la table… » pendant la recherche).
 
 **Taille du panneau** : glisser la barre au-dessus des onglets (ou `↑` / `↓` quand elle a le focus) ; la hauteur est
 retenue. **⤢ Pleine page** ouvre le panneau sur toute la fenêtre (Échap pour revenir à l'éditeur).
@@ -121,7 +141,7 @@ chargées depuis internet ; voir l'[installation](installation.md#fonds-de-plan-
 
 | Besoin | Modificateur |
 | --- | --- |
-| Lire / écrire un fichier | un lecteur et un écrivain **par format** (catégories *Lecture* et *Écriture*) : *Lecture CSV*, *Lecture GeoPackage*, *Lecture Shapefile*, *Lecture Excel*, *Lecture GeoJSON*, *Lecture GeoParquet*, *Lecture FlatGeobuf*, *Lecture MapInfo*, et les *Écriture …* correspondants |
+| Lire / écrire un fichier | un lecteur et un écrivain **par format** (catégories *Lecture* et *Écriture*) : *Lecture CSV*, *Lecture GeoPackage*, *Lecture Shapefile*, *Lecture Excel*, *Lecture GeoJSON*, *Lecture (Geo)Parquet* (Parquet avec ou sans géométrie), *Lecture FlatGeobuf*, *Lecture MapInfo*, et les *Écriture …* correspondants |
 | Lire / écrire une base | *Lecture* / *Écriture PostgreSQL / PostGIS*, *Oracle* ; *Lecture* / *Écriture SQLite / SpatiaLite* (fichier) |
 | Exécuter un ordre SQL | *SQL (créateur)* ; *SQL (par entité)* avec `{{attribut}}` |
 
@@ -133,7 +153,10 @@ chargées depuis internet ; voir l'[installation](installation.md#fonds-de-plan-
   enregistrés avec l'ancienne *Lecture de fichier* sont convertis à l'ouverture.
 - **Lignes lues au plus** (tous les lecteurs, fichiers et bases) : pour essayer un flux sur un extrait, seules les N
   premières entités sont lues (0 = toutes). Le nœud porte alors une pastille « ≤ N » ; au survol, une bulle le rappelle.
-- **GeoParquet sur le web** : *Lecture GeoParquet* accepte une adresse `https://…/fichier.parquet`. Le fichier est lu
+- **(Geo)Parquet lu sur place** : un seul fichier local, sans *Ajouter le nom du fichier* ni *Lignes lues au plus*, n'est
+  pas recopié dans le cache : le résultat du nœud est le fichier lui-même, lu en une fraction de seconde quelle que
+  soit sa taille. Si le fichier est modifié ou déplacé après le run, relancer le flux pour le consulter.
+- **(Geo)Parquet sur le web** : *Lecture (Geo)Parquet* accepte une adresse `https://…/fichier.parquet`. Le fichier est lu
   par plages : seules les parties utiles sont téléchargées (avec *Lignes lues au plus*, à peine plus que ces lignes).
   Le proxy des *Paramètres* est utilisé ; un fichier modifié sur le serveur (ETag, date) est relu au run suivant.
 - **Écrire sur le partage** : un écrivain peut viser le partage de l'équipe. Deux flux qui modifient en même
@@ -202,6 +225,7 @@ Format cron : `minute heure jour-du-mois mois jour-de-semaine`. Exemples : `0 2 
 | Run « interrompu » | un worker s'est arrêté : *Reprendre* depuis la liste des runs |
 | Bandeau « Le moteur ne répond plus » | l'application le relance seule (quelques secondes) ; ne pas fermer la fenêtre : un enregistrement demandé entre-temps est fait au retour. Détail dans `logs\server.log` (*Paramètres* → dossier des journaux) |
 | Nœud rouge avec « configuration : … » | le message dit quoi corriger ; le journal donne le détail |
+| « espace disque insuffisant sur C:\ … » | un calcul plus gros que la mémoire déborde dans le dossier du cache : libérer de la place, filtrer en amont, augmenter la mémoire ou choisir un dossier du cache sur un autre disque local (*Paramètres → Calcul*, puis redémarrer) |
 | Données purgées | les données d'un flux fermé sont supprimées (sur un serveur : après quelques jours) : relancer le flux |
 | « Le flux a été modifié par quelqu'un d'autre » | le fichier a changé sur le disque : *Enregistrer sous…* pour garder votre version |
 

@@ -22,6 +22,11 @@ tout en mémoire sur un seul cœur ; des vues d'inspection construites pour chaq
    `duck.connect(kind)` en tire la limite de chaque connexion (expressions : un thread ; nœuds lourds : 60 % du
    budget divisé par `ETL_BLOCKING_NODES`; inspecteur : un quart de la machine). Le débordement DuckDB va dans le
    dossier du run.
+   *Complément du 2026-10-29* : les 60 % ne sont divisés que par le nombre de nœuds lourds du run, au plus
+   `ETL_BLOCKING_NODES` (un seul nœud lourd les reçoit entiers, `duck.heavy_share`). La taille des lots lus par la
+   voie par lots découle des 40 % restants, partagés entre les lots en cours (`duck.batch_bytes`), au lieu de 64 Mo
+   fixes. Le budget de *Paramètres → Calcul* reste la seule référence. Le dossier du cache (où va le débordement) se
+   choisit dans *Paramètres → Calcul* ; un disque plein donne un message qui le dit (`duck.resource_error`).
 3. **Nœuds lourds limités** : au plus `ETL_BLOCKING_NODES` (2) nœuds bloquants s'exécutent en même temps.
 4. **Garde-fou.** L'échantillonneur de mémoire du run annule celui-ci quand il dépasse sa part **et** que la mémoire
    disponible du poste passe sous 5 % (ou 512 Mo), avec un message qui nomme les nœuds en cours. `MemoryError` et les

@@ -9,6 +9,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from pydantic import Field
 
+from etl_engine.modifiers.split_text import pieces
 from etl_engine.sdk import Attribute, ConfigError, Modifier, Params
 
 
@@ -103,14 +104,9 @@ class ExtractText(Modifier):
             )
             results = [pc.utf8_slice_codeunits(col, start, stop)]
         elif p.mode in ("before", "after"):
-            index = 0 if p.mode == "before" else 1
-            values = col.to_pylist()
-            results = [
-                pa.array(
-                    [None if v is None or p.separator not in v else v.split(p.separator, 1)[index] for v in values],
-                    pa.string(),
-                )
-            ]
+            before, after = pieces(col.combine_chunks() if isinstance(col, pa.ChunkedArray) else col, p.separator, 2)
+            found = pc.is_valid(after)  # sans séparateur : rien avant, rien après
+            results = [pc.if_else(found, before, pa.scalar(None, pa.string())) if p.mode == "before" else after]
         else:
             try:
                 found = pc.extract_regex(col, p.pattern)

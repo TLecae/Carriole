@@ -18,6 +18,7 @@ class Sample(Modifier):
     name = "Sample"
     label = "Échantillonner"
     category = "Filtres"
+    mode = "blocking"  # charge toute son entrée
     description = "Prélève un échantillon : les N premières, les N dernières, une entité sur N ou N entités au hasard."
     help = (
         "« first » : les N premières entités reçues. « last » : les N dernières. « every » : une entité sur N (la première, "

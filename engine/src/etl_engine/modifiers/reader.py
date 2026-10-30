@@ -1,4 +1,4 @@
-"""Lecture d'un fichier (GeoParquet, GeoPackage, CSV, …)."""
+"""Lecture d'un fichier ((Geo)Parquet, GeoPackage, CSV, …)."""
 
 from __future__ import annotations
 
@@ -130,7 +130,8 @@ class Reader(Modifier):
         files: list[str] = []
         for pattern in self._patterns():
             found = sorted(glob.glob(pattern, recursive=True))
-            files.extend(f for f in found if f not in files)
+            files.extend(found)
+        files = list(dict.fromkeys(files))
         for f in files:
             paths.check(f, "read")  # dossiers autorisés (ETL_READ_ROOTS)
         return files
@@ -164,7 +165,9 @@ class Reader(Modifier):
         for src in sources:
             for batch in formats.read_batches(fmt, src, self.ctx.batch_rows, **opts):
                 if self.params.add_filename and fmt != "csv" and "filename" not in batch.column_names:
-                    batch = batch.append_column("filename", pa.array([os.path.basename(src)] * batch.num_rows))
+                    batch = batch.append_column(
+                        "filename", pa.repeat(pa.scalar(os.path.basename(src), pa.string()), batch.num_rows)
+                    )
                 self.ctx.check_cancel()
                 total += batch.num_rows
                 self.ctx.progress(total)

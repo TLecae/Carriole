@@ -11,26 +11,7 @@ from pydantic import Field
 
 from etl_engine.data import GEOM, geometries, get_crs, replace_geometries, with_crs
 from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, ConfigError, Modifier, Params, reject
-
-_COLLECTIONS = {"MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"}
-
-
-def _flatten(geom: shapely.Geometry) -> list[shapely.Geometry]:
-    """Les morceaux simples d'une géométrie multiple ou d'une collection (collections imbriquées comprises)."""
-    if geom.geom_type not in _COLLECTIONS:
-        return [geom]
-    return [part for sub in shapely.get_parts(geom) for part in _flatten(sub)]
-
-
-def _keep_dimension(fixed: shapely.Geometry, dimension: int) -> shapely.Geometry | None:
-    """Ne garde de `fixed` que les morceaux de la dimension d'origine (surfaces pour un polygone, etc.)."""
-    parts = [p for p in _flatten(fixed) if not p.is_empty and shapely.get_dimensions(p) == dimension]
-    if not parts:
-        return None
-    if len(parts) == 1:
-        return parts[0]
-    multi = (shapely.MultiPoint, shapely.MultiLineString, shapely.MultiPolygon)[dimension]
-    return multi(parts)
+from etl_engine.spatial import keep_dimension
 
 
 class FixGeometries(Modifier):
@@ -95,36 +76,39 @@ class FixGeometries(Modifier):
         bad = ~missing & ~empty & ~shapely.is_valid(geoms)
 
         out = np.array(geoms, dtype=object)
-        reasons = np.array([None] * n, dtype=object)  # motif d'origine des géométries réparées
-        rejected = np.array([None] * n, dtype=object)  # motif de rejet
+        reasons = np.full(n, None, dtype=object)  # motif d'origine des géométries réparées
+        rejected = np.full(n, None, dtype=object)  # motif de rejet
         rejected[missing] = "pas de géométrie"
         rejected[empty] = "géométrie vide"
         if bad.any():
-            reasons[bad] = shapely.is_valid_reason(geoms[bad])
-            dimensions = shapely.get_dimensions(geoms[bad])
-            fixed = shapely.make_valid(geoms[bad], method=p.method)
-            for i, geom, dim in zip(np.flatnonzero(bad), fixed, dimensions, strict=True):
-                result = _keep_dimension(geom, int(dim)) if p.keep_type else geom
-                if result is None or result.is_empty or not shapely.is_valid(result):
-                    rejected[i] = f"irréparable : {reasons[i]}"
-                    reasons[i] = None
-                else:
-                    out[i] = result
+            where = np.flatnonzero(bad)
+            before = shapely.is_valid_reason(geoms[where])
+            fixed = shapely.make_valid(geoms[where], method=p.method)
+            if p.keep_type:
+                fixed = keep_dimension(fixed, shapely.get_dimensions(geoms[where]))
+            lost = shapely.is_missing(fixed) | shapely.is_empty(fixed) | ~shapely.is_valid(fixed)
+            rejected[where[lost]] = np.char.add("irréparable : ", before[lost].astype(str)).astype(object)
+            out[where[~lost]] = fixed[~lost]
+            reasons[where[~lost]] = before[~lost]
 
         crs = get_crs(batch)
-        repaired = reasons != None  # noqa: E711 - élément par élément : seules ces géométries ont changé
+        repaired = np.zeros(n, dtype=bool)
+        if bad.any():
+            repaired[where[~lost]] = True  # seules ces géométries ont changé
         table = replace_geometries(batch, out, repaired)
         report = p.report_attribute.strip()
         if report:
-            values = pa.array(reasons.tolist(), pa.string())
+            values = pa.array(reasons, pa.string()) if repaired.any() else pa.nulls(n, pa.string())
             if report in table.column_names:
                 table = table.set_column(table.column_names.index(report), report, values)
             else:
                 table = table.append_column(report, values)
-        refused = np.array([r is not None for r in rejected], dtype=bool)
+        refused = missing | empty
+        if bad.any():
+            refused[where[lost]] = True
         result: dict[str, pa.Table] = {"output": with_crs(table.filter(pa.array(~refused)), crs)}
         if refused.any():
             result[REJECTED] = with_crs(
-                reject(table.filter(pa.array(refused)), pa.array(rejected[refused].tolist(), pa.string())), crs
+                reject(table.filter(pa.array(refused)), pa.array(rejected[refused], pa.string())), crs
             )
         return result

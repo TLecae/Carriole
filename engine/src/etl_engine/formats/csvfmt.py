@@ -17,6 +17,7 @@ import shapely
 from etl_engine import duck
 from etl_engine.atomic import part_name
 from etl_engine.data import GEOM, has_geometry, with_crs
+from etl_engine.formats.parquet import sql_literal, sql_name
 from etl_engine.sdk import ConfigError
 
 
@@ -60,9 +61,14 @@ def _geometry(
         for c in (x_column, y_column):
             if c not in table.column_names:
                 raise ConfigError(f"colonne de coordonnées absente : {c}")
-        x = pc.cast(pc.replace_substring(table.column(x_column), ",", "."), pa.float64(), safe=False)
-        y = pc.cast(pc.replace_substring(table.column(y_column), ",", "."), pa.float64(), safe=False)
-        geoms = shapely.points(np.column_stack([x.to_numpy(zero_copy_only=False), y.to_numpy(zero_copy_only=False)]))
+        xy = [
+            pc.cast(pc.replace_substring(pc.cast(table.column(c), pa.string()), ",", "."), pa.float64(), safe=False)
+            .to_numpy(zero_copy_only=False)
+            .astype(float)
+            for c in (x_column, y_column)
+        ]
+        geoms = shapely.points(np.column_stack(xy))
+        geoms[np.isnan(xy[0]) | np.isnan(xy[1])] = None  # coordonnée absente : pas de géométrie
     else:
         return table
     wkb = pa.array(shapely.to_wkb(geoms), type=pa.binary())
@@ -105,6 +111,39 @@ def read_batches(
     with con.sql(sql, params=args).to_arrow_reader(batch_rows) as reader:
         for rb in reader:
             yield _geometry(pa.Table.from_batches([rb]), wkt_column, x_column, y_column, crs)
+
+
+def sql_query(
+    path: str,
+    delimiter: str | None = None,
+    encoding: str | None = None,
+    header: bool = True,
+    detect_types: bool = False,
+    add_filename: bool = False,
+    wkt_column: str | None = None,
+    x_column: str | None = None,
+    y_column: str | None = None,
+    limit: int | None = None,
+    **_: Any,
+) -> str:
+    """Requête DuckDB qui lit le CSV comme `read_batches`, géométrie comprise (construite par DuckDB, sur tous les
+    cœurs) ; une valeur illisible y fait échouer la requête : la lecture repasse alors par `read_batches`."""
+    enc = encoding or (detect_encoding(path) if "*" not in path and "?" not in path else "utf-8")
+    args = [f"header={bool(header)}", f"all_varchar={not detect_types}", f"encoding={sql_literal(enc)}"]
+    args += ["union_by_name=true", f"filename={bool(add_filename)}"]
+    if delimiter:
+        args.append(f"delim={sql_literal(delimiter)}")
+    source = f"read_csv({sql_literal(path)}, {', '.join(args)})"
+    if wkt_column:
+        wkt = sql_name(wkt_column)
+        query = f"SELECT * EXCLUDE ({wkt}), ST_AsWKB(TRY(ST_GeomFromText({wkt}))) AS {GEOM} FROM {source}"
+    elif x_column and y_column:
+        x, y = (f"CAST(replace(CAST({sql_name(c)} AS VARCHAR), ',', '.') AS DOUBLE)" for c in (x_column, y_column))
+        point = f"CASE WHEN {x} IS NULL OR {y} IS NULL THEN NULL ELSE ST_AsWKB(ST_Point({x}, {y})) END"
+        query = f"SELECT *, {point} AS {GEOM} FROM {source}"
+    else:
+        query = f"SELECT * FROM {source}"
+    return f"{query} LIMIT {int(limit)}" if limit else query
 
 
 class CsvWriter:

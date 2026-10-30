@@ -13,6 +13,8 @@ from pydantic import Field
 from etl_engine.data import GEOM, get_crs, with_crs
 from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, Attribute, ConfigError, Crs, Modifier, Params, reject
 
+DETAILED = 100  # valeurs illisibles différentes dont le motif donne l'erreur exacte, par lot ; les autres : le format
+
 
 class GeometryFromAttribute(Modifier):
     name = "GeometryFromAttribute"
@@ -24,7 +26,8 @@ class GeometryFromAttribute(Modifier):
     )
     help = (
         "Une valeur vide donne une entité sans géométrie ; une valeur illisible envoie l'entité sur « Rejected » "
-        "avec le motif. Le système de coordonnées est celui indiqué (ou celui des données)."
+        "avec le motif. Le système de coordonnées est celui indiqué (ou celui des données). Pour des coordonnées X et Y "
+        "dans deux attributs : « Créer un point / un sommet »."
     )
 
     class Params(Params):
@@ -66,37 +69,42 @@ class GeometryFromAttribute(Modifier):
         if p.attribute not in batch.column_names:
             raise ConfigError(f"attribut absent : {p.attribute}")
         texts = pc.utf8_trim_whitespace(batch.column(p.attribute).cast(pa.string()))
-        values = np.asarray(texts.to_numpy(zero_copy_only=False), dtype=object)
-        given = ~pc.is_null(texts).to_numpy(zero_copy_only=False)
-        given[given] = values[given] != ""
-        geoms = np.full(len(values), None, dtype=object)
-        geoms[given] = _parse(values[given], p.format)  # vectorisé ; une valeur illisible donne None
-        bad, reasons = [], {}
-        for i in np.flatnonzero(given & shapely.is_missing(geoms)):  # les illisibles seulement : leur message
-            try:
-                _parse(np.array([values[i]], dtype=object), p.format, strict=True)
-                message = "valeur vide"
-            except Exception as exc:  # noqa: BLE001 - shapely lève des erreurs variées (GEOS, JSON, valeur)
-                message = str(exc).splitlines()[0][:100]
-            bad.append(int(i))
-            reasons[int(i)] = f"géométrie illisible ({p.format}) : {message}"
-        column = pa.array(shapely.to_wkb(geoms), pa.binary())
-        out = batch
+        given = pc.fill_null(pc.not_equal(texts, ""), False).to_numpy(zero_copy_only=False)
+        geoms = np.full(batch.num_rows, None, dtype=object)
+        geoms[given] = _parse(texts.filter(given).to_numpy(zero_copy_only=False), p.format)  # illisible : None
+        bad = given & shapely.is_missing(geoms)
+        out = batch.filter(pa.array(~bad)) if bad.any() else batch
+        column = pa.array(shapely.to_wkb(geoms[~bad]), pa.binary())  # les seules entités gardées
         if GEOM in out.column_names:
             out = out.set_column(out.column_names.index(GEOM), GEOM, column)
         else:
             out = out.append_column(GEOM, column)
         if p.remove_attribute:
             out = out.drop_columns([p.attribute])
-        crs = p.crs or get_crs(batch)
-        if not bad:
-            return {"output": with_crs(out, crs)}
-        bad_set = set(bad)
-        keep = pa.array([i not in bad_set for i in range(batch.num_rows)])
-        return {
-            "output": with_crs(out.filter(keep), crs),
-            REJECTED: reject(batch.take(pa.array(bad)), pa.array([reasons[i] for i in bad], pa.string())),
-        }
+        out = with_crs(out, p.crs or get_crs(batch))
+        if not bad.any():
+            return {"output": out}
+        rejected = batch.filter(pa.array(bad))
+        return {"output": out, REJECTED: reject(rejected, _reasons(rejected.column(p.attribute), p.format))}
+
+
+def _reasons(values: pa.ChunkedArray, fmt: str) -> pa.Array:
+    """Motif de chaque valeur illisible : l'erreur exacte pour les `DETAILED` premières valeurs différentes, le format
+    seul pour les autres (une colonne entière illisible ne coûte pas une analyse par entité)."""
+    texts = pc.utf8_trim_whitespace(values.cast(pa.string())).combine_chunks()
+    distinct = pc.unique(texts)
+    detail = {}
+    for value in distinct.slice(0, DETAILED).to_pylist():
+        try:
+            _parse(np.array([value], dtype=object), fmt, strict=True)
+            message = "valeur invalide"
+        except Exception as exc:  # noqa: BLE001 - shapely lève des erreurs variées (GEOS, JSON, valeur)
+            message = str(exc).splitlines()[0][:100]
+        detail[value] = f"géométrie illisible ({fmt}) : {message}"
+    known = pa.array(list(detail), pa.string())
+    found = pc.index_in(texts, value_set=known)
+    reasons = pc.take(pa.array(list(detail.values()), pa.string()), found)
+    return pc.fill_null(reasons, f"géométrie illisible ({fmt})")
 
 
 def _parse(values: np.ndarray, fmt: str, strict: bool = False) -> np.ndarray:

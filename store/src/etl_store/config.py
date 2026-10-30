@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import getpass
+import hashlib
+import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -11,9 +15,24 @@ from etl_engine import settings as user_settings
 
 from etl_store import secretstore
 
+log = logging.getLogger("etl.store")
+
 
 def _path(name: str, default: Path) -> Path:
     return Path(os.environ.get(name) or default)
+
+
+def _key_file(path: Path, generate: Callable[[], bytes]) -> bytes:
+    """Contenu du fichier de clé, créé (protégé) s'il manque."""
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(path, "xb") as handle:  # « x » : deux processus ne se marchent pas dessus
+                handle.write(secretstore.protect(generate()))
+            path.chmod(0o600)
+        except FileExistsError:
+            pass
+    return path.read_bytes()
 
 
 def _os_user() -> str:
@@ -81,16 +100,22 @@ class Settings:
             return os.environ["ETL_SECRET_KEY"].strip().encode()
         explicit = os.environ.get("ETL_SECRET_KEY_FILE")
         path = Path(explicit) if explicit else self.meta_dir / "secret.key"
-        if not path.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                with open(path, "xb") as handle:  # « x » : deux processus ne se marchent pas dessus
-                    handle.write(secretstore.protect(Fernet.generate_key()))
-                path.chmod(0o600)
-            except FileExistsError:
-                pass
-        raw = path.read_bytes()
-        key = secretstore.unprotect(raw)
+        raw = _key_file(path, Fernet.generate_key)
+        try:
+            key = secretstore.unprotect(raw)
+        except OSError:
+            if explicit:
+                raise
+            # protégée par un autre compte Windows ou sur un autre poste (profil copié, mot de passe réinitialisé par un
+            # administrateur) : mise de côté et remplacée, plutôt qu'un moteur qui ne démarre plus. Les mots de passe
+            # enregistrés avec l'ancienne sont à ressaisir (ConnectionStore, ChatStore le disent).
+            aside = path.with_name(f"{path.name}.illisible-{hashlib.sha256(raw).hexdigest()[:12]}")
+            with contextlib.suppress(FileNotFoundError, FileExistsError):
+                if path.read_bytes() == raw:  # pas la nouvelle clé d'un autre processus
+                    os.rename(path, aside)
+            log.warning("clé de chiffrement illisible pour ce compte : mise de côté (%s), nouvelle clé créée", aside)
+            raw = _key_file(path, Fernet.generate_key)
+            key = secretstore.unprotect(raw)
         if secretstore.available() and not explicit and not raw.startswith(secretstore.PREFIX):
             path.write_bytes(secretstore.protect(key))  # ancienne clé en clair : on la protège
         return key

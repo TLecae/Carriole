@@ -4,6 +4,7 @@ import sys
 import threading
 import time
 
+import duckdb
 import mapbox_vector_tile as mvt
 import numpy as np
 import pyarrow as pa
@@ -72,6 +73,46 @@ def ready(env, node="r", port="output") -> dict:
         if (info["geometry"] or {}).get("map_status") != "building" or time.monotonic() > deadline:
             return info
         time.sleep(0.05)
+
+
+def test_a_port_computed_on_demand_is_prepared_when_opened(env):
+    """« Passed » du filtre n'a que sa définition (ADR 0044) : préparé à la première ouverture, ensuite comme les
+    autres."""
+    assert (env.cache / RUN / "t" / "Passed.sql.json").is_file()
+    assert not (env.cache / RUN / "t" / "Passed.parquet").exists()
+    first = env.get(url("info", "t", "Passed"))
+    assert first.status_code in (200, ds.PREPARING)
+    deadline = time.monotonic() + 60
+    while (r := env.get(url("info", "t", "Passed"))).status_code == ds.PREPARING and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert r.status_code == 200 and r.json()["total"] == N - 10  # pop >= 1000 : à partir de la 11e
+    assert (env.cache / RUN / "t" / "Passed.parquet").is_file()
+    page = env.post(url("rows", "t", "Passed"), json={"limit": 5}).json()
+    assert [row[1] for row in page["rows"]] == [10, 11, 12, 13, 14]  # (fid, id, …)
+
+
+def test_a_preparation_nobody_waits_for_stops_and_restarts_when_asked_again(env, monkeypatch):
+    """Choisir un nœud ouvre sa première sortie : si l'on passe à un autre port, son calcul s'arrête (plus de
+    demande depuis `ABANDONED_S`) ; il reprend, sans erreur, si l'on y revient."""
+    assert (env.cache / RUN / "t" / "Failed.sql.json").is_file()
+    real = ds.materialize
+    stopped = threading.Event()
+
+    def endless(run_dir, node, port, kind, abandoned):
+        while not abandoned():
+            time.sleep(0.02)
+        stopped.set()
+        raise duckdb.InterruptException("abandonné")
+
+    monkeypatch.setattr(ds, "ABANDONED_S", 0.2)
+    monkeypatch.setattr(ds, "materialize", endless)
+    assert env.get(url("info", "t", "Failed")).status_code == ds.PREPARING
+    assert stopped.wait(10)  # plus personne ne demande ce port
+    monkeypatch.setattr(ds, "materialize", real)
+    deadline = time.monotonic() + 60
+    while (r := env.get(url("info", "t", "Failed"))).status_code == ds.PREPARING and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert r.status_code == 200 and r.json()["total"] == 10
 
 
 def test_info(env):
@@ -151,6 +192,51 @@ def test_values_locate_and_feature(env):
     assert env.get(url("feature/9999")).status_code == 404
 
 
+def test_classes_of_a_numeric_attribute_for_the_map(env):
+    """Couleur par un attribut numérique : classes d'effectifs égaux sur les lignes filtrées, bornes prises parmi les
+    valeurs ; un attribut texte se colore par catégories (`values`)."""
+    whole = env.post(url("classes"), json={"column": "pop"}).json()
+    assert whole["nulls"] == 0 and whole["breaks"][0] == 0 and whole["breaks"][-1] == 4900
+    assert len(whole["breaks"]) == 6 and whole["breaks"] == sorted(whole["breaks"])
+    assert all(b % 100 == 0 for b in whole["breaks"])  # des valeurs du port
+    few = {"filters": [{"column": "pop", "op": "in", "values": [100, 200]}]}
+    assert env.post(url("classes"), json={"column": "pop", "query": few}).json()["breaks"] == [100, 200]
+    none = {"filters": [{"column": "pop", "op": "gt", "value": 99999}]}
+    assert env.post(url("classes"), json={"column": "pop", "query": none}).json() == {"breaks": [], "nulls": 0}
+    text = env.post(url("classes"), json={"column": "dep"})
+    assert text.status_code == 422 and "classes impossibles" in text.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "q",
+    [
+        {},
+        {"sort": [{"column": "nom"}]},  # nuls en dernier
+        {"sort": [{"column": "nom", "desc": True}]},
+        {"sort": [{"column": "dep"}, {"column": "pop", "desc": True}]},
+        {"sort": [{"column": "dep", "desc": True}, {"column": "nom"}]},  # égalités départagées par fid
+        {"filters": [{"column": "dep", "op": "equals", "value": "09"}]},
+        {"filters": [{"column": "dep", "op": "equals", "value": "31"}], "sort": [{"column": "nom", "desc": True}]},
+        {"search": "commune 2", "sort": [{"column": "pop"}]},
+        {"where": "ST_X(geometry) > 605000", "sort": [{"column": "dep"}]},
+    ],
+)
+def test_locate_gives_the_row_of_each_entity_in_the_pages(env, q):
+    """Le clic sur la carte fait défiler la table jusqu'à la ligne de l'entité : `locate` compte les lignes qui la
+    précèdent (au lieu de trier toute la table), `rows` lit les fid de la page puis ses lignes ; les deux suivent le
+    même ordre, page après page."""
+    listed = [
+        r[0]
+        for off in range(0, N, 7)
+        for r in env.post(url("rows"), json={**q, "limit": 7, "offset": off}).json()["rows"]
+    ]
+    assert len(listed) == len(set(listed))
+    for fid in range(N):
+        index = env.post(url("locate"), json={"query": q, "fid": fid}).json()["index"]
+        assert index == (listed.index(fid) if fid in listed else None), fid
+    assert env.post(url("locate"), json={"query": q, "fid": N + 5}).json()["index"] is None
+
+
 def test_export_filtered_view(env, tmp_path):
     body = {"filters": [{"column": "dep", "op": "equals", "value": "31"}], "sort": [{"column": "pop", "desc": True}]}
     csv = env.post(url("export?format=csv"), json=body)
@@ -201,6 +287,8 @@ def test_tiles_contain_features_with_fid_and_color(env):
     assert {f["geometry"]["type"] for f in feats} == {"Point"}
     assert decode(env.get(tile_url(z=8, x=129, y=89))) == []  # tuile voisine vide
     assert len(decode(env.get(tile_url(z=3, x=4, y=2)))) == N  # petite échelle : tout est là
+    # un texte fait de chiffres reste du texte : la carte le compare aux valeurs de la légende (« 31 », « 09 »)
+    assert {f["properties"]["c"] for f in decode(env.get(tile_url(color="dep")))} == {"31", "09"}
 
 
 def test_tile_filter_is_applied_and_part_of_the_cache_key(env):
@@ -298,6 +386,7 @@ def test_no_map_without_geometry(env, tmp_path):
 
 def test_slow_queries_are_interrupted(env, monkeypatch):
     monkeypatch.setattr(ds, "QUERY_TIMEOUT", 0.5)
+    monkeypatch.setattr(ds, "TABLE_TIMEOUT", 0.5)  # page de la table : délai plus long, interrompue elle aussi
     r = env.post(url("rows"), json={"where": "pg_sleep(10) = 1"})
     assert r.status_code == 504 and "trop longue" in r.json()["detail"]
     assert env.post(url("rows"), json={}).status_code == 200  # la connexion reste utilisable
@@ -446,6 +535,45 @@ def test_huge_entity_tiles_and_selection_stay_light(env, monkeypatch):
     # de petites parcelles éparses : une cellule par pixel occupé (fusionnées si voisines), pas leurs 15 000 sommets
     assert sum(len(ring) for poly in light["geometry"]["coordinates"] for ring in poly) < 3000 * 5
     assert light["bbox"] == pytest.approx(full["bbox"], abs=1e-6)
+
+
+def test_fused_polygon_tiles_draw_cut_pieces_and_their_outline_apart(env, monkeypatch):
+    """Un polygone fusionné d'un seul tenant (milliers de trous) : découpé dans la vue ; les tuiles portent `r = 1` sur
+    ses surfaces (la carte ne trace pas leur bord : les coupes) et `r = 2` sur son contour ; la sélection aussi."""
+    fused = env.cache / RUN / "fused"
+    fused.mkdir()
+    t = np.linspace(0, 2 * np.pi, 20_000, endpoint=False)
+    r = 30_000 * (1 + 0.05 * np.sin(37 * t))
+    a = np.linspace(0, 2 * np.pi, 16, endpoint=False)
+    c = np.linspace(-15_000, 15_000, 60)
+    holes = [np.c_[x + 90 * np.cos(a), y + 90 * np.sin(a)] for x in c for y in c]
+    poly = shapely.transform(shapely.Polygon(np.c_[r * np.cos(t), r * np.sin(t)], holes), lambda xy: xy + [6e5, 6.3e6])
+    table = pa.table({"nom": ["fusion"], GEOM: pa.array([shapely.to_wkb(poly)], pa.binary())})
+    pq.write_table(with_crs(table, "EPSG:2154"), fused / "output.parquet")
+
+    info = ready(env, node="fused")
+    assert info["geometry"]["map"]
+    x0, y0, x1, y1 = info["geometry"]["extent_3857"]
+    world = 20037508.342789244
+
+    def tile_at(z, fx=0.5, fy=0.5):
+        tx = int((x0 + (x1 - x0) * fx + world) / (2 * world) * 2**z)
+        ty = int((world - (y0 + (y1 - y0) * fy)) / (2 * world) * 2**z)
+        return decode(env.get(tile_url(z=z, x=tx, y=ty, node="fused")))
+
+    for z in (10, 13):
+        feats = tile_at(z, 0.3, 0.6)
+        kinds = {(f["geometry"]["type"].removeprefix("Multi"), f["properties"].get("r")) for f in feats}
+        assert kinds == {("Polygon", 1), ("LineString", 2)}, (z, kinds)
+        assert {f["id"] for f in feats} == {0}
+    assert all("r" not in f["properties"] for f in decode(env.get(tile_url())))  # ports ordinaires : inchangés
+
+    assert "outline" not in env.get(url("feature/0", node="fused")).json()  # géométrie exacte, lue dans le port
+    monkeypatch.setattr(ds, "FEATURE_MAX_POINTS", 100)
+    light = env.get(url("feature/0", node="fused")).json()
+    assert light["outline"] == "edges" and light["geometry"]["type"] == "GeometryCollection"
+    types = {g["type"] for g in light["geometry"]["geometries"]}
+    assert "MultiLineString" in types and types & {"Polygon", "MultiPolygon"}
 
 
 def test_too_many_points_are_sampled_the_same_way_in_every_tile(env, monkeypatch):

@@ -7,6 +7,7 @@ import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.data import GEOM
+from etl_engine.expr import quote
 from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params
 
 
@@ -72,6 +73,33 @@ class ReplaceText(Modifier):
             out = out.set(out.get_field_index(field.name), field) if field.name in out.names else out.append(field)
         return {"output": out}
 
+    def sql(self, relations, schemas):
+        """Même remplacement par DuckDB (même moteur d'expressions régulières, RE2) ; attributs texte seulement : le
+        texte d'un nombre ou d'une date diffère entre Arrow et DuckDB, la voie par lots les traite."""
+        self._check()
+        p = self.params
+        schema = schemas.get("input")
+        if schema is None or any(not pa.types.is_string(schema.field(n).type) for n in p.attributes):
+            return None
+        computed: dict[str, str] = {}
+        for name in p.attributes:
+            col = quote(name)
+            if p.whole_value:
+                same = f"lower({col}) = lower({_literal(p.find)})" if p.ignore_case else f"{col} = {_literal(p.find)}"
+                expr = f"CASE WHEN {same} THEN {_literal(p.replace)} ELSE {col} END"
+            elif p.regex:
+                pattern = f"(?i){p.find}" if p.ignore_case else p.find
+                expr = f"regexp_replace({col}, {_literal(pattern)}, {_literal(p.replace)}, 'g')"
+            elif p.ignore_case:
+                pattern = "(?i)" + _escape(p.find)
+                expr = f"regexp_replace({col}, {_literal(pattern)}, {_literal(p.replace.replace(chr(92), chr(92) * 2))}, 'g')"
+            else:
+                expr = f"replace({col}, {_literal(p.find)}, {_literal(p.replace)})"
+            computed[self._target(name)] = expr
+        kept = [f"{quote(n)}" if n not in computed else f"{computed.pop(n)} AS {quote(n)}" for n in schema.names]
+        added = [f"{expr} AS {quote(name)}" for name, expr in computed.items()]
+        return {"output": f"SELECT {', '.join([*kept, *added])} FROM {relations['input']}"}
+
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         self._check()
         p = self.params
@@ -109,3 +137,8 @@ class ReplaceText(Modifier):
 
 def _escape(text: str) -> str:
     return "".join("\\" + c if c in r".^$*+?()[]{}|\\" else c for c in text)
+
+
+def _literal(text: str) -> str:
+    """Littéral texte SQL."""
+    return "'" + text.replace("'", "''") + "'"

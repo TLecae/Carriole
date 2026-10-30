@@ -10,7 +10,16 @@ import shapely
 from pydantic import Field
 
 from etl_engine.data import GEOM, geometries, get_crs, is_geographic, with_crs
-from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, Attribute, ConfigError, Modifier, Params, reject
+from etl_engine.sdk import (
+    GEOMETRY_SLICE,
+    REJECTED,
+    Attribute,
+    ConfigError,
+    Modifier,
+    Params,
+    reject,
+    require_attributes,
+)
 
 
 class Buffer(Modifier):
@@ -57,6 +66,10 @@ class Buffer(Modifier):
         schema = inputs.get("input")
         if schema is not None and GEOM not in schema.names:
             raise ConfigError("le modificateur a besoin d'une géométrie en entrée")
+        if schema is not None and is_geographic(crs := get_crs(schema)):
+            raise ConfigError(f"{crs} est géographique (degrés) : reprojeter d'abord (distance en mètres)")
+        if schema is not None and self.params.distance_attribute:
+            require_attributes(schema, [self.params.distance_attribute])
         return {"output": schema}
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:

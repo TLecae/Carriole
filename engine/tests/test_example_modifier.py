@@ -30,3 +30,11 @@ def test_surface_calculator_example():
     assert out["Rejected"].column("id").to_pylist() == [2, 4]
     assert set(out["Rejected"].column("_rejection_reason").to_pylist()) == {"pas de polygone"}
     assert run_modifier(cls, {"unit": "ha"}, t)["output"].column("surface").to_pylist() == [0.01, 1.0, 0.0]
+
+
+def test_no_plugin_folder_does_not_run_the_scripts_of_the_current_folder(tmp_path, monkeypatch):
+    """Sans dossier de plugins (`ETL_PLUGINS_DIR` absent), les scripts du dossier courant ne sont pas exécutés."""
+    (tmp_path / "script.py").write_text("raise SystemExit('exécuté')\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("ETL_PLUGINS_DIR", raising=False)
+    assert Registry.discover().errors == {}

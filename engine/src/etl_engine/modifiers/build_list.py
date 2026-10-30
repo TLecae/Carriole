@@ -10,7 +10,16 @@ from pydantic import Field
 
 from etl_engine.blocking import collect, duck, quote
 from etl_engine.data import GEOM, get_crs, with_crs
-from etl_engine.sdk import Attribute, AttributeList, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import (
+    Attribute,
+    AttributeList,
+    ConfigError,
+    Emit,
+    Modifier,
+    Params,
+    missing_attributes,
+    require_attributes,
+)
 
 
 class BuildList(Modifier):
@@ -50,7 +59,7 @@ class BuildList(Modifier):
             raise ConfigError("attribut des valeurs non renseigné")
         return self.params.list_name or f"{self.params.attribute}_liste"
 
-    def _query(self, names: list[str]) -> str:
+    def _query(self, names: list[str], relation: str = "t") -> str:
         p = self.params
         value = quote(p.attribute)
         if p.distinct and p.sort:
@@ -65,7 +74,7 @@ class BuildList(Modifier):
         selects.append(f"{agg} FILTER (WHERE {value} IS NOT NULL) AS {quote(self._name())}")
         if p.geometry == "first" and GEOM in names:
             selects.append(f"ARG_MIN({quote(GEOM)}, __row) AS {quote(GEOM)}")
-        sql = f"SELECT {', '.join(selects)} FROM t"
+        sql = f"SELECT {', '.join(selects)} FROM {relation}"
         if p.group_by:
             sql += " GROUP BY " + ", ".join(quote(g) for g in p.group_by) + " ORDER BY MIN(__row)"
         return sql
@@ -73,11 +82,21 @@ class BuildList(Modifier):
     def _compute(self, table: pa.Table) -> pa.Table:
         missing = [a for a in [*self.params.group_by, self.params.attribute] if a not in table.column_names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         out = duck(
             self._query(table.column_names), t=table.append_column("__row", pa.array(range(table.num_rows), pa.int64()))
         )
         return with_crs(out, get_crs(table))
+
+    def sql(self, relations, schemas):
+        """La requête de la voie par lots, sur le port numéroté dans son ordre (DuckDB déborde au besoin)."""
+        self._name()
+        schema = schemas.get("input")
+        if schema is None:
+            return None
+        require_attributes(schema, [*self.params.group_by, self.params.attribute])
+        numbered = f"(SELECT row_number() OVER () - 1 AS __row, * FROM {relations['input']})"
+        return {"output": self._query(schema.names, numbered)}
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
         self._name()

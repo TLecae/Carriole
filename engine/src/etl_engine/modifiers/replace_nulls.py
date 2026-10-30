@@ -9,7 +9,8 @@ import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.data import GEOM, get_crs, with_crs
-from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params
+from etl_engine.expr import quote
+from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params, missing_attributes
 
 
 class ReplaceNulls(Modifier):
@@ -50,7 +51,7 @@ class ReplaceNulls(Modifier):
         wanted = list(self.params.attributes) or [n for n in names if n != GEOM]
         missing = [a for a in wanted if a not in names]
         if missing:
-            raise ConfigError(f"attributs absents : {missing}")
+            raise missing_attributes(missing)
         return [a for a in wanted if a != GEOM]
 
     def output_schema(self, inputs):
@@ -58,6 +59,27 @@ class ReplaceNulls(Modifier):
         if schema is not None:
             self._columns(schema.names)
         return {"output": schema}
+
+    def sql(self, relations, schemas):
+        """Attributs texte, sans « vide = espaces » (Arrow et DuckDB ne retirent pas les mêmes espaces) : sinon la voie
+        par lots."""
+        p = self.params
+        schema = schemas.get("input")
+        if schema is None or p.blank_is_null:
+            return None
+        targets = self._columns(schema.names)
+        if any(not pa.types.is_string(schema.field(n).type) for n in targets):
+            return None
+        value = "'" + p.value.replace("'", "''") + "'"
+
+        def expr(name: str) -> str:
+            col = quote(name)
+            if p.mode == "fill":
+                return f"coalesce({col}, {value})"
+            return f"CASE WHEN {col} = {value} THEN NULL ELSE {col} END"
+
+        columns = ", ".join(f"{expr(n)} AS {quote(n)}" if n in targets else quote(n) for n in schema.names)
+        return {"output": f"SELECT {columns} FROM {relations['input']}"}
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         p = self.params

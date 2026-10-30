@@ -114,14 +114,35 @@ export function processAlive(pid: number): boolean {
   }
 }
 
-/** Sortie console du moteur (erreurs au démarrage, plantages) : `logs/server-console.log`, sinon ignorée. */
-function consoleLog(): number | "ignore" {
+/** Sortie console du moteur (erreurs au démarrage, plantages), sinon ignorée. */
+function consoleLog(file: string): number | "ignore" {
   try {
-    const folder = path.join(appDirs().data, "logs");
-    fs.mkdirSync(folder, { recursive: true });
-    return fs.openSync(path.join(folder, "server-console.log"), "a");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    return fs.openSync(file, "a");
   } catch {
     return "ignore";
+  }
+}
+
+/**
+ * Erreur écrite dans `file` après l'octet `from` : la dernière exception Python (« ImportError: … »), plutôt que le
+ * « Application startup failed. Exiting. » d'uvicorn qui la suit, sinon la dernière ligne.
+ */
+function lastLine(file: string, from: number): string {
+  try {
+    const fd = fs.openSync(file, "r");
+    try {
+      const size = fs.fstatSync(fd).size;
+      const buf = Buffer.alloc(Math.max(0, Math.min(size - from, 64 * 1024)));
+      fs.readSync(fd, buf, 0, buf.length, size - buf.length);
+      const lines = buf.toString("utf8").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const error = lines.findLast((l) => /^(?:\w+\.)*[A-Z]\w*(?:Error|Exception)\b/.test(l));
+      return (error ?? lines.pop() ?? "").slice(0, 300);
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return "";
   }
 }
 
@@ -137,7 +158,9 @@ export async function ensureBackend(
 ): Promise<ServerInfo> {
   const existing = await runningServer();
   if (existing) return existing;
-  const output = consoleLog();
+  const log = path.join(appDirs().data, "logs", "server-console.log");
+  const start = fs.statSync(log, { throwIfNoEntry: false })?.size ?? 0;
+  const output = consoleLog(log);
   const child = spawn(python, ["-m", "etl_engine.cli", "serve", ...(same ? ["--port", String(same.port)] : [])], {
     detached: true,
     stdio: ["ignore", output, output],
@@ -155,7 +178,9 @@ export async function ensureBackend(
     if (exited) break; // port déjà pris, installation abîmée… : inutile d'attendre
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new BackendError("le backend n'a pas démarré (voir logs\\server-console.log dans le dossier de l'application)");
+  const last = lastLine(log, start);
+  const why = exited ? "le moteur s'est arrêté au démarrage" : "le moteur ne répond pas";
+  throw new BackendError(`${why}${last ? ` : ${last}` : ""}\n\nJournal : ${log}`);
 }
 
 export async function stopBackend(info: ServerInfo, waitMs = 90_000): Promise<void> {

@@ -8,6 +8,7 @@ import pyarrow as pa
 from pydantic import Field
 
 from etl_engine.data import GEOM
+from etl_engine.expr import guarded, quote, sql_base, sql_columns
 from etl_engine.modifiers.add_attributes import apply_expressions
 from etl_engine.sdk import REJECTED, Attribute, ConfigError, Expression, Modifier, Params
 
@@ -33,6 +34,7 @@ class RefactorAttributes(Modifier):
         '(ex. "surface" / 10000) ; « rename » : attribut → nouveau nom ; « remove » : supprime l\'attribut. '
         "Une entité dont l'expression échoue part sur « Rejected » avec le motif."
     )
+    version = 2  # 2 : la sortie garde le SCR (les sorties en cache, sans lui, sont recalculées)
 
     class Params(Params):
         rules: list[Rule] = Field([], title="Règles", description="Appliquées dans l'ordre.")
@@ -66,6 +68,8 @@ class RefactorAttributes(Modifier):
                 if r.new_name in table.column_names and r.new_name != r.attribute:
                     raise ConfigError(f"« {r.new_name} » existe déjà")
                 table = table.rename_columns([r.new_name if n == r.attribute else n for n in table.column_names])
+        # rename_columns perd les métadonnées du schéma : le SCR avec elles
+        table = table.replace_schema_metadata(batch.schema.metadata)
         return table, (pa.concat_tables(rejected, promote_options="default") if rejected else None)
 
     def output_schema(self, inputs):
@@ -73,6 +77,40 @@ class RefactorAttributes(Modifier):
         if schema is None:
             return {"output": None}
         return {"output": self._apply(schema.empty_table())[0].schema}
+
+    def sql(self, relations, schemas):
+        schema = schemas.get("input")
+        if schema is None:
+            return None
+        out = self._apply(schema.empty_table())[0].schema
+        rules = self.params.rules
+        computed = [r.attribute for r in rules if r.action == "set"]
+        # chaque expression doit rester dans la sortie, une seule fois et sous son nom : le contrôle l'y évalue
+        if GEOM in computed or len(set(computed)) < len(computed) or any(c not in out.names for c in computed):
+            return None
+        if any(r.action != "set" and r.attribute in computed for r in rules):
+            return None
+        texts = [r.expression for r in rules if r.action == "set"]
+        query = sql_base(relations["input"], schema, texts)
+        present = list(schema.names)
+        for r in rules:
+            name = quote(r.attribute)
+            if r.action == "set":
+                if r.attribute in present:
+                    query = f"SELECT * REPLACE ({guarded(r.expression)} AS {name}) FROM ({query})"
+                else:
+                    query = f"SELECT *, {guarded(r.expression)} AS {name} FROM ({query})"
+                    present.append(r.attribute)
+            elif r.action == "remove":
+                query = f"SELECT * EXCLUDE ({name}) FROM ({query})"
+                present.remove(r.attribute)
+            else:
+                query = f"SELECT * RENAME ({name} AS {quote(r.new_name)}) FROM ({query})"
+                present[present.index(r.attribute)] = r.new_name
+        return {"output": f"SELECT {sql_columns(out.names, schema, texts)} FROM ({query})"}
+
+    def sql_checked(self) -> list[str]:
+        return [r.attribute for r in self.params.rules if r.action == "set" and r.attribute]
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         out, rejected = self._apply(batch)

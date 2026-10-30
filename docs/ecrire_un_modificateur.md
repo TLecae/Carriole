@@ -50,12 +50,15 @@ Les paramètres sont une classe Pydantic. Le type du champ décide du widget :
 | --- | --- |
 | `str`, `int`, `float`, `bool` | texte, nombre, case à cocher |
 | `Literal["a", "b"]` | liste de choix |
-| `Attribute` / `AttributeList` | un / plusieurs attributs présents en amont |
+| `list[Literal["a", "b"]]` | cases à cocher (plusieurs choix) |
+| `Attribute` / `AttributeList` | un attribut présent en amont / cases à cocher (ordre des coches gardé, filtre au-delà de 8) |
 | `Expression` | expression SQL DuckDB (éditeur avec complétion des attributs) |
 | `Crs` | système de coordonnées (ex. `EPSG:2154`) |
 | `FilePath` | chemin de fichier ou de dossier |
 | `DbConnection` | connexion de base nommée |
 | `list[AutreClasseParams]` | tableau de lignes |
+
+Au-delà de 6 paramètres, le panneau propose une recherche (libellé, nom, description, valeurs proposées).
 
 Dans n'importe quel champ texte on peut écrire `${NOM}` (paramètre publié du flux) ou
 `${env:NOM}` (variable d'environnement) : le moteur les remplace avant de valider.
@@ -111,6 +114,23 @@ def run(self, inputs, emit):
     tout = pa.concat_tables(inputs["input"])  # tout en mémoire : réservé aux petits volumes
     emit("output", tout.sort_by("pop"))
 ```
+
+### En SQL : exécuté par DuckDB (facultatif)
+
+Un modificateur peut aussi s'écrire en SQL : `sql(self, relations, schemas)` renvoie, pour chaque port de sortie, un
+`SELECT` sur les relations d'entrée (`relations["input"]`) qui donne **exactement** les mêmes lignes et colonnes que la
+voie par lots ; `None` pour refuser (réglages non exprimables). Le moteur choisit alors :
+
+- modificateur ligne à ligne (`mode = "streaming"`) : ses ports ne sont **pas écrits**. Leur requête est contrôlée sur
+  toutes les lignes et comptée, puis gardée comme définition ; une chaîne de tels nœuds forme une seule requête,
+  calculée par le nœud qui en lit les données ou par l'inspecteur à l'ouverture
+  ([ADR 0044](decisions/0044-ports-calcules-a-la-demande.md)) ;
+- modificateur bloquant : la requête est exécutée et ses ports écrits, DuckDB débordant sur disque au besoin.
+
+Les expressions d'utilisateur se marquent par `expr.guarded(…)` et les colonnes qu'elles calculent se déclarent par
+`sql_checked()` : une erreur sur une donnée renvoie alors le nœud vers la voie par lots, qui rejette exactement les
+entités en cause. `expr.sql_base` et `expr.sql_columns` donnent aux expressions la même vue des lignes que la voie par
+lots (géométrie en `GEOMETRY`, WKB d'origine gardé). Exemple : `ExtractByExpression`.
 
 ## Tester
 

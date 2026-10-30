@@ -6,7 +6,8 @@ import pyarrow as pa
 from pydantic import Field
 
 from etl_engine.data import GEOM
-from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params
+from etl_engine.expr import quote
+from etl_engine.sdk import AttributeList, Modifier, Params, missing_attributes
 
 
 class DropAttributes(Modifier):
@@ -33,7 +34,7 @@ class DropAttributes(Modifier):
         drop = [a for a in self.params.attributes if a != GEOM]
         missing = [a for a in drop if a not in table.column_names]
         if missing and not self.params.ignore_missing:
-            raise ConfigError(f"attributs absents : {missing}")
+            raise missing_attributes(missing)
         if self.params.remove_geometry and GEOM in table.column_names:
             drop.append(GEOM)
         return table.drop_columns([a for a in drop if a in table.column_names])
@@ -41,6 +42,13 @@ class DropAttributes(Modifier):
     def output_schema(self, inputs):
         schema = inputs.get("input")
         return {"output": self._apply(schema.empty_table()).schema if schema is not None else None}
+
+    def sql(self, relations, schemas):
+        schema = schemas.get("input")
+        if schema is None:
+            return None
+        names = self._apply(schema.empty_table()).column_names
+        return {"output": f"SELECT {', '.join(quote(n) for n in names)} FROM {relations['input']}"}
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         return {"output": self._apply(batch)}

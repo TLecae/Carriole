@@ -68,4 +68,15 @@ describe("attributs disponibles en amont", () => {
     expect(upstreamAttributes("Reader_1", edges, schemas)).toEqual([]);
     expect(upstreamAttributes("ExtractByExpression_1", [{ ...edges[0], data: { enabled: false } }], schemas)).toEqual([]);
   });
+
+  it("ceux d'une entrée seulement (relateur spatial : les attributs de « related »)", () => {
+    const edges = [
+      { id: "a", source: "Parcelles", sourceHandle: "output", target: "J", targetHandle: "base" },
+      { id: "b", source: "Communes", sourceHandle: "output", target: "J", targetHandle: "related" },
+    ];
+    const schemas = { "Parcelles/output": { fields: [{ name: "id" }] }, "Communes/output": { fields: [{ name: "nom" }, { name: "pop" }] } };
+    expect(upstreamAttributes("J", edges, schemas)).toEqual(["id", "nom", "pop"]);
+    expect(upstreamAttributes("J", edges, schemas, "related")).toEqual(["nom", "pop"]);
+    expect(upstreamAttributes("J", edges, schemas, "base")).toEqual(["id"]);
+  });
 });

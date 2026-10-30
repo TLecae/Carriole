@@ -209,12 +209,14 @@ export function upstreamAttributes(
   nodeId: string,
   edges: AppEdge[],
   schemas: Record<string, { fields: { name: string }[] } | null> | undefined,
+  port?: string, // une entrée seulement (« related », « join »…), sinon toutes
 ): string[] {
   if (!schemas) return [];
   const seen = new Set<string>();
   const out: string[] = [];
   for (const e of edges) {
     if (e.target !== nodeId || e.data?.enabled === false) continue;
+    if (port !== undefined && (e.targetHandle ?? "input") !== port) continue;
     const schema = schemas[`${e.source}/${e.sourceHandle ?? "output"}`];
     for (const f of schema?.fields ?? []) {
       if (!seen.has(f.name)) {

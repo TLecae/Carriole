@@ -26,7 +26,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal, get_args
 
 import pyarrow as pa
 from pydantic import BaseModel, ConfigDict, Field
@@ -57,6 +57,18 @@ def _widget(kind: str, **extra: Any) -> Any:
 # Types de paramètres métier : l'éditeur en fait le bon champ de formulaire.
 Attribute = Annotated[str, _widget("attribute")]  # un attribut présent en amont
 AttributeList = Annotated[list[str], _widget("attributes")]  # plusieurs attributs
+
+
+def attribute_of(port: str) -> Any:
+    """Attribut d'une entrée précise d'un modificateur à plusieurs entrées : l'éditeur ne propose que les siens."""
+    return Annotated[str, _widget("attribute", **{"x-etl-input": port})]
+
+
+def attributes_of(port: str) -> Any:
+    """Plusieurs attributs d'une entrée précise (cases à cocher de ses seuls attributs, « Tout » / « Aucun »)."""
+    return Annotated[list[str], _widget("attributes", **{"x-etl-input": port})]
+
+
 Expression = Annotated[str, _widget("expression")]  # expression SQL DuckDB
 Crs = Annotated[str, _widget("crs")]  # système de coordonnées (ex. EPSG:2154)
 FilePath = Annotated[str, _widget("path")]  # fichier ou dossier à lire (explorateur sur les dossiers de lecture)
@@ -122,9 +134,26 @@ class Context:
             self.progress_sink(self.node_id, rows)
 
 
+def missing_attributes(names: Iterable[str]) -> ConfigError:
+    """Erreur de configuration « attribut(s) absent(s) » : les noms séparés par des virgules, la même forme pour tous
+    les modificateurs (à lever : `raise missing_attributes(absents)`)."""
+    names = list(names)
+    listing = ", ".join(names)
+    if len(names) == 1:
+        return ConfigError(f"attribut absent : {listing}")
+    return ConfigError(f"attributs absents : {listing}")
+
+
+def require_attributes(schema: pa.Schema | None, names: Iterable[str]) -> None:
+    """Dans `output_schema` : lève `missing_attributes` si l'un des attributs manque au schéma de l'amont (rien si le
+    schéma n'est pas connu) ; le run s'arrête alors avant de lire les données."""
+    if schema is not None and (missing := [n for n in names if n and n not in schema.names]):
+        raise missing_attributes(missing)
+
+
 def reject(table: pa.Table, reason: str | pa.Array) -> pa.Table:
     """Ajoute `_rejection_reason` à `table` : à renvoyer sur le port `Rejected`."""
-    values = pa.array([reason] * table.num_rows, type=pa.string()) if isinstance(reason, str) else reason
+    values = pa.repeat(pa.scalar(reason, pa.string()), table.num_rows) if isinstance(reason, str) else reason
     if REJECT_COL in table.column_names:
         table = table.drop_columns([REJECT_COL])
     return table.append_column(REJECT_COL, values)
@@ -154,6 +183,9 @@ class Modifier:
     reusable: ClassVar[bool | Literal["partial"]] = True
     # calcul géométrique : lots coupés en tranches de cette taille (mémoire bornée par tâche, cœurs mieux occupés)
     slice_rows: ClassVar[int | None] = None
+    # voie SQL d'une lecture : si DuckDB échoue (type qu'il ne sait pas écrire…), le moteur repasse par `run` au lieu
+    # de mettre le nœud en erreur
+    sql_fallback: ClassVar[bool] = False
 
     class Params(Params):
         pass
@@ -200,12 +232,31 @@ class Modifier:
             deliver(result)
 
     def sql(self, relations: Mapping[str, str], schemas: Mapping[str, pa.Schema | None]) -> dict[str, str] | None:
-        """Voie SQL (facultative) : exécution par DuckDB, directement sur les fichiers des ports.
+        """Voie SQL (facultative) : exécution par DuckDB, directement sur les ports.
 
         `relations` : port d'entrée -> nom d'une relation DuckDB ; `schemas` : leurs schémas. Renvoie, pour chaque
-        port de sortie, un SELECT qui produit exactement les mêmes lignes et colonnes que `run`. Renvoyer `None`
-        pour refuser (paramètres non exprimables en SQL) : le moteur utilise alors `run`.
+        port de sortie, un SELECT qui produit exactement les mêmes lignes et colonnes que `run` (un port absent : vide).
+        Renvoyer `None` pour refuser (paramètres non exprimables en SQL) : le moteur utilise alors `run`.
+
+        Un modificateur ligne à ligne (`mode = "streaming"`) qui a des entrées n'écrit pas ses sorties : elles sont
+        définies par ces requêtes et calculées quand on les lit (ADR 0044). Ses expressions d'utilisateur y sont
+        marquées par `expr.guarded` ; ses colonnes calculées sont déclarées par `sql_checked`.
         """
+        return None
+
+    def sql_prepare(self, con: Any) -> None:
+        """Prépare la connexion DuckDB de la voie SQL (extension spatiale, lecture sur le web…) avant les requêtes."""
+
+    def sql_checked(self) -> list[str]:
+        """Voie différée (ADR 0044) : colonnes de sortie calculées par des expressions d'utilisateur. Le moteur les
+        évalue sur toutes les lignes au contrôle (`count(colonne)`) : une erreur de donnée renvoie le nœud vers la
+        voie par lots. Les conditions d'un filtre (`WHERE`) le sont déjà par le compte des lignes."""
+        return []
+
+    def ready_ports(self) -> dict[str, str] | None:
+        """Ports dont les données sont déjà un fichier Parquet au format des ports (géométrie WKB `geometry`, SCR lu
+        par `get_crs`) : le port désigne ce fichier au lieu d'en recopier les lignes (ADR 0043). Tous les ports de
+        sortie, ou None : le moteur exécute alors le modificateur."""
         return None
 
     def fingerprint_extra(self) -> str:
@@ -213,8 +264,8 @@ class Modifier:
         return ""
 
     def used_attributes(self) -> list[str]:
-        """Attributs d'entrée référencés par les paramètres (sert aux avertissements « absent en amont »)."""
-        return used_attributes(self.params)
+        """Attributs de la première entrée référencés par les paramètres (avertissements « absent en amont »)."""
+        return used_attributes(self.params, self.inputs[0] if self.inputs else None)
 
     # --- description pour l'API et l'éditeur ----------------------------------------------
     @classmethod
@@ -246,22 +297,53 @@ class Modifier:
 Transformer = Modifier  # ancien nom (avant le 2026-10-20) : les plugins qui l'importent marchent toujours
 
 
-def used_attributes(model: BaseModel) -> list[str]:
-    """Attributs référencés par les paramètres (champs `Attribute`/`AttributeList`, y compris imbriqués)."""
+def used_attributes(model: BaseModel, port: str | None = None) -> list[str]:
+    """Attributs référencés par les paramètres (champs `Attribute`/`AttributeList`, y compris imbriqués) ; `port` :
+    ceux de cette entrée seulement (un champ qui en désigne une autre, `attribute_of`, est laissé)."""
     found: list[str] = []
 
     def walk(value: Any, extra: dict[str, Any] | None) -> None:
         kind = (extra or {}).get("x-etl-widget")
+        elsewhere = (extra or {}).get("x-etl-input")
+        if port is not None and elsewhere is not None and elsewhere != port:
+            return
         if isinstance(value, BaseModel):
             for name, info in type(value).model_fields.items():
                 walk(getattr(value, name), info.json_schema_extra if isinstance(info.json_schema_extra, dict) else None)
         elif isinstance(value, list | tuple):
             for item in value:
-                walk(item, {"x-etl-widget": "attribute"} if kind == "attributes" else extra)
+                walk(item, {**(extra or {}), "x-etl-widget": "attribute"} if kind == "attributes" else extra)
         elif isinstance(value, str) and kind == "attribute" and value:
             found.append(value)
 
     walk(model, None)
+    return found
+
+
+def expressions(model: BaseModel) -> list[str]:
+    """Expressions SQL des paramètres (champs `Expression`, y compris imbriqués)."""
+    found: list[str] = []
+
+    def widget(annotation: Any, extra: Any) -> str | None:
+        if isinstance(extra, dict) and extra.get("x-etl-widget"):
+            return extra["x-etl-widget"]
+        for meta in getattr(annotation, "__metadata__", ()):  # Annotated[str, Field(json_schema_extra=…)]
+            if isinstance(getattr(meta, "json_schema_extra", None), dict):
+                return meta.json_schema_extra.get("x-etl-widget")
+        return None
+
+    def walk(value: Any, annotation: Any, extra: Any) -> None:
+        if isinstance(value, BaseModel):
+            for name, info in type(value).model_fields.items():
+                walk(getattr(value, name), info.annotation, info.json_schema_extra)
+        elif isinstance(value, list | tuple):
+            args = get_args(annotation)
+            for item in value:
+                walk(item, args[0] if args else None, None)
+        elif isinstance(value, str) and widget(annotation, extra) == "expression" and value.strip():
+            found.append(value)
+
+    walk(model, None, None)
     return found
 
 

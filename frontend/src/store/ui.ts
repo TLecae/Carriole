@@ -27,11 +27,30 @@ function loadHeight(): number {
   return DEFAULT_BOTTOM;
 }
 
+export const MIN_RIGHT = 260;
+const DEFAULT_RIGHT = 340;
+const WIDTH_KEY = "etl.rightWidth";
+
+/** Largeur maximale du panneau des propriétés : le canevas garde de quoi travailler. */
+export const maxRight = () => Math.max(MIN_RIGHT, window.innerWidth - 220 - 360);
+const clampWidth = (w: number) => Math.round(Math.min(maxRight(), Math.max(MIN_RIGHT, w)));
+
+function loadWidth(): number {
+  try {
+    const saved = Number(localStorage.getItem(WIDTH_KEY));
+    if (Number.isFinite(saved) && saved > 0) return clampWidth(saved);
+  } catch {
+    /* préférence non lue */
+  }
+  return DEFAULT_RIGHT;
+}
+
 interface UiState {
   view: View; // page d'accueil (liste des flux) ou éditeur
   setView: (view: View) => void;
   tab: BottomTab;
   bottomHeight: number; // hauteur du panneau du bas (journal, avertissements, données), réglable à la souris
+  rightWidth: number; // largeur du panneau des propriétés (paramètres du nœud), réglable à la souris
   fullscreen: boolean; // le panneau du bas occupe toute la page
   connectionsOpen: boolean; // gestionnaire de connexions (barre du haut ou champ « Connexion »)
   settingsOpen: boolean; // paramètres de l'application : affichés par App, hors de la page qui se redessine
@@ -50,6 +69,7 @@ interface UiState {
   setRunRequest: (request: { target: string | null; fresh: boolean } | null) => void;
   show: (tab: BottomTab) => void;
   setBottomHeight: (height: number, persist?: boolean) => void;
+  setRightWidth: (width: number, persist?: boolean) => void;
   setFullscreen: (on: boolean) => void;
 }
 
@@ -58,6 +78,7 @@ export const useUi = create<UiState>((set) => ({
   setView: (view) => set({ view }),
   tab: "log",
   bottomHeight: loadHeight(),
+  rightWidth: loadWidth(),
   fullscreen: false,
   connectionsOpen: false,
   settingsOpen: false,
@@ -85,6 +106,16 @@ export const useUi = create<UiState>((set) => ({
     if (!persist) return;
     try {
       localStorage.setItem(HEIGHT_KEY, String(bottomHeight));
+    } catch {
+      /* préférence non conservée */
+    }
+  },
+  setRightWidth: (width, persist = true) => {
+    const rightWidth = clampWidth(width);
+    set({ rightWidth });
+    if (!persist) return;
+    try {
+      localStorage.setItem(WIDTH_KEY, String(rightWidth));
     } catch {
       /* préférence non conservée */
     }

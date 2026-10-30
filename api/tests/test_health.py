@@ -129,6 +129,29 @@ def test_events_json_and_sse_resume(client):
     assert client.get(f"/api/runs/{rid}/logs?node=autre").json() == []
 
 
+def test_sse_sends_the_last_events_written_just_before_the_run_ends(client, monkeypatch):
+    """Le worker écrit ses derniers événements puis clôt le run : arrivés entre la lecture des événements (aucun) et
+    celle du statut (final), ils partent quand même avant `end` (sinon l'écriture finie reste « en cours »)."""
+    rid = client.post("/api/runs", json={"flow": sample_flow(client.tmp)}).json()["id"]
+    store = client.app.state.store
+    store.add_events(rid, [{"type": "run_started", "nodes": ["w"]}, {"type": "node", "node": "w", "status": "running"}])
+    get_run = store.get_run
+    calls = []
+
+    def worker_ends_meanwhile(run_id, *args, **kwargs):
+        calls.append(run_id)
+        if len(calls) == 2:  # 1 : existence du run ; 2 : statut lu après une lecture sans événement
+            store.add_events(run_id, [{"type": "node", "node": "w", "status": "done"}, {"type": "run_finished"}])
+            store.finish_run(run_id, "done", None, {"status": "done", "nodes": {}})
+        return get_run(run_id, *args, **kwargs)
+
+    monkeypatch.setattr(store, "get_run", worker_ends_meanwhile)
+    with client.stream("GET", f"/api/runs/{rid}/events") as resp:
+        text = "".join(resp.iter_text())
+    assert text.count("event: node") == 2 and "event: run_finished" in text
+    assert text.index("event: run_finished") < text.index("event: end")
+
+
 def test_end_to_end_with_a_worker(client):
     """L'API crée le job, un worker l'exécute dans son coin, l'API relaie les événements."""
     import threading

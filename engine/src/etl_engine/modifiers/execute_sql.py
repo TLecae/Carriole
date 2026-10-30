@@ -8,8 +8,10 @@ from typing import Any
 import pyarrow as pa
 from pydantic import BaseModel, Field
 
+from etl_engine import duck as duck_
 from etl_engine.blocking import collect
-from etl_engine.querier import IDENT, check_select, run_query
+from etl_engine.data import GEOM
+from etl_engine.querier import IDENT, check_select, describe, final_select, run_query
 from etl_engine.sdk import ConfigError, Emit, Modifier, Params, SqlCode
 
 
@@ -67,6 +69,25 @@ class ExecuteSql(Modifier):
             return {"output": None}
         empty = {n: s.empty_table() for n, s in zip(names, schemas, strict=True) if s is not None}
         return {"output": run_query(self.params.sql, empty).schema}
+
+    def sql(self, relations, schemas):
+        """La requête de l'utilisateur, chaque entrée vue sous son nom comme par la voie par lots (géométrie en GEOMETRY,
+        rendue en WKB) : exécutée par DuckDB sur les ports, sans tout charger en mémoire."""
+        names = self._names()
+        if any(schemas.get(n) is None for n in names) or not duck_.spatial_available():
+            return None
+        text = check_select(self.params.sql)
+        views = []
+        for name in names:
+            body = (
+                f'SELECT * REPLACE (ST_GeomFromWKB("{GEOM}") AS "{GEOM}")'
+                if GEOM in schemas[name].names
+                else "SELECT *"
+            )
+            views.append(f'"{name}" AS ({body} FROM {relations[name]})')
+        result = final_select(text, describe(text, schemas))
+        # sous-requête : une définition de port reçoit devant elle le WITH de ses entrées (ADR 0044)
+        return {"output": f"SELECT * FROM (WITH {', '.join(views)} {result})"}
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
         names = self._names()

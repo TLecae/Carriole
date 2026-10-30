@@ -12,10 +12,9 @@ from pydantic import Field
 from rasterio.features import geometry_mask
 
 from etl_engine.blocking import collect
-from etl_engine.data import GEOM, geometries, get_crs, with_crs
-from etl_engine.modifiers.clip_raster_by_mask import to_crs
+from etl_engine.data import GEOM, geometries, get_crs, to_crs, with_crs
 from etl_engine.raster import core
-from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params, ordered_map
+from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params, missing_attributes, ordered_map
 
 ZONES_PER_TASK = 500  # zones traitées d'un bloc par un thread (une ouverture du raster par bloc)
 
@@ -176,7 +175,7 @@ class ZonalStatistics(Modifier):
         attrs = core.attributes_of(rasters)
         missing = [a for a in p.raster_attributes if a not in attrs]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         zone_geoms = geometries(zones)
         for r, desc in enumerate(descs):
             self.ctx.check_cancel()
@@ -204,6 +203,6 @@ class ZonalStatistics(Modifier):
             for name, column in columns.items():
                 base = base.append_column(name, column)
             for a in p.raster_attributes:
-                base = base.append_column(a, pa.array([attrs[a][r]] * zones.num_rows))
+                base = base.append_column(a, pa.repeat(attrs[a][r], zones.num_rows))
             emit("output", with_crs(base, get_crs(zones)))  # raster par raster : pas d'accumulation
         self.ctx.info(f"{zones.num_rows} zone(s) × {len(descs)} raster(s)")

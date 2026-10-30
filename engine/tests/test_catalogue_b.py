@@ -122,7 +122,7 @@ def test_aggregate_mixed_geometries_and_options():
     )
     merged = run_modifier(Aggregate, {}, multi)["output"]
     assert shapely.from_wkb(col(merged, GEOM)[0]).geom_type == "MultiPolygon"
-    with pytest.raises(ConfigError, match="absents"):
+    with pytest.raises(ConfigError, match="absents?"):
         run_modifier(Aggregate, {"group_by": ["zz"]}, multi)
 
 
@@ -132,19 +132,19 @@ def test_aggregate_mixed_geometries_and_options():
 def test_value_mapper_unmatched_policies():
     t = table(code=["1", "2", None, "9", "2"], nom=["a", "b", "c", "d", "e"])
     maps = [{"source": "1", "target": "un"}, {"source": "2", "target": "deux"}]
-    keep = run_modifier(MapValues, {"source": "code", "mappings": maps}, t)["output"]
+    keep = run_modifier(MapValues, {"attribute": "code", "mappings": maps}, t)["output"]
     assert col(keep, "code") == ["un", "deux", None, "9", "deux"]
-    numbers = run_modifier(MapValues, {"source": "n", "mappings": maps}, table(n=[1, 2, 3]))["output"]
+    numbers = run_modifier(MapValues, {"attribute": "n", "mappings": maps}, table(n=[1, 2, 3]))["output"]
     assert col(numbers, "n") == ["un", "deux", "3"]  # le nombre 1 et le texte « 1 » sont égaux
     new = run_modifier(
         MapValues,
-        {"source": "code", "destination": "lib", "mappings": maps, "unmatched": "default", "default": "?"},
+        {"attribute": "code", "destination": "lib", "mappings": maps, "unmatched": "default", "default": "?"},
         t,
     )["output"]
     assert col(new, "lib") == ["un", "deux", "?", "?", "deux"] and col(new, "code")[3] == "9"
-    nulls = run_modifier(MapValues, {"source": "code", "mappings": maps, "unmatched": "null"}, t)["output"]
+    nulls = run_modifier(MapValues, {"attribute": "code", "mappings": maps, "unmatched": "null"}, t)["output"]
     assert col(nulls, "code") == ["un", "deux", None, None, "deux"]
-    rej = run_modifier(MapValues, {"source": "code", "mappings": maps, "unmatched": "reject"}, t)
+    rej = run_modifier(MapValues, {"attribute": "code", "mappings": maps, "unmatched": "reject"}, t)
     assert col(rej["output"], "nom") == ["a", "b", "e"] and col(rej["Rejected"], "nom") == ["c", "d"]
 
 
@@ -153,7 +153,7 @@ def test_value_mapper_ignore_case():
     out = run_modifier(
         MapValues,
         {
-            "source": "v",
+            "attribute": "v",
             "ignore_case": True,
             "mappings": [{"source": "oui", "target": "1"}, {"source": "non", "target": "0"}],
         },
@@ -244,7 +244,7 @@ def test_area_calculator_ellipsoidal():
 
 def test_geometry_extractor_and_replacer_roundtrip():
     t = points([1.5, 2.0], [3.0, 4.0], id=[1, 2])
-    wkt = run_modifier(GeometryToAttribute, {"attribute": "wkt", "remove": True}, t)["output"]
+    wkt = run_modifier(GeometryToAttribute, {"attribute": "wkt", "remove_geometry": True}, t)["output"]
     assert col(wkt, "wkt") == ["POINT (1.5 3)", "POINT (2 4)"] and GEOM not in wkt.column_names
     back = run_modifier(GeometryFromAttribute, {"attribute": "wkt", "crs": "EPSG:2154", "remove_attribute": True}, wkt)[
         "output"

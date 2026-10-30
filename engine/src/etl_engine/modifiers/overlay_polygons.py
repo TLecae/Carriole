@@ -12,7 +12,17 @@ from pydantic import Field
 
 from etl_engine.blocking import collect
 from etl_engine.data import GEOM, geometries, get_crs, set_geometries
-from etl_engine.sdk import REJECTED, AttributeList, ConfigError, Emit, Modifier, Params, ordered_map, reject
+from etl_engine.sdk import (
+    REJECTED,
+    AttributeList,
+    ConfigError,
+    Emit,
+    Modifier,
+    Params,
+    missing_attributes,
+    ordered_map,
+    reject,
+)
 from etl_engine.spatial import SUBDIVIDE_ABOVE, SpatialIndex, zorder
 
 POLYGONS = ("Polygon", "MultiPolygon")
@@ -68,7 +78,7 @@ class OverlayPolygons(Modifier):
         if schema is not None:
             missing = [a for a in p.attributes if a not in schema.names]
             if missing:
-                raise ConfigError(f"attributs absents : {', '.join(missing)}")
+                raise missing_attributes(missing)
         return [p.count_attribute, *([p.origins_attribute] if p.origins_attribute else []), *p.attributes]
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:

@@ -25,15 +25,31 @@ import time
 from dataclasses import asdict
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import IO
+from typing import IO, TYPE_CHECKING
 
 from etl_engine import settings as user_settings
 from etl_engine.backend import ServerInfo, info_path, is_healthy, read_info, running_server  # noqa: F401
+
+if TYPE_CHECKING:
+    import uvicorn
 
 log = logging.getLogger("etl.serve")
 
 DEFAULT_WORKERS = 3
 STOP_GRACE = 60.0  # un run en cours est coupé proprement (« interrompu ») ; au-delà, on tue le worker
+# Requêtes en cours (export, flux d'événements d'une page ouverte…) attendues à l'arrêt ; au-delà, coupées. Sans borne,
+# l'arrêt pouvait ne jamais finir sous Windows : quand un client coupe brutalement sa connexion, `shutdown()` du socket
+# échoue parfois dans `_call_connection_lost` (« WinError 10054 » dans server.log) et asyncio ne libère jamais la
+# connexion : `Server.wait_closed()`, la dernière attente d'uvicorn, ne rend plus la main (Python 3.12 à 3.14).
+GRACEFUL_SECONDS = 5.0
+
+
+def http_server(app) -> uvicorn.Server:
+    """Serveur HTTP du backend, à l'arrêt borné (`GRACEFUL_SECONDS`)."""
+    import uvicorn
+
+    config = uvicorn.Config(app, log_level="warning", access_log=False, timeout_graceful_shutdown=GRACEFUL_SECONDS)
+    return uvicorn.Server(config)
 
 
 class InstanceLock:
@@ -173,7 +189,6 @@ def _listening_socket(port: int) -> socket.socket:
 
 def run_server(port: int = 0, workers: int | None = None, announce: bool = False) -> int:
     """Démarre le backend et ne rend la main qu'à l'arrêt. Code de sortie : 0 arrêt normal (ou déjà démarré)."""
-    import uvicorn
     from etl_store import Settings
 
     from etl_api.main import create_app
@@ -205,9 +220,8 @@ def run_server(port: int = 0, workers: int | None = None, announce: bool = False
     os.environ.setdefault("ETL_MAX_RUNNING_PER_USER", "0")
 
     app = create_app(settings)
-    config = uvicorn.Config(app, log_level="warning", access_log=False)
-    server = uvicorn.Server(config)
-    crash_log = _log_to_files(dirs.logs)  # après uvicorn.Config, qui configure ses propres journaux
+    server = http_server(app)
+    crash_log = _log_to_files(dirs.logs)  # après `http_server` (uvicorn.Config configure ses propres journaux)
     log.info("backend démarré (pid %d, port %d, %d workers)", os.getpid(), real_port, count)
 
     app.state.request_shutdown = lambda: setattr(server, "should_exit", True)

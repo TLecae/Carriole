@@ -127,7 +127,7 @@ class CreateGrid(Modifier):
             if table is None or table.num_rows == 0 or GEOM not in table.column_names:
                 raise ConfigError("aucune géométrie reçue : emprise introuvable")
             geoms = geometries(table)
-            geoms = geoms[[g is not None and not g.is_empty for g in geoms]]
+            geoms = geoms[~shapely.is_missing(geoms) & ~shapely.is_empty(geoms)]
             crs = get_crs(table)
         cells, cols, rows = self._cells(self._extent(geoms))
         if p.from_input and p.only_touching and geoms is not None:

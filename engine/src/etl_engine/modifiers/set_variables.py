@@ -9,7 +9,7 @@ from typing import Any, Literal
 import pyarrow as pa
 from pydantic import Field
 
-from etl_engine.sdk import Attribute, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import Attribute, ConfigError, Emit, Modifier, Params, require_attributes
 
 _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -38,7 +38,7 @@ class SetVariables(Modifier):
     help = (
         "Les entités passent sans changement. Les variables posées ici s'utilisent dans les nœuds situés **en aval** "
         "avec ${var:NOM}, dans n'importe quel paramètre : un nœud démarre quand tout son amont est terminé, donc la "
-        "valeur est connue. L'analyse refuse une variable que rien ne pose en amont. Exemple : un Agrégateur calcule "
+        "valeur est connue. L'analyse refuse une variable que rien ne pose en amont. Exemple : « Agréger » calcule "
         "la date la plus récente, SetVariables la pose en DATE_MAX, une lecture PostgreSQL filtre sur "
         "\"date\" > '${var:DATE_MAX}'."
     )
@@ -66,7 +66,8 @@ class SetVariables(Modifier):
         return specs
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
-        self._checked()
+        specs = self._checked()
+        require_attributes(inputs.get("input"), [s.attribute for s in specs if s.source == "attribute"])
         return super().output_schema(inputs)
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:

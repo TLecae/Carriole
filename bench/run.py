@@ -23,7 +23,14 @@ from etl_engine.flow import Flow
 from etl_engine.registry import Registry
 
 sys.path.insert(0, str(Path(__file__).parent))
-from generate import generate, generate_parcels, generate_raster, generate_zones  # noqa: E402
+from generate import (  # noqa: E402
+    convert_points,
+    generate,
+    generate_parcels,
+    generate_raster,
+    generate_wide,
+    generate_zones,
+)
 
 DATA = Path(__file__).parent / "data"
 
@@ -170,6 +177,34 @@ def one_input(kind: str, params: dict, src: Path, port: str, out: Path) -> Flow:
     return _flow(nodes, [("a", "output", "x", "input"), ("x", port, "write", "input")])
 
 
+def large(d: dict[str, Path], out: Path, kind: str) -> Flow:
+    """Table d'attributs large (200 colonnes) : un filtre seul (`Failed` non relié) ; filtre, calcul, tri ; ou
+    statistiques rattachées aux entités (`stats`), écrites."""
+    path = DATA / f"large_{d['points'].stem.removeprefix('points_')}.parquet"
+    if not path.exists():
+        t0 = time.perf_counter()
+        generate_wide(int(path.stem.removeprefix("large_")), path)
+        print(f"jeu généré en {time.perf_counter() - t0:.1f} s : {path}")
+    if kind == "stats":
+        stats = {"group_by": ["cat_000", "classe"], "attributes": ["num_000"], "functions": ["count", "mean"]}
+        nodes = [_read("read", path), {"id": "s", "type": "StatisticsByGroup", "params": stats}, _write(out, "large")]
+        return _flow(nodes, [("read", "output", "s", "input"), ("s", "output", "write", "input")])
+    test = {"id": "f", "type": "ExtractByExpression", "params": {"conditions": ["\"classe\" = 'G'"]}}
+    nodes = [_read("read", path), test]
+    links = [("read", "output", "f", "input")]
+    tail = ("f", "Passed")
+    if kind == "chaine":
+        ratio = {"name": "ratio", "expression": '"num_000" / ("num_001" + 1)'}
+        nodes += [
+            {"id": "c", "type": "AddAttributes", "params": {"attributes": [ratio]}},
+            {"id": "s", "type": "OrderBy", "params": {"keys": [{"attribute": "cat_000"}, {"attribute": "id"}]}},
+        ]
+        links += [("f", "Passed", "c", "input"), ("c", "output", "s", "input")]
+        tail = ("s", "output")
+    nodes.append(_write(out, "large"))
+    return _flow(nodes, [*links, (*tail, "write", "input")])
+
+
 def zonal(d: dict[str, Path], out: Path) -> Flow:
     nodes = [
         _read("a", d["zones"]),
@@ -214,7 +249,42 @@ CASES: dict[str, Callable[[dict[str, Path], Path], Flow]] = {
     ),
     "superposition": lambda d, out: one_input("OverlayPolygons", {}, d["zones"], "Area", out),
     "zonal": zonal,
+    "large_filtre": lambda d, out: large(d, out, "filtre"),
+    "large_chaine": lambda d, out: large(d, out, "chaine"),
+    "large_stats": lambda d, out: large(d, out, "stats"),
 }
+
+
+# Lecture seule, cache activé (comme dans l'application : le port du lecteur est écrit pour l'inspecteur et la reprise)
+READERS = {
+    "parquet": ("GeoParquetReader", {}),
+    "csv": ("CsvReader", {"wkt_column": "wkt", "crs": "EPSG:2154"}),
+    "gpkg": ("GeoPackageReader", {}),
+    "shp": ("ShapefileReader", {}),
+    "geojson": ("GeoJsonReader", {}),
+    "fgb": ("FlatGeobufReader", {}),
+}
+
+
+def read_case(fmt: str, d: dict[str, Path], registry: Registry) -> tuple[int, float, float]:
+    """(entités lues, secondes, pic mémoire en Mo) d'un lecteur seul sur les points, au format `fmt`."""
+    path = d["points"]
+    if fmt != "parquet":
+        path = path.with_suffix(f".{fmt}")
+        if not path.exists():
+            convert_points(d["points"], fmt, path)
+    kind, extra = READERS[fmt]
+    flow = Flow.model_validate({"nodes": [{"id": "read", "type": kind, "params": {"path": str(path), **extra}}]})
+    work = Path(tempfile.mkdtemp(prefix="etl-bench-"))
+    try:
+        t0 = time.perf_counter()
+        res = run_flow(flow, registry, work / "run", cache=True, timeout=1800)
+        elapsed = time.perf_counter() - t0
+        if res.status != "done":
+            raise SystemExit(f"lecture_{fmt} : {res.status} {res.error}")
+        return res.nodes["read"].rows.get("output", 0), elapsed, res.nodes["read"].rss_mb or 0
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def run_case(case: str, d: dict[str, Path], registry: Registry | None = None) -> tuple[int, float, float]:
@@ -263,12 +333,15 @@ def main() -> None:
     tag = next((sys.argv[i + 1] for i, a in enumerate(sys.argv) if a == "--tag" and i + 1 < len(sys.argv)), "")
     args = [a for a in args if a != tag]
     n = int(args[0]) if args else 1_000_000
-    cases = args[1].split(",") if len(args) > 1 else [*CASES, "deux_runs"]
+    cases = args[1].split(",") if len(args) > 1 else [*CASES, "deux_runs", *(f"lecture_{f}" for f in READERS)]
     d = datasets(n)
     registry = Registry.discover()
     rows = []
     for case in cases:
-        out_rows, elapsed, peak = two_runs(d) if case == "deux_runs" else run_case(case, d, registry)
+        if case.startswith("lecture_"):
+            out_rows, elapsed, peak = read_case(case.removeprefix("lecture_"), d, registry)
+        else:
+            out_rows, elapsed, peak = two_runs(d) if case == "deux_runs" else run_case(case, d, registry)
         rows.append((case, out_rows, elapsed, peak))
         print(f"{case:18} {out_rows:>10} entités  {elapsed:7.1f} s  pic {peak:7.0f} Mo", flush=True)
 
@@ -278,7 +351,7 @@ def main() -> None:
         f"Machine : {platform.processor() or platform.machine()}, {psutil.cpu_count()} cœurs logiques, "
         f"{psutil.virtual_memory().total / 2**30:.0f} Go, Python {platform.python_version()}, {platform.system()}.",
         "",
-        "| Cas | Entités écrites | Temps (s) | Pic mémoire (Mo) | Objectif (s / Mo) |",
+        "| Cas | Entités écrites (lues pour « lecture_ ») | Temps (s) | Pic mémoire (Mo) | Objectif (s / Mo) |",
         "| --- | ---: | ---: | ---: | --- |",
     ]
     for case, out_rows, elapsed, peak in rows:

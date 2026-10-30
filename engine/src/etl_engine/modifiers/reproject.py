@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import functools
-import threading
-
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -12,7 +9,7 @@ import pyproj
 import shapely
 from pydantic import Field
 
-from etl_engine.data import GEOM, get_crs, with_crs
+from etl_engine.data import GEOM, crs_object, get_crs, transformer, with_crs
 from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, ConfigError, Crs, Modifier, Params, reject
 
 
@@ -36,7 +33,7 @@ class Reproject(Modifier):
         if not self.params.target:
             raise ConfigError("système de coordonnées cible non renseigné")
         try:
-            return _crs(self.params.target)
+            return crs_object(self.params.target)
         except pyproj.exceptions.CRSError:
             raise ConfigError(f"système de coordonnées inconnu : {self.params.target}") from None
 
@@ -57,22 +54,22 @@ class Reproject(Modifier):
         if not source_name:
             raise ConfigError("les données n'ont pas de système de coordonnées : renseigner « Système source »")
         try:
-            source = _crs(source_name)
+            source = crs_object(source_name)
         except pyproj.exceptions.CRSError:
             raise ConfigError(f"système de coordonnées inconnu : {source_name}") from None
         if source == target:
             return {"output": with_crs(batch, self.params.target)}
 
-        transformer = _transformer(source_name, self.params.target)
+        projection = transformer(source_name, self.params.target)
         geoms = shapely.from_wkb(batch.column(GEOM).to_numpy(zero_copy_only=False))
         present = ~shapely.is_missing(geoms)
         has_z = bool(len(geoms) and shapely.has_z(geoms[present]).any()) if present.any() else False
 
         def move(coords: np.ndarray) -> np.ndarray:
             if has_z:
-                x, y, z = transformer.transform(coords[:, 0], coords[:, 1], coords[:, 2])
+                x, y, z = projection.transform(coords[:, 0], coords[:, 1], coords[:, 2])
                 return np.column_stack([x, y, z])
-            x, y = transformer.transform(coords[:, 0], coords[:, 1])
+            x, y = projection.transform(coords[:, 0], coords[:, 1])
             return np.column_stack([x, y])
 
         moved = np.array(geoms, dtype=object)
@@ -88,21 +85,3 @@ class Reproject(Modifier):
         if not good.to_numpy(zero_copy_only=False).all():
             result[REJECTED] = reject(batch.filter(pc.invert(good)), "reprojection impossible")
         return result
-
-
-@functools.lru_cache(maxsize=64)
-def _crs(name: str) -> pyproj.CRS:
-    """SCR lu une fois (un objet CRS ne change pas : partageable entre threads)."""
-    return pyproj.CRS.from_user_input(name)
-
-
-_local = threading.local()
-
-
-def _transformer(source: str, target: str) -> pyproj.Transformer:
-    """Transformation réutilisée d'un lot à l'autre, une par thread (un Transformer pyproj ne se partage pas)."""
-    cache = _local.__dict__.setdefault("transformers", {})
-    found = cache.get((source, target))
-    if found is None:
-        found = cache[(source, target)] = pyproj.Transformer.from_crs(_crs(source), _crs(target), always_xy=True)
-    return found

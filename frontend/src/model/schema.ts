@@ -58,3 +58,26 @@ export function labelOf(key: string, s: JsonSchema): string {
 }
 
 export const widgetOf = (s: JsonSchema): string | undefined => s["x-etl-widget"] as string | undefined;
+
+/** Texte comparable : minuscules, sans accents (« Évaluée » et « evaluee » se valent). */
+export const normalize = (text: string): string =>
+  text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+
+/** Chaque mot de `query` se trouve dans l'un des `texts` (casse et accents ignorés) ; une recherche vide garde tout. */
+export function textMatches(query: string, ...texts: (string | undefined)[]): boolean {
+  const words = normalize(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = normalize(texts.filter(Boolean).join(" "));
+  return words.every((w) => hay.includes(w));
+}
+
+/** Le champ `key` répond à la recherche : libellé, nom, description, valeurs proposées. */
+export function fieldMatches(key: string, schema: JsonSchema | undefined, defs: Defs, query: string): boolean {
+  const s = resolveSchema(schema, defs);
+  const item = s.items ? resolveSchema(s.items, defs) : undefined;
+  const choices = [...(s.enum ?? []), ...(item?.enum ?? [])].map(String);
+  return textMatches(query, labelOf(key, s), key, s.description, ...choices);
+}

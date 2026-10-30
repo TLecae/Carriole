@@ -15,7 +15,7 @@ from etl_engine import formats
 from etl_engine.data import with_crs
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
@@ -51,6 +51,12 @@ class ValuesIn(BaseModel):
     limit: int = 50
 
 
+class ClassesIn(BaseModel):
+    column: str
+    query: ds.Query = ds.Query()
+    count: int = Field(5, ge=2, le=12)
+
+
 class LocateIn(BaseModel):
     query: ds.Query = ds.Query()
     fid: int
@@ -74,6 +80,11 @@ def stats(port: PortDep, geometry: bool = False) -> dict[str, Any]:
 @router.post("/data/{run}/{node}/{port}/values")
 def values(port: PortDep, body: ValuesIn) -> list[dict[str, Any]]:
     return ds.values(port, body.column, body.query, min(body.limit, 500))
+
+
+@router.post("/data/{run}/{node}/{port}/classes")
+def classes(port: PortDep, body: ClassesIn) -> dict[str, Any]:
+    return ds.classes(port, body.column, body.query, body.count)
 
 
 @router.post("/data/{run}/{node}/{port}/locate")

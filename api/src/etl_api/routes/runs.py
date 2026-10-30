@@ -258,6 +258,12 @@ async def run_events(
                 continue
             run = await asyncio.to_thread(store.get_run, run_id, False)
             if run["status"] in FINAL_STATUSES:
+                # le worker écrit ses derniers événements juste avant de clore le run : arrivés entre les deux lectures
+                # ci-dessus, ils seraient perdus (une écriture finie resterait « en cours ») ; relus avant `end`
+                while events := await asyncio.to_thread(store.events_after, run_id, last, 500):
+                    for e in events:
+                        last = e["id"]
+                        yield f"id: {e['id']}\nevent: {e['type']}\ndata: {json.dumps(e, ensure_ascii=False)}\n\n"
                 yield f"event: end\ndata: {json.dumps({'status': run['status'], 'error': run['error']})}\n\n"
                 return
             if await request.is_disconnected():

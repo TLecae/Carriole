@@ -5,13 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
-import pyarrow as pa
-import pyarrow.compute as pc
+import duckdb
 from pydantic import Field
 
-from etl_engine.blocking import collect, quote
+from etl_engine.blocking import collect, duck, quote
 from etl_engine.data import get_crs, with_crs
-from etl_engine.sdk import Attribute, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import Attribute, ConfigError, Emit, Modifier, Params, require_attributes
 
 
 class SortKey(Params):
@@ -48,7 +47,8 @@ class OrderBy(Modifier):
         return keys
 
     def output_schema(self, inputs):
-        self._check()
+        keys = self._check()
+        require_attributes(inputs.get("input"), [k.attribute for k in keys])
         return {"output": inputs.get("input")}
 
     def sql(self, relations, schemas):
@@ -69,24 +69,14 @@ class OrderBy(Modifier):
         return {"output": f"SELECT * EXCLUDE (__rn) FROM ({numbered}) ORDER BY {', '.join(order)}, __rn"}
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
-        keys = self._check()
+        self._check()
         table = collect(inputs.get("input", ()))
         if table is None or table.num_rows == 0:
             return
-        sort_keys = []
-        work = table
-        for i, key in enumerate(keys):
-            if key.attribute not in table.column_names:
-                raise ConfigError(f"attribut absent : {key.attribute}")
-            column = table.column(key.attribute)
-            try:
-                if key.kind == "number":
-                    column = pc.cast(column, pa.float64())
-                elif key.kind == "text":
-                    column = pc.cast(column, pa.string())
-            except pa.ArrowInvalid as exc:
-                raise ConfigError(f"« {key.attribute} » n'est pas convertible en {key.kind} : {exc}") from None
-            work = work.append_column(f"__k{i}", column)
-            sort_keys.append((f"__k{i}", key.order))
-        ordered = work.sort_by(sort_keys).drop_columns([name for name, _ in sort_keys])  # valeurs vides à la fin
+        # la requête de la voie SQL, sur la table en mémoire : mêmes conversions (texte d'un nombre, espaces, NaN)
+        query = self.sql({"input": "t"}, {"input": table.schema})["output"]
+        try:
+            ordered = duck(query, t=table)
+        except duckdb.Error as exc:
+            raise ConfigError(f"tri impossible : {str(exc).splitlines()[0]}") from None
         emit("output", with_crs(ordered, get_crs(table)))

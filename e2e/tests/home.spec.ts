@@ -99,13 +99,27 @@ test("explorateur de fichiers : choisir un fichier, puis un emplacement d'écrit
   await expect(page.getByLabel("Fichier", { exact: true })).toHaveValue(path.join(process.env.E2E_OUT!, "depuis_explorateur.csv"));
 });
 
+test("panneau des propriétés : redimensionner à la souris, largeur conservée", async ({ page }) => {
+  await page.goto("/#new");
+  const panel = page.getByRole("complementary", { name: "Propriétés" });
+  const before = (await panel.boundingBox())!;
+  const grip = (await panel.getByRole("separator", { name: /Redimensionner le panneau/ }).boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(grip.x - 150, grip.y + 200, { steps: 8 });
+  await page.mouse.up();
+  expect((await panel.boundingBox())!.width).toBeGreaterThan(before.width + 120);
+  await page.reload();
+  expect((await panel.boundingBox())!.width).toBeGreaterThan(before.width + 120);
+});
+
 test("panneau du bas : redimensionner à la souris et ouvrir en pleine page", async ({ page }) => {
   await page.goto("/#new");
   const panel = page.getByRole("region", { name: "Journal et avertissements" });
   const before = (await panel.boundingBox())!;
 
   // glisser la poignée vers le haut agrandit le panneau
-  const grip = (await page.getByRole("separator", { name: /Redimensionner le panneau/ }).boundingBox())!;
+  const grip = (await panel.getByRole("separator", { name: /Redimensionner le panneau/ }).boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
   await page.mouse.move(grip.x + grip.width / 2, grip.y - 200, { steps: 8 });

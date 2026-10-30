@@ -67,8 +67,8 @@ class RasterReader(Modifier):
                 found = sorted(f for f in glob.glob(pattern, recursive=True) if os.path.isfile(f))
                 for f in found:
                     paths.check(f, "read")
-            files.extend(f for f in found if f not in files)
-        return files
+            files.extend(found)
+        return list(dict.fromkeys(files))
 
     def fingerprint_extra(self) -> str:
         parts = []

@@ -34,7 +34,8 @@ def test_view_is_hilbert_sorted_with_bbox_3857_and_fid(tmp_path):
 
     view = pq.read_table(view_path(src))
     # la carte seule : les attributs restent au port
-    assert view.column_names == ["fid", "lvl", "esize", "bbox", "geom_3857"]
+    assert view.column_names == ["fid", "lvl", "esize", "role", "bbox", "geom_3857"]
+    assert set(view.column("role").to_pylist()) == {views.PART}  # rien de découpé
     assert set(view.column("esize").to_pylist()) == {0}  # un point n'a pas de taille
     assert set(view.column("lvl").to_pylist()) == {views.POINTS}  # des points : à tous les zooms, sans généralisation
     assert sorted(view.column("fid").to_pylist()) == list(range(2000))  # fid = ligne d'origine, rien perdu
@@ -96,6 +97,62 @@ def write_dissolved(path, n=4000):
     parts = [*shapely.box(xs, ys, xs + 120, ys + 80), shapely.box(520_000, 6_320_000, 560_000, 6_360_000)]
     t = pa.table({"id": [1], GEOM: pa.array([shapely.to_wkb(shapely.multipolygons(parts))], pa.binary())})
     pq.write_table(with_crs(t, "EPSG:2154"), path)
+
+
+def fused_polygon(holes=60, shell=20_000):
+    """Un polygone fusionné d'un seul tenant (Dissolve de zones tampons) : un long contour, des milliers de trous."""
+    t = np.linspace(0, 2 * np.pi, shell, endpoint=False)
+    r = 30_000 * (1 + 0.05 * np.sin(37 * t))
+    a = np.linspace(0, 2 * np.pi, 16, endpoint=False)
+    c = np.linspace(-15_000, 15_000, holes)
+    rings = [np.c_[x + 90 * np.cos(a), y + 90 * np.sin(a)] for x in c for y in c]
+    return shapely.transform(
+        shapely.Polygon(np.c_[r * np.cos(t), r * np.sin(t)], rings), lambda xy: xy + [550_000, 6_300_000]
+    )
+
+
+def test_simplify_polygons_drops_collapsed_and_tiny_holes_without_repairing():
+    a = np.linspace(0, 2 * np.pi, 64, endpoint=False)
+    ring = np.c_[np.cos(a), np.sin(a)]
+    poly = shapely.Polygon(ring * 1000, [ring * 300, ring * 5])
+    tiny = shapely.Polygon(ring * 3)
+    multi = shapely.MultiPolygon([poly, tiny])
+    out = views.simplify_polygons(np.array([poly, tiny, multi]), 10)
+    assert out[0].geom_type == "Polygon" and len(out[0].interiors) == 1  # le trou de 10 m (un pixel) disparaît
+    assert shapely.get_num_coordinates(out[0]) < shapely.get_num_coordinates(poly)
+    assert out[1] is None  # effondré
+    assert out[2].geom_type == "MultiPolygon" and len(out[2].geoms) == 1
+
+
+def test_fused_polygon_is_simplified_and_cut_with_its_outline_apart(tmp_path):
+    """Un polygone fusionné de 80 000 sommets et 3 600 trous (au-delà de `PIECE_VERTICES`) : pièces sur la grille des
+    tuiles, surfaces sans contour (FILL) et contour à part (EDGE), à chaque niveau ; rien de perdu ni de doublé."""
+    src = tmp_path / "Dissolved.parquet"
+    poly = fused_polygon()
+    t = pa.table({"id": [1, 2], GEOM: pa.array(shapely.to_wkb([poly, shapely.box(0, 0, 10, 10)]), pa.binary())})
+    pq.write_table(with_crs(t, "EPSG:2154"), src)
+    meta = build_view(src)
+    assert meta["rows"] == 2
+    view = pq.read_table(view_path(src))
+    fid, lvl, role = (np.array(view.column(c).to_pylist()) for c in ("fid", "lvl", "role"))
+    shapes = shapely.from_wkb(np.array(view.column("geom_3857").to_pylist(), dtype=object))
+    drawn = (fid == 0) & ~shapely.is_missing(shapes)
+    # au plus PIECE_VERTICES sommets par pièce, sauf une pièce déjà de la taille d'une tuile du zoom le plus fin servi
+    finest = np.array([views.tile_size(views.FULL_MAX_ZOOM if v == views.FULL else v + 1) for v in lvl])
+    b = shapely.bounds(shapes)
+    small = np.fmax(b[:, 2] - b[:, 0], b[:, 3] - b[:, 1]) <= finest
+    assert (small | (shapely.get_num_coordinates(shapes) <= views.PIECE_VERTICES))[drawn].all()
+    assert (shapely.get_num_coordinates(shapes[drawn & (lvl == views.FULL)]) <= views.PIECE_VERTICES).all()
+    assert set(role[drawn & (lvl == views.FULL)]) == {views.FILL, views.EDGE}
+    assert {views.FILL, views.EDGE} <= set(role[drawn & (lvl == 10)])
+    assert set(role[fid == 1]) == {views.PART}  # un petit polygone reste entier
+
+    full = drawn & (lvl == views.FULL)
+    fills, edges = shapes[full & (role == views.FILL)], shapes[full & (role == views.EDGE)]
+    union = shapely.union_all(fills)
+    assert shapely.area(fills).sum() == pytest.approx(shapely.area(union), rel=1e-9)  # pièces jointives
+    assert shapely.length(edges).sum() == pytest.approx(shapely.length(union.boundary), rel=1e-6)  # sans les coupes
+    assert len(union.interiors) == len(poly.interiors)  # aucun trou perdu (ni coupe prise pour un bord)
 
 
 def test_huge_entity_is_split_into_parts_and_generalized_by_zoom(tmp_path):

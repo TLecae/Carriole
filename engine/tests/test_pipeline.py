@@ -171,7 +171,9 @@ def test_run_without_cache_streams_without_intermediate_files(registry, numbers,
 
     monkeypatch.setattr(executor, "PortSink", spy)
     out = tmp_path / "out.parquet"
-    res = run_flow(chain(numbers, out, ("a", "Stamp", {})), registry, tmp_path / "run", batch_rows=10, cache=False)
+    flow = chain(numbers, out, ("a", "Stamp", {}))
+    # voie Python : le lecteur passe ses lots en direct (par DuckDB, il écrirait son port d'un coup)
+    res = run_flow(flow, registry, tmp_path / "run", batch_rows=10, cache=False, sql_route=False)
     assert res.status == "done" and pq.read_table(out).num_rows == 100
     assert stored[("r", "output")] is False and stored[("a", "output")] is False
     run_flow(chain(numbers, out, ("a", "Stamp", {})), registry, tmp_path / "run2", batch_rows=10)

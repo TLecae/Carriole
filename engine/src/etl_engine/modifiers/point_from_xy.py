@@ -6,11 +6,23 @@ from typing import Literal
 
 import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 import shapely
 from pydantic import Field
 
 from etl_engine.data import GEOM, geometries, get_crs, type_ids, with_crs
-from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, Attribute, ConfigError, Crs, Modifier, Params, reject
+from etl_engine.sdk import (
+    GEOMETRY_SLICE,
+    REJECTED,
+    Attribute,
+    ConfigError,
+    Crs,
+    Modifier,
+    Params,
+    missing_attributes,
+    reject,
+    require_attributes,
+)
 
 
 class PointFromXY(Modifier):
@@ -49,6 +61,7 @@ class PointFromXY(Modifier):
         schema = inputs.get("input")
         if schema is None:
             return {"output": None}
+        require_attributes(schema, [self.params.x, self.params.y, self.params.z])
         if GEOM not in schema.names:
             schema = schema.append(pa.field(GEOM, pa.binary()))
         return {"output": with_crs(schema, self.params.crs) if self.params.crs else schema}
@@ -59,13 +72,13 @@ class PointFromXY(Modifier):
         names = [p.x, p.y, *([p.z] if p.z else [])]
         missing = [n for n in names if n not in batch.column_names]
         if missing:
-            raise ConfigError(f"attributs absents : {missing}")
+            raise missing_attributes(missing)
         coords = []
         for name in names:
             try:
                 coords.append(batch.column(name).cast(pa.float64(), safe=False).to_numpy(zero_copy_only=False))
             except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
-                coords.append(np.array([_number(v) for v in batch.column(name).to_pylist()], dtype=float))
+                coords.append(_numbers(batch.column(name)))
         stacked = np.column_stack(coords)
         bad = ~np.isfinite(stacked).all(axis=1)
         out_geoms = np.full(batch.num_rows, None, dtype=object)
@@ -91,11 +104,15 @@ class PointFromXY(Modifier):
         return result
 
 
-def _number(value) -> float:
-    try:
-        return float(str(value).replace(",", ".")) if value is not None else float("nan")
-    except ValueError:
-        return float("nan")
+_NUMBER = r"^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$"
+
+
+def _numbers(column: pa.ChunkedArray) -> np.ndarray:
+    """Nombres d'une colonne de texte (virgule décimale acceptée) ; NaN pour ce qui n'en est pas un."""
+    texts = pc.replace_substring(column.cast(pa.string()), ",", ".")
+    numeric = pc.fill_null(pc.match_substring_regex(texts, _NUMBER), False)
+    kept = pc.utf8_trim_whitespace(pc.if_else(numeric, texts, pa.scalar(None, pa.string())))
+    return kept.cast(pa.float64()).to_numpy(zero_copy_only=False).astype(float)
 
 
 def _append(lines: np.ndarray, points: np.ndarray) -> np.ndarray:

@@ -5,10 +5,12 @@ from __future__ import annotations
 from typing import Literal
 
 import pyarrow as pa
+import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.data import get_crs, with_crs
-from etl_engine.sdk import Attribute, ConfigError, Modifier, Params
+from etl_engine.expr import quote
+from etl_engine.sdk import REJECTED, Attribute, ConfigError, Modifier, Params, reject
 
 
 class ValueMapping(Params):
@@ -31,7 +33,7 @@ class MapValues(Modifier):
     rejected = True
 
     class Params(Params):
-        source: Attribute = Field(
+        attribute: Attribute = Field(
             "", title="Attribut à traduire", description="Attribut dont les valeurs sont traduites."
         )
         destination: str = Field("", title="Attribut résultat", description="Vide = remplace l'attribut d'origine.")
@@ -54,56 +56,82 @@ class MapValues(Modifier):
         )
 
     def _target(self) -> str:
-        if not self.params.source:
+        if not self.params.attribute:
             raise ConfigError("attribut à traduire non renseigné")
-        return self.params.destination or self.params.source
+        return self.params.destination or self.params.attribute
 
     def output_schema(self, inputs):
         schema = inputs.get("input")
         target = self._target()
         if schema is None:
             return {"output": None}
+        if self.params.attribute not in schema.names:
+            raise ConfigError(f"attribut absent : {self.params.attribute}")
         field = pa.field(target, pa.string())
         if target in schema.names:
             return {"output": schema.set(schema.get_field_index(target), field)}
         return {"output": schema.append(field)}
 
-    def process(self, batch: pa.Table) -> dict[str, pa.Table]:
-        from etl_engine.sdk import REJECTED, reject
-
+    def sql(self, relations, schemas):
+        """Même correspondance par DuckDB, pour un attribut texte (le texte d'un nombre diffère entre Arrow et DuckDB) ;
+        « reject » reste à la voie par lots (le port Rejected)."""
         p = self.params
         target = self._target()
-        if p.source not in batch.column_names:
-            raise ConfigError(f"attribut absent : {p.source}")
+        schema = schemas.get("input")
+        if schema is None or p.unmatched == "reject" or not pa.types.is_string(schema.field(p.attribute).type):
+            return None
+        key = f"lower({quote(p.attribute)})" if p.ignore_case else quote(p.attribute)
+        table: dict[str, str] = {}
+        for m in p.mappings:  # une valeur donnée deux fois : la dernière l'emporte, comme la voie par lots
+            table[m.source.lower() if p.ignore_case else m.source] = m.target
+        other = {"keep": quote(p.attribute), "default": _literal(p.default), "null": "NULL"}[p.unmatched]
+        cases = " ".join(f"WHEN {_literal(k)} THEN {_literal(v)}" for k, v in table.items())
+        expr = f"CASE {key} {cases} ELSE {other} END" if table else other
+        expr = f"CAST({expr} AS VARCHAR)"
+        if target in schema.names:
+            columns = ", ".join(f"{expr} AS {quote(n)}" if n == target else quote(n) for n in schema.names)
+        else:
+            columns = f"*, {expr} AS {quote(target)}"
+        return {"output": f"SELECT {columns} FROM {relations['input']}"}
 
-        def key(v: str) -> str:
-            return v.casefold() if p.ignore_case else v
-
-        table = {key(m.source): m.target for m in p.mappings}
-        values, rejected = [], []
-        for i, v in enumerate(batch.column(p.source).to_pylist()):
-            text = None if v is None else str(v)
-            if text is not None and key(text) in table:
-                values.append(table[key(text)])
-            elif p.unmatched == "keep":
-                values.append(text)
-            elif p.unmatched == "default":
-                values.append(p.default)
-            elif p.unmatched == "null":
-                values.append(None)
-            else:
-                values.append(None)
-                rejected.append(i)
-        column = pa.array(values, pa.string())
+    def process(self, batch: pa.Table) -> dict[str, pa.Table]:
+        p = self.params
+        target = self._target()
+        if p.attribute not in batch.column_names:
+            raise ConfigError(f"attribut absent : {p.attribute}")
+        texts = batch.column(p.attribute).cast(pa.string())
+        table = {m.source: m.target for m in p.mappings}  # une valeur donnée deux fois : la dernière l'emporte
+        sources, targets = pa.array(list(table), pa.string()), pa.array(list(table.values()), pa.string())
+        if p.ignore_case:
+            texts_key, sources = pc.utf8_lower(texts), pc.utf8_lower(sources)
+            last = {v: i for i, v in enumerate(sources.to_pylist())}  # comme le dict : la dernière l'emporte
+            sources = pa.array(list(last), pa.string())
+            targets = targets.take(pa.array(list(last.values())))
+        else:
+            texts_key = texts
+        found = pc.index_in(texts_key, value_set=sources)
+        mapped = pc.take(targets, found)
+        matched = pc.is_valid(found)
+        if p.unmatched == "keep":
+            column = pc.if_else(matched, mapped, texts)
+        elif p.unmatched == "default":
+            column = pc.if_else(matched, mapped, pa.scalar(p.default, pa.string()))
+        else:
+            column = mapped
+        column = column.combine_chunks() if isinstance(column, pa.ChunkedArray) else column
         if target in batch.column_names:
             out = batch.set_column(batch.column_names.index(target), target, column)
         else:
             out = batch.append_column(target, column)
         out = with_crs(out, get_crs(batch))
-        if not rejected:
+        if p.unmatched != "reject" or pc.all(matched).as_py() is not False:
             return {"output": out}
-        keep = pa.array([i not in set(rejected) for i in range(batch.num_rows)])
         return {
-            "output": out.filter(keep),
-            REJECTED: reject(batch.take(pa.array(rejected)), f"valeur de « {p.source} » absente de la table"),
+            "output": out.filter(matched),
+            REJECTED: reject(batch.filter(pc.invert(matched)), f"valeur de « {p.attribute} » absente de la table"),
         }
+
+
+def _literal(text: str) -> str:
+    """Littéral texte SQL."""
+    return "'" + text.replace("'", "''") + "'"

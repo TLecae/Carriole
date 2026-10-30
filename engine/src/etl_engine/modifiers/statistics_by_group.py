@@ -10,7 +10,7 @@ from pydantic import Field
 
 from etl_engine.blocking import collect, duck, quote
 from etl_engine.data import get_crs, with_crs
-from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params, missing_attributes
 
 Function = Literal["count", "sum", "min", "max", "mean", "median", "stddev", "distinct", "mode"]
 
@@ -84,7 +84,7 @@ class StatisticsByGroup(Modifier):
         p = self.params
         missing = [a for a in [*p.group_by, *p.attributes] if a not in names]
         if missing:
-            raise ConfigError(f"attributs absents : {missing}")
+            raise missing_attributes(missing)
         stats = self._stat_columns()
         clash = [n for n, _ in stats if n in names]
         if clash:
@@ -100,12 +100,14 @@ class StatisticsByGroup(Modifier):
         summary = f"SELECT {keys + ', ' if keys else ''}{select} FROM {relation} {'GROUP BY ' + keys if keys else ''}"
         if not p.attach:
             return {"output": f"SELECT * FROM {relation}", "summary": summary}
+        # les statistiques de chaque entité, dans l'ordre des entités, sont calculées sur les seules clés (tri étroit),
+        # puis recollées par position aux entités lues en flux : trier les entités elles-mêmes (des centaines de colonnes)
+        # débordait sur disque jusqu'à le remplir (13,6 M lignes × 226 colonnes)
         cols = ", ".join(f"s.{quote(n)}" for n, _ in stats)
         on = " AND ".join(f"t.{quote(g)} IS NOT DISTINCT FROM s.{quote(g)}" for g in p.group_by) or "TRUE"
-        numbered = f"SELECT row_number() OVER () AS __rn, * FROM {relation}"
-        output = (
-            f"SELECT t.* EXCLUDE (__rn), {cols} FROM ({numbered}) t LEFT JOIN ({summary}) s ON {on} ORDER BY t.__rn"
-        )
+        numbered = f"SELECT row_number() OVER () AS __rn{', ' + keys if keys else ''} FROM {relation}"
+        attached = f"SELECT {cols} FROM ({numbered}) t LEFT JOIN ({summary}) s ON {on} ORDER BY t.__rn"
+        output = f"SELECT t.*, k.* FROM {relation} t POSITIONAL JOIN ({attached}) k"
         return {"output": output, "summary": summary}
 
     def sql(self, relations, schemas):

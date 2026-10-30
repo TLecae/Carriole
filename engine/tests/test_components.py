@@ -4,6 +4,7 @@ import pyarrow.parquet as pq
 import pytest
 from etl_engine import components
 from etl_engine.analysis import analyze
+from etl_engine.cache import has_port, materialize
 from etl_engine.components import describe, embed_components, expand_components, find, key_of, ports_of
 from etl_engine.executor import run_flow
 from etl_engine.flow import Flow
@@ -97,8 +98,9 @@ def test_component_runs_end_to_end_with_aliased_ports(registry, communes, tmp_pa
     assert (
         pq.read_table(tmp_path / "ok.parquet").num_rows == 10 and pq.read_table(tmp_path / "ko.parquet").num_rows == 10
     )
-    # les ports du nœud composant sont consultables comme ceux de n'importe quel nœud
-    assert (tmp_path / "run" / "f" / "ok.parquet").exists() and (tmp_path / "run" / "f" / "ko.parquet").exists()
+    # les ports du nœud composant sont consultables comme ceux de n'importe quel nœud (ici définis à la demande)
+    assert has_port(tmp_path / "run" / "f" / "ok.parquet") and has_port(tmp_path / "run" / "f" / "ko.parquet")
+    assert pq.read_table(materialize(tmp_path / "run", "f", "ok")).num_rows == 10
     assert any(e["type"] == "counts" and e["node"] == "f" and e["port"] == "ok" and e["count"] == 10 for e in events)
 
 

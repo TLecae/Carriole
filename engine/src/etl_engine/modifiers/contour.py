@@ -109,10 +109,10 @@ class Contour(Modifier):
             n = len(lines)
             table = pa.table({"_row": pa.array(range(n), pa.int64())})
             for k, v in attributes.items():
-                table = table.append_column(k, pa.array([v[r]] * n))
+                table = table.append_column(k, pa.repeat(v[r], n))
             table = table.drop_columns(["_row"])
             table = table.append_column(p.elevation_attribute, pa.array(elevations, pa.float64()))
-            table = table.append_column(GEOM, pa.array([None] * n, pa.binary()))
+            table = table.append_column(GEOM, pa.nulls(n, pa.binary()))
             pieces.append(set_geometries(table, np.array(lines, dtype=object), desc["crs"]))
         if not pieces:
             return {}

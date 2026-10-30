@@ -14,7 +14,7 @@ from pydantic import Field
 
 from etl_engine.blocking import collect, group_codes, group_slices
 from etl_engine.data import GEOM, get_crs, with_crs
-from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params, missing_attributes, require_attributes
 from etl_engine.spatial import zorder_bounds
 
 
@@ -44,6 +44,7 @@ class Dissolve(Modifier):
         schema = inputs.get("input")
         if schema is not None and GEOM not in schema.names:
             raise ConfigError("le modificateur a besoin d'une géométrie en entrée")
+        require_attributes(schema, self.params.group_by)
         if schema is None or not self.params.count_attribute or self.params.count_attribute in schema.names:
             return {"output": schema}
         return {"output": schema.append(pa.field(self.params.count_attribute, pa.int64()))}
@@ -60,7 +61,7 @@ class Dissolve(Modifier):
             raise ConfigError("le modificateur a besoin d'une géométrie en entrée")
         missing = [g for g in p.group_by if g not in table.column_names]
         if missing:
-            raise ConfigError(f"attributs absents : {missing}")
+            raise missing_attributes(missing)
         crs = get_crs(table)
         has_geom = ~pc.is_null(table.column(GEOM)).to_numpy(zero_copy_only=False)
         # une seule colonne contiguë : `take` sur une colonne en morceaux la recopierait en entier à chaque appel
@@ -127,6 +128,7 @@ def _union_groups(wkb: pa.Array, members: list[np.ndarray], pool: ThreadPoolExec
     tasks: list[tuple[str, Any]] = []
     plan: list[tuple[int, int]] = []  # pour chaque groupe : (première tâche, nombre de tâches ; 0 : dans un lot)
     small: list[int] = []  # petits groupes en attente d'un lot
+    pending = [0]  # entités des petits groupes en attente
 
     def flush() -> None:
         if small:
@@ -134,6 +136,7 @@ def _union_groups(wkb: pa.Array, members: list[np.ndarray], pool: ThreadPoolExec
             for g in small:
                 plan[g] = (len(tasks) - 1, 0)
             small.clear()
+            pending[0] = 0
 
     for g, rows in enumerate(members):
         plan.append((-1, 1))
@@ -145,7 +148,8 @@ def _union_groups(wkb: pa.Array, members: list[np.ndarray], pool: ThreadPoolExec
             plan[g] = (first, len(tasks) - first)
         else:
             small.append(g)
-            if sum(len(members[s]) for s in small) >= CHUNK:
+            pending[0] += len(rows)
+            if pending[0] >= CHUNK:
                 flush()
     flush()
 

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Literal
 
+import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.data import get_crs, with_crs
@@ -83,26 +85,43 @@ class SplitText(Modifier):
         if p.attribute not in batch.column_names:
             raise ConfigError(f"attribut absent : {p.attribute}")
         out = batch
-        texts = [None if v is None else str(v) for v in batch.column(p.attribute).to_pylist()]
-        clean = (lambda s: s.strip()) if p.trim else (lambda s: s)
+        texts = batch.column(p.attribute).cast(pa.string()).combine_chunks()
+        lists = pc.split_pattern(texts, pattern=p.separator, max_splits=None if p.mode == "list" else p.parts - 1)
+        values = pc.list_flatten(lists)
+        if p.trim:
+            values = pc.utf8_trim_whitespace(values)
         if p.mode == "list":
             name = prefix + "_list" if prefix == p.attribute else prefix
-            values = [None if t is None else [clean(x) for x in t.split(p.separator)] for t in texts]
-            columns = {name: pa.array(values, pa.list_(pa.string()))}
+            lengths = pc.fill_null(pc.list_value_length(lists), 0).to_numpy(zero_copy_only=False)
+            offsets = pa.array(np.concatenate([[0], np.cumsum(lengths)]), pa.int32())
+            columns = {name: pa.ListArray.from_arrays(offsets, values, mask=lists.is_null())}
         else:
-            columns = {}
-            for k in range(p.parts):
-                col = []
-                for t in texts:
-                    if t is None:
-                        col.append(None)
-                        continue
-                    pieces = t.split(p.separator, p.parts - 1)
-                    col.append(clean(pieces[k]) if k < len(pieces) else None)
-                columns[f"{prefix}_{k + 1}"] = pa.array(col, pa.string())
+            columns = {f"{prefix}_{k + 1}": piece for k, piece in enumerate(_ranked(lists, values, p.parts))}
         for name, column in columns.items():
             if name in out.column_names:
                 out = out.set_column(out.column_names.index(name), name, column)
             else:
                 out = out.append_column(name, column)
         return {"output": with_crs(out, get_crs(batch))}
+
+
+def pieces(texts: pa.Array, separator: str, parts: int) -> list[pa.Array]:
+    """Les `parts` premiers morceaux de chaque texte, coupé au séparateur (texte exact) ; le dernier garde le reste.
+    Un morceau manquant (moins de séparateurs) est vide (null), comme pour un texte vide (null)."""
+    lists = pc.split_pattern(texts, pattern=separator, max_splits=parts - 1)
+    return _ranked(lists, pc.list_flatten(lists), parts)
+
+
+def _ranked(lists: pa.Array, values: pa.Array, parts: int) -> list[pa.Array]:
+    """Morceau k de chaque liste (k < `parts`), aligné sur les lignes : vide quand la liste est plus courte."""
+    parents = pc.list_parent_indices(lists).to_numpy(zero_copy_only=False)
+    lengths = pc.fill_null(pc.list_value_length(lists), 0).to_numpy(zero_copy_only=False)
+    starts = np.concatenate([[0], np.cumsum(lengths)[:-1]]).astype(np.int64)
+    rank = np.arange(len(values)) - starts[parents]
+    out = []
+    for k in range(parts):
+        taken = np.full(len(lists), -1, dtype=np.int64)
+        chosen = np.flatnonzero(rank == k)
+        taken[parents[chosen]] = chosen
+        out.append(values.take(pa.array(taken, mask=taken < 0)))
+    return out

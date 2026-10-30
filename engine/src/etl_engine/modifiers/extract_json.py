@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import Literal
 
 import pyarrow as pa
+import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.blocking import duck, quote
 from etl_engine.data import get_crs, with_crs
-from etl_engine.sdk import Attribute, ConfigError, Modifier, Params
+from etl_engine.sdk import REJECTED, Attribute, ConfigError, Modifier, Params, reject
 
 SQL_TYPES = {"text": "VARCHAR", "integer": "BIGINT", "float": "DOUBLE", "boolean": "BOOLEAN"}
 ARROW_TYPES = {"text": pa.string(), "integer": pa.int64(), "float": pa.float64(), "boolean": pa.bool_()}
@@ -44,10 +45,10 @@ class ExtractJson(Modifier):
         "Chaque ligne de « Valeurs à extraire » lit un chemin (a.b, a[0].b, $.a.b) et le range dans un attribut typé. "
         "Avec « Tableau à éclater » (par exemple items ou $.results), le JSON de chaque entité donne **une entité par "
         "élément du tableau** : les chemins sont alors lus dans l'élément (chemin vide = l'élément entier, en texte), et "
-        "les autres attributs sont recopiés. Un JSON invalide ou un chemin absent donne une valeur vide. Typique après un "
-        "appel HTTP (HttpRequest)."
+        "les autres attributs sont recopiés. Un chemin absent ou une valeur non convertible donne une valeur vide ; un JSON "
+        "invalide aussi, ou l'entité part sur « Rejected » si « JSON invalide » vaut reject. Typique après un appel HTTP "
+        "(HttpRequest)."
     )
-    rejected = False
 
     class Params(Params):
         attribute: Attribute = Field("", title="Attribut JSON", description="Attribut texte qui contient le JSON.")
@@ -63,6 +64,11 @@ class ExtractJson(Modifier):
         drop_source: bool = Field(
             False, title="Retirer l'attribut JSON", description="Retire l'attribut d'origine du résultat."
         )
+        on_error: Literal["null", "reject"] = Field(
+            "null",
+            title="JSON invalide",
+            description="null : les valeurs extraites sont vides ; reject : l'entité part sur « Rejected ».",
+        )
 
     def _check(self) -> None:
         p = self.params
@@ -76,15 +82,15 @@ class ExtractJson(Modifier):
         if len(set(names)) != len(names):
             raise ConfigError("attribut en double")
 
-    def _query(self, columns: list[str]) -> str:
+    def _query(self, columns: list[str], relation: str = "t") -> str:
         p = self.params
         source = f"CASE WHEN json_valid({quote(p.attribute)}) THEN {quote(p.attribute)} END"  # JSON invalide = vide
         keep = [quote(c) for c in columns if not (p.drop_source and c == p.attribute)]
         if p.explode:
-            base = f"SELECT {', '.join(keep) or '1 AS _k'}, UNNEST(CAST(json_extract({source}, {_lit(_json_path(p.explode))}) AS JSON[])) AS _elem FROM t"
+            base = f"SELECT {', '.join(keep) or '1 AS _k'}, UNNEST(CAST(json_extract({source}, {_lit(_json_path(p.explode))}) AS JSON[])) AS _elem FROM {relation}"
             holder = "_elem"
         else:
-            base = f"SELECT {', '.join(keep) or '1 AS _k'}, {source} AS _elem FROM t"
+            base = f"SELECT {', '.join(keep) or '1 AS _k'}, {source} AS _elem FROM {relation}"
             holder = "_elem"
         extracted = []
         for f in p.fields:
@@ -97,6 +103,17 @@ class ExtractJson(Modifier):
         # les attributs extraits remplacent ceux du même nom
         outer = [c for c in outer if c.strip('"') not in {f.name for f in p.fields}]
         return f"SELECT {', '.join([*outer, *extracted])} FROM ({base})"
+
+    def sql(self, relations, schemas):
+        """La requête de la voie par lots, sur le port d'entrée (une chaîne de nœuds SQL, sans connexion par lot) ;
+        attribut texte seulement (la voie par lots convertit les autres en texte avec Arrow)."""
+        self._check()
+        schema = schemas.get("input")
+        if schema is None or self.params.on_error == "reject":  # rejets : la voie par lots
+            return None
+        if not pa.types.is_string(schema.field(self.params.attribute).type):
+            return None
+        return {"output": self._query(schema.names, relations["input"])}
 
     def output_schema(self, inputs):
         self._check()
@@ -120,6 +137,18 @@ class ExtractJson(Modifier):
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         self._check()
-        if self.params.attribute not in batch.column_names:
-            raise ConfigError(f"attribut absent : {self.params.attribute}")
-        return {"output": self._compute(batch)}
+        p = self.params
+        if p.attribute not in batch.column_names:
+            raise ConfigError(f"attribut absent : {p.attribute}")
+        if p.on_error == "null":
+            return {"output": self._compute(batch)}
+        text = batch.column(p.attribute).cast(pa.string())
+        valid = duck("SELECT v IS NULL OR json_valid(v) AS ok FROM t", t=pa.table({"v": text})).column("ok")
+        valid = valid.combine_chunks()
+        if pc.all(valid).as_py() is not False:
+            return {"output": self._compute(batch)}
+        bad = batch.filter(pc.invert(valid))
+        return {
+            "output": self._compute(batch.filter(valid)),
+            REJECTED: reject(bad, f"JSON invalide dans « {p.attribute} »"),
+        }

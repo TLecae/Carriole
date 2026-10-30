@@ -8,7 +8,6 @@ from etl_engine.modifiers.counter import Counter
 from etl_engine.modifiers.drop_attributes import DropAttributes
 from etl_engine.modifiers.find_duplicates import FindDuplicates
 from etl_engine.modifiers.join_by_field import JoinByField
-from etl_engine.modifiers.lookup_join import LookupJoin
 from etl_engine.modifiers.order_by import OrderBy
 from etl_engine.modifiers.reproject import Reproject
 from etl_engine.modifiers.statistics_by_group import StatisticsByGroup
@@ -68,7 +67,7 @@ def test_statistics_text_numbers_and_geometry_crs_kept():
 
 
 def test_statistics_config_errors(communes):
-    with pytest.raises(ConfigError, match="absents"):
+    with pytest.raises(ConfigError, match="absents?"):
         run_modifier(StatisticsByGroup, {"attributes": ["nope"]}, communes)
     with pytest.raises(ConfigError, match="écraseraient"):
         run_modifier(
@@ -175,17 +174,22 @@ def test_joiner_empty_join_side(base):
     assert out["Joined"].num_rows == 0 and out["UnjoinedBase"].num_rows == 4
 
 
-def test_lookup_join_geometry_choices(base):
-    supplier = points([10, 11], [10, 11], code=["A", "B"], nom=["x", "y"])
-    params = {"input_keys": ["code"], "lookup_keys": ["code"]}
-    kept = run_modifier(LookupJoin, params, {"input": base, "lookup": supplier})
-    assert col(kept["Joined"], "nom") == ["x", "y"]
-    assert shapely.from_wkb(col(kept["Joined"], GEOM)[0]).x == 0  # géométrie de l'entrée
-    taken = run_modifier(LookupJoin, {**params, "geometry": "lookup"}, {"input": base, "lookup": supplier})
-    assert shapely.from_wkb(col(taken["Joined"], GEOM)[0]).x == 10
-    none = run_modifier(LookupJoin, {**params, "geometry": "none"}, {"input": base, "lookup": supplier})
+def test_joiner_geometry_choices_and_crs(base):
+    """Géométrie du résultat : celle de « base », celle de « join » (avec son système) ou aucune (ex-LookupJoin)."""
+    other = points([10, 11], [10, 11], crs="EPSG:4326", code=["A", "B"], nom=["x", "y"])
+    params = {"base_keys": ["code"], "join_keys": ["code"]}
+    kept = run_modifier(JoinByField, params, {"base": base, "join": other})
+    assert col(kept["Joined"], "nom") == ["x", "y"] and get_crs(kept["Joined"]) == get_crs(base)
+    assert shapely.from_wkb(col(kept["Joined"], GEOM)[0]).x == 0  # géométrie de « base »
+    taken = run_modifier(JoinByField, {**params, "geometry": "join"}, {"base": base, "join": other})
+    assert shapely.from_wkb(col(taken["Joined"], GEOM)[0]).x == 10 and get_crs(taken["Joined"]) == "EPSG:4326"
+    none = run_modifier(JoinByField, {**params, "geometry": "none"}, {"base": base, "join": other})
     assert GEOM not in none["Joined"].column_names
-    assert col(kept["Unjoined"], "code") == ["C", None]
+    assert col(kept["UnjoinedBase"], "code") == ["C", None]
+    left = run_modifier(
+        JoinByField, {**params, "geometry": "join", "keep_unjoined": True}, {"base": base, "join": other}
+    )
+    assert col(left["Joined"], GEOM)[2:] == [None, None]  # gardées sans correspondance : pas de géométrie de « join »
 
 
 # ------------------------------------------------------------------------ OrderBy, Counter, Remover
@@ -199,7 +203,7 @@ def test_sorter_multi_keys_nulls_last_and_stability():
     assert col(out, "i") == [3, 1, 0, 4, 2]
     stable = run_modifier(OrderBy, {"keys": [{"attribute": "a"}]}, t)["output"]
     assert col(stable, "i") == [1, 3, 0, 4, 2]  # à égalité, l'ordre d'arrivée
-    with pytest.raises(ConfigError, match="convertible"):
+    with pytest.raises(ConfigError, match="tri impossible.*convert"):
         run_modifier(OrderBy, {"keys": [{"attribute": "a", "kind": "number"}]}, t)
     with pytest.raises(ConfigError, match="clé de tri"):
         run_modifier(OrderBy, {}, t)
@@ -227,7 +231,7 @@ def test_attribute_remover():
         GEOM
         not in run_modifier(DropAttributes, {"attributes": ["a"], "remove_geometry": True}, t)["output"].column_names
     )
-    with pytest.raises(ConfigError, match="absents"):
+    with pytest.raises(ConfigError, match="absents?"):
         run_modifier(DropAttributes, {"attributes": ["zz"]}, t)
     assert run_modifier(DropAttributes, {"attributes": ["zz"], "ignore_missing": True}, t)["output"].num_columns == 3
 

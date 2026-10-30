@@ -1,4 +1,4 @@
-"""Écriture dans un fichier (GeoParquet, GeoPackage, CSV, …)."""
+"""Écriture dans un fichier ((Geo)Parquet, GeoPackage, CSV, …)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ class Writer(Modifier):
         "Pour un GeoPackage (couches) ou un classeur Excel (feuilles), plusieurs Writer peuvent écrire des "
         "éléments différents dans le même fichier : en mode « overwrite » seule la couche ou la feuille visée est "
         "remplacée. Shapefile : noms de colonnes limités à 10 caractères (les renommages sont journalisés), "
-        "fichier .cpg en UTF-8, limite de 2 Go. GeoParquet : « partitionner par » écrit un dossier par valeur. "
+        "fichier .cpg en UTF-8, limite de 2 Go. (Geo)Parquet : « partitionner par » écrit un dossier par valeur. "
         "Sur le partage de l'équipe, le fichier est écrit en local puis publié d'un bloc : une erreur ou un arrêt en "
         "cours de route laisse le fichier existant intact, et l'erreur de publication est signalée (fichier ouvert "
         "par un collègue, partage indisponible)."
@@ -57,11 +57,11 @@ class Writer(Modifier):
         encoding: str = Field("", title="Encodage", description="Vide = celui du format (utf-8).")
         delimiter: str = Field(",", title="Séparateur (CSV)", description="Séparateur de colonnes du CSV écrit.")
         compression: Literal["zstd", "snappy", "gzip", "none"] = Field(
-            "zstd", title="Compression (GeoParquet)", description="Compression des fichiers GeoParquet."
+            "zstd", title="Compression ((Geo)Parquet)", description="Compression des fichiers (Geo)Parquet."
         )
         partition_by: AttributeList = Field(
             default_factory=list,
-            title="Partitionner par (GeoParquet)",
+            title="Partitionner par ((Geo)Parquet)",
             description="Colonnes dont chaque valeur donne un sous-dossier ; « Fichier » est alors un dossier.",
         )
 

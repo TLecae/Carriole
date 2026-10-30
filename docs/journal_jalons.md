@@ -1,6 +1,79 @@
 # Journal des jalons
 
-## DuckDB 2.0.0 (2026-10-28)
+## Ports non lus calculés à la demande ; inspecteur pendant un run (2026-10-29)
+
+Voir [ADR 0044](decisions/0044-ports-calcules-a-la-demande.md) (points 2 et 7).
+
+- Retour d'usage : lecture du DPE (instantanée) puis statistiques par commune, simple compte. Le run tournait encore
+  après 10 min. Cause : la sortie `output` (13,6 M entités × 228 colonnes, avec les statistiques de leur commune, dans
+  leur ordre) était écrite, alors que rien ne la lisait. Compter les deux sorties : 0,6 s et 1,7 s.
+- Voie SQL, nœud avec des entrées : un port que rien ne lit est défini et compté, avec ou sans cache ; un nœud
+  bloquant n'écrit que les ports qu'un nœud lit. Écriture et définition passent par une seule fonction
+  (`run_sql_route`, port par port). Le flux : 8 s ; le résumé dans l'inspecteur : 1,1 s.
+- Choisir un nœud ouvre sa première sortie (ici `output`) : une préparation que l'interface ne redemande plus depuis
+  5 s est arrêtée (`duck.interrupted_when`, partagé avec l'annulation d'un run).
+- Inspecteur pendant un run lancé jusqu'à un nœud : le port suivi (un nœud de l'amont, repris du cache) passait dans le
+  nouveau run et remplaçait le nœud choisi, qui semblait fini. Le nœud choisi garde sa place ; un nœud en cours affiche
+  « en cours de calcul… » (`model/inspection.ts`).
+- Gestionnaire des tâches : 4 processus Carriole (fenêtre, GPU, réseau, page : Electron), 1 backend Python et 3 workers
+  (« Runs en parallèle ») : normal ; un worker sans run attend.
+- Les scripts d'édition Python écrivaient en CRLF (`write_text` sous Windows) : 41 fichiers remis en LF.
+
+## Ports calculés à la demande (2026-10-29)
+
+Voir [ADR 0044](decisions/0044-ports-calcules-a-la-demande.md).
+
+- Constat : chaque nœud écrivait toutes les colonnes de ses sorties ; un filtre sur 13,6 M × 226 colonnes coûtait
+  44 s pour évaluer une colonne. Par DuckDB seul, avec écriture : 40 s ; compter : 0,1 s.
+- Nœud ligne à ligne avec voie SQL : ses ports deviennent des définitions (`<port>.sql.json`), contrôlées sur toutes
+  les lignes et comptées ; une chaîne forme une requête, lue par le nœud qui a besoin des données ou par l'inspecteur
+  (préparation à la première ouverture, statut 425). Erreur sur une donnée : voie par lots (rejets exacts) ;
+  expressions en `TRY` dans les définitions ; expression non déterministe : voie par lots.
+- Neuf modificateurs d'attributs et de filtre ont leur SQL, chacun comparé à la voie par lots (`test_deferred.py`).
+- Connexions qui lisent les ports confinées (`duck.confine`) : une expression d'utilisateur n'atteint pas d'autre
+  fichier. Tables larges : threads et taille des blocs écrits selon les métadonnées Parquet (`duck.fit`) ; `COPY` de
+  143 000 lignes × 200 colonnes : 104 s → 9 s à 921 Mo.
+- Banc : jeu `large_N` (200 colonnes), cas `large_filtre`, `large_chaine`. Filtre (points) 4,2 → 0,9 s ; filtre large
+  à 3 Go : manque de mémoire → 10 s.
+- Fichier réel (13,6 M × 226, réseau) : filtre 44 → 2 s ; mais la première ouverture de `Passed` dans l'inspecteur
+  coûte 66 s et le tri en aval 91 s : blocs de 468 Mo, un seul thread permis par la règle mémoire. Limite suivante.
+- Mesure faussée en route : un `COPY` vers un dossier disparu comptait comme manque de mémoire ; un test DuckDB sans
+  dossier de débordement a créé `.tmp/` dans le dépôt (supprimé).
+
+## Port qui désigne un fichier (2026-10-29)
+
+Voir [ADR 0043](decisions/0043-port-qui-designe-un-fichier.md).
+
+- Retour d'usage : un Parquet de 4,2 Go (13,6 M lignes, 226 colonnes) lu en plus de 20 min, cache désactivé ou non.
+  Cause : la recopie dans le port (32 Go décompressés, recompressés) ; 10 min au mieux par DuckDB.
+- Un fichier déjà au format des ports est désigné (`<port>.ref.json`), pas recopié : `Modifier.ready_ports`, une
+  résolution unique `cache.port_data`. Lecture 0,1 s ; inspecteur 0,08 s à l'ouverture.
+- `get_crs` lit aussi le SCR GeoParquet (« geo ») ; inspecteur : une connexion par fichier désigné, qui n'autorise que
+  lui en plus du cache (le SQL libre ne lit rien d'autre).
+- Sans cache, un port que rien ne lit (sur un nœud dont d'autres ports sont lus) est compté, pas écrit : filtre en
+  aval 250 s → 44 s. Voie SQL : `SELECT count(*)` ; écriture factorisée (`_copy`).
+- Reste : *Filtrer par expression* sans voie SQL (les 13,6 M lignes passent par Python).
+
+## Cache robuste, lecture par DuckDB, modificateurs fondus (2026-10-28)
+
+Voir [ADR 0042](decisions/0042-cache-robuste-et-lecture-par-duckdb.md).
+
+- « Jusqu'au nœud » sur une branche effaçait l'affichage des autres : le moteur les reprenait (fichiers liés) mais
+  annonçait leur état avant `run_started`, que l'interface prenait pour une remise à zéro. Ordre corrigé, réducteur
+  qui fusionne ; nœuds hors branche gardés par une empreinte statique (même les « toujours relancés ») ; reprise au
+  démarrage du run (plus d'attente d'une place dans le pool) ; rasters repris (sous-dossier, chemins réécrits).
+- Écriture restée « en cours » : course en fin de flux SSE (dernier paquet d'événements écrit entre deux lectures),
+  et relecture plafonnée à 5 000 événements. Le flux relit avant `end` ; l'interface applique `result.nodes`.
+- Lecture : (Geo)Parquet et CSV écrits dans le port par DuckDB (`COPY`), repli sur la lecture par lots si DuckDB
+  échoue ; formats GDAL gardés sur pyogrio (`ST_Read` plus lent, mesuré). Ports encodés dans un thread à part, sans
+  dictionnaire hors texte ; schéma des fichiers mémorisé. CSV 10 M : 67 s → 7 à 10 s ; Parquet 10 M : 12 s → 4 à 6 s.
+- Banc : cas `lecture_<format>` (cache activé, comme dans l'application) ; jeux convertis à la demande.
+- « (Geo)Parquet » ; `LookupJoin` → `JoinByField` (géométrie du résultat), `CountPointsInPolygon` → `JoinByLocation`
+  (sommes, *first*, côté indexé le plus petit), `CheckValidity` sans *Réparer* ; migration dans `renames.py`.
+- Plugins : sans `ETL_PLUGINS_DIR`, `Path("")` désignait le dossier courant et chaque `.py` y était exécuté (vu en
+  lançant un script de banc depuis un dossier de scripts). Chemin vide ignoré, test.
+
+## DuckDB 2.0.0 ; arrêt du backend borné (2026-10-28)
 
 - DuckDB 1.5.6 → 2.0.0 (version LTS, extensions `spatial` et `httpfs` correspondantes embarquées). Résultats Arrow
   lus par `con.sql(…)` (en 2.0, `execute(…).to_arrow_table()` fait une copie de plus et avertit) ; un résultat ouvert
@@ -10,6 +83,12 @@
   lambda `x -> …` n'est plus acceptée : `lambda x : …`.
 - GeoParquet sur le web : la lecture anticipée de la 2.0 téléchargeait 80 % d'un fichier de 10 Mo pour 10 lignes ;
   coupée quand le nombre de lignes est borné (5 %), gardée pour une lecture complète.
+- Arrêt du backend qui ne finissait parfois jamais (test `test_serve…stops_cleanly`, 2 échecs sur 62, sans lien avec
+  DuckDB) : sous Windows, quand un client coupe brutalement sa connexion, `shutdown()` du socket peut échouer dans
+  `_call_connection_lost` d'asyncio (« WinError 10054 » dans server.log) ; la connexion n'est jamais libérée et
+  `Server.wait_closed()`, dernière attente d'uvicorn, ne rend plus la main (reproduit en Python 3.12 et 3.14). Pour
+  l'application, le moteur semblait arrêté (il ne répondait plus) mais restait en mémoire avec ses workers jusqu'au
+  démarrage suivant. Arrêt d'uvicorn borné à 5 s (`serve.GRACEFUL_SECONDS`), test qui provoque l'échec.
 
 ## GeoParquet sur le web ; point sur Python 3.14 sans GIL (2026-10-26)
 

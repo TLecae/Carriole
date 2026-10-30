@@ -2,8 +2,9 @@ import { applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, t
 import { create } from "zustand";
 import { ApiError, api, currentEmail, subscribeRun } from "../api/client";
 import { onConnection } from "../api/connection";
-import type { Analysis, FlowDoc, FlowRecord, FlowSummary, NodeResult, RunEvent, RunStatus, ModifierInfo } from "../api/types";
-import { rollupComponents } from "../model/rollup";
+import type { Analysis, FlowDoc, FlowRecord, FlowSummary, RunEvent, RunStatus, ModifierInfo } from "../api/types";
+import { applyResult, IDLE_RUN, reduceEvent, type RunState } from "../model/runState";
+import { signatures, staleNodes } from "../model/staleness";
 import { pickPath } from "../platform";
 import { useUi } from "./ui";
 import {
@@ -29,17 +30,8 @@ interface Snapshot {
   meta: FlowMeta;
 }
 
-export interface RunState {
-  id: string | null;
-  status: RunStatus | "idle";
-  error: string | null;
-  nodes: Record<string, Partial<NodeResult>>;
-  counts: Record<string, number>;
-  logs: RunEvent[];
-  cache: boolean;
-}
+export type { RunState };
 
-const IDLE_RUN: RunState = { id: null, status: "idle", error: null, nodes: {}, counts: {}, logs: [], cache: true };
 const FINAL: RunStatus[] = ["done", "error", "cancelled", "interrupted"];
 const CLIP_MARK = "etl-flow-clipboard";
 
@@ -120,42 +112,6 @@ let eventBuffer: RunEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
 
 const select = (nodes: AppNode[], ids: Set<string>): AppNode[] => nodes.map((n) => (n.selected === ids.has(n.id) ? n : { ...n, selected: ids.has(n.id) }));
-
-function reduceEvent(run: RunState, e: RunEvent): RunState {
-  const next = reduceRaw(run, e);
-  return e.type === "node" || e.type === "run_started" ? { ...next, nodes: rollupComponents(next.nodes) } : next;
-}
-
-function reduceRaw(run: RunState, e: RunEvent): RunState {
-  switch (e.type) {
-    case "run_started":
-      return { ...run, status: "running", nodes: Object.fromEntries((e.nodes ?? []).map((id) => [id, { status: "pending" as const }])) };
-    case "node":
-      return {
-        ...run,
-        nodes: {
-          ...run.nodes,
-          [e.node!]: {
-            ...run.nodes[e.node!],
-            status: e.status as NodeResult["status"],
-            seconds: e.seconds,
-            rows: e.rows,
-            rows_in: e.rows_in,
-            rss_mb: e.rss_mb ?? null,
-            error: e.error ?? null,
-          },
-        },
-      };
-    case "counts":
-      return { ...run, counts: { ...run.counts, [`${e.node}/${e.port}`]: e.count ?? 0 } };
-    case "log":
-      return { ...run, logs: [...run.logs, e].slice(-5000) };
-    case "run_finished":
-      return { ...run, status: (e.status as RunStatus) ?? "done", error: e.error ?? null };
-    default:
-      return run;
-  }
-}
 
 /** `wanted`, ou plus bas s'il tombe sur un nœud : deux ajouts au même endroit (centre de la vue) ne s'empilent pas. */
 function freeSpot(nodes: AppNode[], wanted: { x: number; y: number }): { x: number; y: number } {
@@ -663,16 +619,26 @@ export const useEditor = create<EditorState>((set, get) => {
       unsubscribe?.();
       eventBuffer = [];
       const detail = await api.run(id);
-      const past = await api.runEvents(id, 0);
-      let state: RunState = { ...IDLE_RUN, id, status: detail.status, error: detail.error, cache: detail.options.cache ?? true };
-      for (const e of past) state = reduceEvent(state, e);
-      state = { ...state, status: detail.status, error: detail.error };
+      let state: RunState = { ...IDLE_RUN, id, status: detail.status, error: detail.error, cache: detail.options.cache ?? true, signatures: signatures(detail.flow) };
+      let lastId = 0;
+      for (;;) {
+        // par pages : un long run compte bien plus d'événements qu'une seule réponse n'en rend
+        const page = await api.runEvents(id, lastId);
+        for (const e of page) state = reduceEvent(state, e);
+        if (!page.length || (page[page.length - 1].id ?? lastId) <= lastId) break;
+        lastId = page[page.length - 1].id ?? lastId;
+      }
+      state = { ...applyResult(state, detail.result), status: detail.status, error: detail.error };
       set({ run: state });
       if (!FINAL.includes(detail.status)) {
-        const lastId = past.reduce((m, e) => Math.max(m, e.id ?? 0), 0);
         unsubscribe = subscribeRun(id, lastId, pushEvent, (status) => {
           flushEvents();
           set((s) => ({ run: { ...s.run, status: status as RunStatus } }));
+          // l'état enregistré du run fait foi pour ses nœuds (un événement perdu ne laisse pas un nœud « en cours »)
+          void api.run(id).then(
+            (done) => set((s) => (s.run.id === id ? { run: { ...applyResult(s.run, done.result), status: done.status, error: done.error } } : {})),
+            () => undefined,
+          );
         });
       }
     },
@@ -713,3 +679,15 @@ export function defaultParams(meta: FlowMeta): Record<string, string> {
 }
 
 export { isNote };
+
+let staleMemo: { nodes: unknown; edges: unknown; meta: unknown; ran: unknown; out: Set<string> } | null = null;
+
+/** Nœuds dont les résultats affichés (ceux du run) ne correspondent plus au flux : modifiés depuis, ou en aval d'un
+ * nœud modifié (`staleness.staleNodes`). Recalculé seulement quand le flux ou le run change. */
+export function staleOf(s: Pick<EditorState, "nodes" | "edges" | "meta" | "run">): Set<string> {
+  const m = staleMemo;
+  if (m && m.nodes === s.nodes && m.edges === s.edges && m.meta === s.meta && m.ran === s.run.signatures) return m.out;
+  const out = staleNodes(toFlowDoc(s.meta, s.nodes, s.edges), s.run.signatures);
+  staleMemo = { nodes: s.nodes, edges: s.edges, meta: s.meta, ran: s.run.signatures, out };
+  return out;
+}

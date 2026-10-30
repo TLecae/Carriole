@@ -34,6 +34,16 @@ if (-not $SkipRuntime) {
   robocopy $base (Join-Path $runtime "python") /E /NFL /NDL /NJH /NJS /NP /XD test tests idlelib turtledemo tcl Doc __pycache__ /XF *.pyc | Out-Null
   if ($LASTEXITCODE -ge 8) { throw "robocopy a échoué (code $LASTEXITCODE)" }
   Remove-Item (Join-Path $runtime "python\Lib\tkinter") -Recurse -Force -ErrorAction SilentlyContinue
+  # Runtime Visual C++ : Python n'apporte que vcruntime140 ; numexpr importe aussi msvcp140, absent d'un Windows sans
+  # « Visual C++ Redistributable » (le moteur ne démarrait pas). Copié à côté de python.exe (déploiement local prévu
+  # par Microsoft), il est trouvé avant celui du système. Toute la famille, de même version.
+  $vc = "vcruntime140.dll", "vcruntime140_1.dll", "vcruntime140_threads.dll", "msvcp140.dll", "msvcp140_1.dll",
+    "msvcp140_2.dll", "msvcp140_atomic_wait.dll", "msvcp140_codecvt_ids.dll", "concrt140.dll", "vcomp140.dll"
+  foreach ($dll in $vc) {
+    $source = Join-Path $env:SystemRoot "System32\$dll"
+    if (-not (Test-Path $source)) { throw "$dll absent : installer le Visual C++ Redistributable x64 sur ce poste" }
+    Copy-Item $source (Join-Path $runtime "python") -Force
+  }
 
   Step "Dépendances (versions du verrou uv.lock)"
   $requirements = Join-Path $desktop "build\requirements.txt"

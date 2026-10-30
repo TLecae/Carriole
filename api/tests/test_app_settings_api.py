@@ -66,6 +66,7 @@ def test_keep_running_is_saved_for_the_desktop_application(client):
         {"tile_hosts": ["https://a.example.org; script-src *"]},
         {"variables": {"1mauvais": "x"}},
         {"variables": {"a b": "x"}},
+        {"cache_dir": "cache"},  # chemin relatif
         {"inconnu": 1},
     ],
 )
@@ -88,3 +89,14 @@ def test_proxy_and_memory_budget_are_exported_to_the_environment(client):
         settings.apply_environment()
         assert os.environ["HTTPS_PROXY"] == "http://proxy.local:3128"
         assert os.environ["ETL_MEMORY_BUDGET_MB"] == "2048"
+
+
+def test_cache_folder_is_exported_to_the_environment(client, tmp_path):
+    with patch.dict(os.environ):
+        os.environ.pop("ETL_CACHE_DIR", None)
+        folder = str(tmp_path / "cache")
+        state = client.patch("/api/settings", json={"cache_dir": folder}).json()
+        assert state["restart_required"] == ["cache_dir"] and state["values"]["cache_dir"] == folder
+        settings.apply_environment()
+        assert os.environ["ETL_CACHE_DIR"] == folder
+        assert client.get("/api/settings").json()["paths"]["cache"] == folder

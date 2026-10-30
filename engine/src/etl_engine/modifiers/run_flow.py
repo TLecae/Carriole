@@ -13,7 +13,7 @@ from pydantic import Field
 
 from etl_engine import batch, paths
 from etl_engine.flow import Flow
-from etl_engine.sdk import Attribute, ConfigError, Emit, FilePath, Modifier, Params
+from etl_engine.sdk import Attribute, ConfigError, Emit, FilePath, Modifier, Params, missing_attributes
 
 OUT_COLUMNS = ("_flow_status", "_flow_seconds", "_flow_error")
 
@@ -29,6 +29,7 @@ class RunFlow(Modifier):
     reusable = False  # toujours relancé (voir Modifier.reusable)
     label = "Lancer un flux"
     category = "Lots et variables"
+    mode = "blocking"  # charge toute son entrée
     description = "Exécute un autre flux pour chaque entité reçue, avec des paramètres tirés de ses attributs."
     help = (
         "Chaque entité reçue lance une exécution du flux indiqué (`etl run` dans un processus séparé : mémoire isolée, "
@@ -76,7 +77,7 @@ class RunFlow(Modifier):
             return {"Succeeded": None, "Failed": None}
         missing = [m.attribute for m in self.params.parameters if m.attribute and m.attribute not in first.names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         extra = [
             pa.field("_flow_status", pa.string()),
             pa.field("_flow_seconds", pa.float64()),
@@ -110,7 +111,7 @@ class RunFlow(Modifier):
         table = table.drop_columns([c for c in OUT_COLUMNS if c in table.column_names])
         missing = [m.attribute for m in p.parameters if m.attribute and m.attribute not in table.column_names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
 
         values = {m.name: table.column(m.attribute).to_pylist() if m.attribute else None for m in p.parameters}
         items = []

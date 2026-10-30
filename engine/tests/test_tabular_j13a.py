@@ -127,7 +127,7 @@ def test_pivot_functions_and_known_columns_give_the_schema():
 
 
 def test_pivot_refuses_a_missing_attribute():
-    with pytest.raises(ConfigError, match="attributs absents"):
+    with pytest.raises(ConfigError, match="attributs? absents?"):
         run_modifier(PivotWider, {"pivot_attribute": "nope", "value_attribute": "pop"}, LONG)
 
 

@@ -10,11 +10,10 @@ import pyproj
 import shapely
 from pydantic import Field
 
-from etl_engine.data import GEOM, geometries, get_crs, is_geographic, type_ids, with_crs
+from etl_engine.data import GEOM, LINES, geometries, get_crs, is_geographic, type_ids, with_crs
 from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, ConfigError, Modifier, Params, reject
 
 _UNIT = {"m": 1.0, "km": 1e-3}
-LINES = (1, 5)  # LineString, MultiLineString
 
 
 class MeasureLength(Modifier):
@@ -51,6 +50,8 @@ class MeasureLength(Modifier):
             return {"output": None}
         if GEOM not in schema.names:
             raise ConfigError("le modificateur a besoin d'une géométrie en entrée")
+        if self.params.method == "planar" and is_geographic(crs := get_crs(schema)):
+            raise ConfigError(f"{crs} est géographique (degrés) : reprojeter d'abord, ou choisir « ellipsoidal »")
         name, field = self.params.attribute, pa.field(self.params.attribute, pa.float64())
         return {
             "output": schema.set(schema.get_field_index(name), field) if name in schema.names else schema.append(field)
@@ -82,5 +83,7 @@ class MeasureLength(Modifier):
         )
         result = {"output": with_crs(out.filter(pa.array(ok)), get_crs(batch))}
         if not ok.all():
-            result[REJECTED] = reject(batch.filter(pa.array(~ok)), "pas une ligne")
+            bad = ~ok
+            reasons = np.where(shapely.is_missing(geoms[bad]), "pas de géométrie", "pas une ligne")
+            result[REJECTED] = reject(batch.filter(pa.array(bad)), pa.array(reasons, pa.string()))
         return result

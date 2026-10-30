@@ -257,15 +257,15 @@ def test_http_caller_posts_retries_and_reports_failures(server):
     flaky = run_modifier(HttpRequest, {"url": server + "/flaky", "retries": 2}, table(id=[1]))
     assert flaky["output"].num_rows == 1 and Handler.flaky["n"] == 2  # un 503 puis un 200
     missing = run_modifier(HttpRequest, {"url": server + "/missing"}, table(id=[1]))
-    assert missing["Failed"].num_rows == 1 and rows(missing["Failed"])[0]["_http_error"] == "HTTP 404"
+    assert missing["Rejected"].num_rows == 1 and rows(missing["Rejected"])[0]["_rejection_reason"] == "HTTP 404"
     refused = run_modifier(HttpRequest, {"url": "http://127.0.0.1:9/x", "retries": 0, "timeout": 2}, table(id=[1]))
-    assert refused["Failed"].num_rows == 1 and rows(refused["Failed"])[0]["_http_status"] is None
+    assert refused["Rejected"].num_rows == 1 and rows(refused["Rejected"])[0]["_http_status"] is None
 
 
 def test_http_caller_validates_its_configuration():
     with pytest.raises(ConfigError, match="http://"):
         run_modifier(HttpRequest, {"url": "file:///etc/passwd"}, table(id=[1]))
-    with pytest.raises(ConfigError, match="attributs absents"):
+    with pytest.raises(ConfigError, match="attributs? absents?"):
         run_modifier(HttpRequest, {"url": "http://localhost/{nope}"}, table(id=[1]))
 
 

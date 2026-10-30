@@ -1,6 +1,6 @@
 import { Handle, NodeToolbar, Position, type NodeProps } from "@xyflow/react";
 import { memo } from "react";
-import { useEditor } from "../store/editor";
+import { staleOf, useEditor } from "../store/editor";
 import type { EtlNode } from "../model/graph";
 import type { ModifierInfo } from "../api/types";
 import { formatCount, formatNumber, t } from "../i18n";
@@ -50,6 +50,7 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
   const info = useEditor((s) => s.paletteMap.get(data.type));
   const result = useEditor((s) => s.run.nodes[id]);
   const runCache = useEditor((s) => s.run.cache);
+  const stale = useEditor((s) => staleOf(s).has(id));
   const livePorts = useEditor((s) => s.analysis?.ports?.[id]);
   const worst = useEditor((s) => {
     const issues = s.analysis?.issues.filter((i) => i.node === id) ?? [];
@@ -79,6 +80,7 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
     selected ? "selected" : "",
     data.enabled ? "" : "disabled",
     status ? `st-${status}` : "",
+    stale && status ? "stale" : "",
     worst ? `has-${worst}` : "",
   ].join(" ");
 
@@ -140,6 +142,11 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
           {statusLabel(status)}
           {result?.seconds != null && status !== "running" && status !== "pending" && ` · ${formatNumber(result.seconds)} s`}
           {result?.rss_mb ? t(" · {{n}} Mo", { n: Math.round(result.rss_mb) }) : ""}
+          {stale && (
+            <span className="stale-tag" data-testid={`stale-${id}`} title={t("Ce nœud ou un nœud en amont a changé depuis le run : ces résultats ne correspondent plus au flux. Relancer pour les mettre à jour.")}>
+              {t(" · à relancer")}
+            </span>
+          )}
         </div>
       )}
     </div>

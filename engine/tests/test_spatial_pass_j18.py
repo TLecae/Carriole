@@ -1,19 +1,21 @@
 """Jalon 18, passe sur les modificateurs spatiaux : calculs vectorisés, mêmes résultats qu'entité par entité."""
 
+import time
+
 import numpy as np
 import pyarrow as pa
 import pytest
 import shapely
 from etl_engine.data import GEOM, replace_geometries, with_crs
 from etl_engine.modifiers.aggregate import Aggregate, collect_groups
-from etl_engine.modifiers.check_validity import CheckValidity
 from etl_engine.modifiers.dissolve import Dissolve
 from etl_engine.modifiers.extract_coordinates import ExtractCoordinates
+from etl_engine.modifiers.fix_geometries import FixGeometries
 from etl_engine.modifiers.geometry_from_attribute import GeometryFromAttribute
 from etl_engine.modifiers.multipart_to_singleparts import MultipartToSingleparts
 from etl_engine.modifiers.point_from_xy import PointFromXY
 from etl_engine.modifiers.split_by_geometry_type import SplitByGeometryType
-from etl_engine.sdk import Context
+from etl_engine.sdk import GEOMETRY_SLICE, Context
 from etl_engine.testing import run_modifier
 
 
@@ -93,6 +95,25 @@ def test_geometry_replacer_reads_in_bulk_and_explains_bad_values():
     assert len(reason) == 1 and reason[0].startswith("géométrie illisible (wkt)")
 
 
+def test_geometry_replacer_rejects_a_whole_unreadable_column_quickly():
+    """Deux coordonnées collées (« 574123.5634567.8 ») ne sont pas du WKT : toutes les entités sont rejetées, sans
+    analyser chacune ; le motif exact est donné pour les premières valeurs différentes, le format pour les autres."""
+    n = 50_000
+    texts = [f"{574000 + i}.5{6000000 + i}.8" for i in range(n)]
+    t = pa.table({"id": pa.array(range(n)), "xy": texts})
+    start = time.perf_counter()
+    out = run_modifier(GeometryFromAttribute, {"attribute": "xy"}, t, batch_rows=GEOMETRY_SLICE)
+    assert time.perf_counter() - start < 5
+    assert out["output"].num_rows == 0
+    rejected = out["Rejected"]
+    assert rejected.column("id").to_pylist() == list(range(n))
+    reasons = rejected.column("_rejection_reason").to_pylist()
+    assert reasons[0].startswith("géométrie illisible (wkt) : ") and len(reasons[0]) > len(
+        "géométrie illisible (wkt) : "
+    )
+    assert reasons[-1] == "géométrie illisible (wkt)"
+
+
 def test_geometry_filter_families_and_validator_keeps_valid_bytes():
     t = shapes([shapely.Point(0, 0), shapely.MultiLineString([[(0, 0), (1, 1)]]), shapely.box(0, 0, 1, 1), None,
                 shapely.GeometryCollection([shapely.Point(0, 0)]), shapely.Polygon()])  # fmt: skip
@@ -102,7 +123,7 @@ def test_geometry_filter_families_and_validator_keeps_valid_bytes():
     }  # fmt: skip
     bowtie = shapely.Polygon([(0, 0), (2, 2), (2, 0), (0, 2), (0, 0)])
     v = shapes([shapely.box(0, 0, 1, 1), bowtie])
-    valid = run_modifier(CheckValidity, {"repair": True}, v)["Valid"]
+    valid = run_modifier(FixGeometries, {"keep_type": False}, v)["output"]
     assert valid.column(GEOM)[0].as_py() == v.column(GEOM)[0].as_py()  # valide : WKB d'origine
     assert shapely.is_valid(geoms_of(valid)[1]) and valid.column("_repaired_reason").to_pylist()[0] is None
 

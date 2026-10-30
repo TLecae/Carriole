@@ -12,6 +12,8 @@ export const keyOf = (t: PortRef) => `${t.run}/${t.node}/${t.port}`;
 export type RunRows = { id: string | null; nodes: Record<string, { rows?: Record<string, number> } | undefined> };
 
 const MAP_POLL_MS = 1500; // carte en préparation : on redemande où elle en est
+const PREPARING = 425; // port calculé à la demande : ses données se préparent (première ouverture)
+const PREPARE_POLL_MS = 500;
 export const sameTarget = (a: PortRef | null, b: PortRef | null) => !!a && !!b && keyOf(a) === keyOf(b);
 
 interface InspectorState {
@@ -19,6 +21,7 @@ interface InspectorState {
   info: PortInfo | null;
   error: string | null;
   loading: boolean; // description du port ou première page en cours de chargement (vue préparée à la demande…)
+  preparing: boolean; // port calculé à la demande : ses données se préparent avant le premier affichage
   query: DataQuery;
   version: number; // augmente à chaque changement de requête : les réponses périmées sont ignorées
   filtered: number;
@@ -27,6 +30,7 @@ interface InspectorState {
   selectedFid: number | null;
   emptyNode: string | null; // nœud choisi sur le canevas, sans données dans le run affiché
   scrollTo: { index: number; nonce: number } | null;
+  locating: boolean; // entité cliquée sur la carte : recherche de sa ligne, puis chargement de sa page
   stats: PortStats | null;
   showStats: boolean;
   overlays: PortRef[]; // ports superposés sur la carte (en plus du port actif)
@@ -48,6 +52,7 @@ interface InspectorState {
 }
 
 const pending = new Set<string>();
+let selections = 0; // compteur des sélections : seule la dernière fait défiler la table
 
 export const useInspector = create<InspectorState>((set, get) => {
   const message = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : t("Erreur"));
@@ -63,13 +68,25 @@ export const useInspector = create<InspectorState>((set, get) => {
   const load = async (target: PortRef, version: number) => {
     set({ loading: true });
     try {
-      const info = await api.dataInfo(target);
+      let info: PortInfo;
+      for (;;) {
+        try {
+          info = await api.dataInfo(target);
+          break;
+        } catch (e) {
+          if (!(e instanceof ApiError && e.status === PREPARING)) throw e;
+          if (get().version !== version) return;
+          set({ preparing: true });
+          await new Promise((r) => setTimeout(r, PREPARE_POLL_MS));
+          if (get().version !== version) return;
+        }
+      }
       if (get().version !== version) return;
-      set({ info, filtered: info.total });
+      set({ info, filtered: info.total, preparing: false });
       if (info.geometry?.map_status === "building") void waitForMap(target);
       await get().loadPage(0);
     } catch (e) {
-      if (get().version === version) set({ error: message(e), info: null, loading: false });
+      if (get().version === version) set({ error: message(e), info: null, loading: false, preparing: false });
     }
   };
 
@@ -98,6 +115,7 @@ export const useInspector = create<InspectorState>((set, get) => {
     info: null,
     error: null,
     loading: false,
+    preparing: false,
     query: EMPTY_QUERY,
     version: 0,
     filtered: 0,
@@ -106,6 +124,7 @@ export const useInspector = create<InspectorState>((set, get) => {
     selectedFid: null,
     emptyNode: null,
     scrollTo: null,
+    locating: false,
     stats: null,
     showStats: false,
     overlays: [],
@@ -117,7 +136,12 @@ export const useInspector = create<InspectorState>((set, get) => {
       const ports = Object.entries(run.nodes[node]?.rows ?? {}).filter(([, n]) => n > 0);
       const port = (ports.find(([p]) => p !== "Rejected") ?? ports[0])?.[0];
       if (!port) {
-        set({ emptyNode: node });
+        // le port affiché jusque-là n'était pas encore chargé (données en préparation…) : on cesse de le demander, ce qui
+        // arrête aussi sa préparation côté serveur ; le rechoisir le recharge
+        set((s) => ({
+          emptyNode: node,
+          ...(s.target && !s.info ? { target: null, version: s.version + 1, loading: false, preparing: false } : {}),
+        }));
         return;
       }
       set({ emptyNode: null });
@@ -140,10 +164,12 @@ export const useInspector = create<InspectorState>((set, get) => {
         columns: [],
         pages: {},
         selectedFid: null,
+        locating: false,
         stats: null,
         showStats: false,
         colorBy: null,
         loading: false,
+        preparing: false,
       }));
       if (!target) return;
       await load(target, get().version);
@@ -185,15 +211,21 @@ export const useInspector = create<InspectorState>((set, get) => {
     },
 
     select: async (fid, from) => {
-      set({ selectedFid: fid });
-      const { target, query } = get();
-      if (from === "map" && fid !== null && target) {
-        try {
-          const { index } = await api.dataLocate(target, query, fid);
-          if (index !== null) set({ scrollTo: { index, nonce: Date.now() } });
-        } catch {
-          /* la ligne reste simplement hors de la fenêtre affichée */
-        }
+      const ticket = ++selections; // un autre clic rend celui-ci caduc
+      set({ selectedFid: fid, locating: false });
+      const { target, query, version } = get();
+      if (from !== "map" || fid === null || !target) return;
+      const current = () => ticket === selections && get().version === version;
+      set({ locating: true });
+      try {
+        const { index } = await api.dataLocate(target, query, fid);
+        if (index === null || !current()) return;
+        await get().loadPage(Math.floor(index / PAGE_SIZE)); // la ligne est là quand la table y arrive
+        if (current()) set({ scrollTo: { index, nonce: Date.now() } });
+      } catch {
+        /* la ligne reste simplement hors de la fenêtre affichée */
+      } finally {
+        if (ticket === selections) set({ locating: false });
       }
     },
 

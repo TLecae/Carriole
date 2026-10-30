@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Annotated, Any
 
-from etl_engine import __version__, settings
+from etl_engine import __version__, drives, settings
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 router = APIRouter(tags=["réglages"])
 
 DEFAULT_WORKERS = 3
-RESTART_KEYS = frozenset({"workers", "memory_budget_mb", "proxy"})  # lus au démarrage du moteur
+RESTART_KEYS = frozenset({"workers", "memory_budget_mb", "proxy", "cache_dir"})  # lus au démarrage du moteur
 _TILE_HOST = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d{1,5})?$")
 _VARIABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -25,6 +26,7 @@ class SettingsIn(BaseModel):
 
     workers: int | None = Field(None, ge=1, le=32)
     memory_budget_mb: int | None = Field(None, ge=256, le=4_194_304)
+    cache_dir: str | None = None  # dossier du cache des runs (et du débordement des calculs) ; vide : celui par défaut
     proxy: str | None = None
     component_dirs: list[str] | None = None
     tile_hosts: list[str] | None = None
@@ -38,6 +40,18 @@ class SettingsIn(BaseModel):
         if value and not re.fullmatch(r"https?://\S+", value):
             raise ValueError("adresse du proxy invalide : http://hote:port attendu")
         return value or None
+
+    @field_validator("cache_dir")
+    @classmethod
+    def _cache_dir(cls, value: str | None) -> str | None:
+        value = (value or "").strip()
+        if not value:
+            return None
+        if any(ord(c) < 32 for c in value) or not Path(value).is_absolute():
+            raise ValueError("chemin complet du dossier attendu (ex. D:/carriole/cache)")
+        if drives.is_network_path(value):
+            raise ValueError("le dossier du cache doit être sur un disque de ce poste, pas sur un partage réseau")
+        return value
 
     @field_validator("component_dirs")
     @classmethod
@@ -83,6 +97,7 @@ def _state() -> dict[str, Any]:
         "values": {
             "workers": settings.get("workers") if settings.get("workers") is not None else None,
             "memory_budget_mb": settings.get("memory_budget_mb"),
+            "cache_dir": settings.get("cache_dir") or "",
             "proxy": settings.get("proxy") or "",
             "component_dirs": component_dirs,
             "tile_hosts": [str(h) for h in settings.get("tile_hosts", []) or []],
@@ -96,6 +111,7 @@ def _state() -> dict[str, Any]:
             "settings": str(dirs.settings_file),
             "logs": str(dirs.logs),
             "plugins": str(dirs.plugins),
+            "cache": os.environ.get("ETL_CACHE_DIR") or str(dirs.cache),
         },
     }
 

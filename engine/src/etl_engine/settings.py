@@ -200,3 +200,6 @@ def apply_environment() -> None:
     budget = get("memory_budget_mb")
     if isinstance(budget, int) and not isinstance(budget, bool) and budget > 0:
         os.environ.setdefault("ETL_MEMORY_BUDGET_MB", str(budget))
+    cache = str(get("cache_dir", "") or "").strip()  # résultats des runs et débordement des calculs : un disque local
+    if cache:
+        os.environ.setdefault("ETL_CACHE_DIR", cache)

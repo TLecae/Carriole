@@ -7,13 +7,13 @@ import pyarrow as pa
 import shapely
 from pydantic import Field
 
-from etl_engine.data import GEOM, geometries, get_crs, with_crs
+from etl_engine.data import GEOM, geometries, get_crs, replace_geometries
 from etl_engine.sdk import GEOMETRY_SLICE, ConfigError, Modifier, Params
 
 
 class Simplify(Modifier):
     name = "Simplify"
-    label = "Simplify les géométries"
+    label = "Simplifier les géométries"
     category = "Géométrie"
     slice_rows = GEOMETRY_SLICE
     description = "Réduit le nombre de sommets en gardant la forme à la tolérance près (Douglas-Peucker)."
@@ -51,6 +51,5 @@ class Simplify(Modifier):
         out[present] = shapely.simplify(
             geoms[present], self.params.tolerance, preserve_topology=self.params.preserve_topology
         )
-        wkb = pa.array(shapely.to_wkb(out), pa.binary())
-        result = batch.set_column(batch.column_names.index(GEOM), GEOM, wkb)
-        return {"output": with_crs(result, get_crs(batch))}
+        changed = present & (shapely.get_num_coordinates(out) != shapely.get_num_coordinates(geoms))
+        return {"output": replace_geometries(batch, out, changed, get_crs(batch))}

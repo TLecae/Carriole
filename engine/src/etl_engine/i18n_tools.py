@@ -24,6 +24,7 @@ MESSAGE_CALLS = {
     "PermissionError",
     "NotImplementedError",
     "OSError",
+    "SourceChanged",
     "KeyError",
     "HTTPException",
     "DataError",

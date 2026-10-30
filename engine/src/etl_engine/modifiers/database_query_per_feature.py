@@ -10,7 +10,7 @@ from pydantic import Field
 
 from etl_engine.data import get_crs, with_crs
 from etl_engine.formats import databases
-from etl_engine.sdk import ConfigError, DbConnection, Emit, Modifier, Params
+from etl_engine.sdk import ConfigError, DbConnection, Emit, Modifier, Params, missing_attributes
 
 
 class DatabaseQueryPerFeature(Modifier):
@@ -99,7 +99,7 @@ class DatabaseQueryPerFeature(Modifier):
                 self.ctx.check_cancel()
                 missing = [n for n in names if n not in batch.column_names]
                 if missing:
-                    raise ConfigError(f"attributs absents : {missing}")
+                    raise missing_attributes(missing)
                 values = {n: batch.column(n).to_pylist() for n in names}
                 out_rows: list[int] = []  # indice de l'entité d'origine pour chaque ligne de sortie
                 results: list[pa.Table] = []

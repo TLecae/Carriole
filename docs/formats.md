@@ -2,13 +2,13 @@
 
 | Format | Lecture | Écriture | Modificateur | Notes |
 | --- | --- | --- | --- | --- |
-| GeoParquet | oui, aussi à une adresse https:// (lecture par plages) | oui (partitionnée possible) | Reader / Writer | format natif du cache ; compression zstd, snappy, gzip |
-| GeoPackage | oui (couche) | oui (plusieurs couches, ajout) | Reader / Writer | un Writer par couche dans le même fichier |
-| Shapefile | oui | oui | Reader / Writer | voir limites ci-dessous |
-| MapInfo TAB / MIF-MID | oui | oui | Reader / Writer | précision ~1 cm en Lambert-93 |
-| GeoJSON, FlatGeobuf | oui | oui | Reader / Writer | |
-| CSV | oui (WKT ou X/Y) | oui | Reader / Writer | colonnes lues en texte par défaut |
-| Excel (.xlsx) | oui (feuille, plage) | oui (feuilles multiples) | Reader / Writer | géométrie écrite en WKT |
+| (Geo)Parquet | oui, avec ou sans géométrie ; aussi à une adresse https:// (lecture par plages) | oui (partitionnée possible) | GeoParquetReader / GeoParquetWriter | format natif du cache : un fichier seul, local, déjà au format des ports est lu sur place, sans copie (ADR 0043) ; sinon lu par DuckDB, sur tous les cœurs ; compression zstd, snappy, gzip |
+| GeoPackage | oui (couche) | oui (plusieurs couches, ajout) | GeoPackageReader / GeoPackageWriter | un Writer par couche dans le même fichier |
+| Shapefile | oui | oui | ShapefileReader / ShapefileWriter | voir limites ci-dessous |
+| MapInfo TAB / MIF-MID | oui | oui | MapInfoReader / MapInfoWriter | précision ~1 cm en Lambert-93 |
+| GeoJSON, FlatGeobuf | oui | oui | GeoJsonReader, FlatGeobufReader / GeoJsonWriter, FlatGeobufWriter | |
+| CSV | oui (WKT ou X/Y) | oui | CsvReader / CsvWriter | colonnes lues en texte par défaut ; lu par DuckDB, sur tous les cœurs |
+| Excel (.xlsx) | oui (feuille, plage) | oui (feuilles multiples) | ExcelReader / ExcelWriter | géométrie écrite en WKT |
 | PostgreSQL / PostGIS | oui (table, vue, requête) | oui (create, overwrite, append, truncate, upsert) | PostgresReader / PostgresWriter | connexions nommées |
 | Oracle | oui (table, vue, requête) | oui (mêmes modes) | OracleReader / OracleWriter | connexions nommées ; SDO_GEOMETRY |
 | SQLite / SpatiaLite | oui (table ou requête SQL) | oui (plusieurs tables, ajout) | SpatiaLiteReader / SpatiaLiteWriter | fichiers .sqlite, .db |
@@ -38,10 +38,10 @@ de la table : précision de l'ordre du centimètre en Lambert-93.
   classeur (à enchaîner : ils écrivent le même fichier).
 - Limite d'Excel : 1 048 576 lignes par feuille (erreur explicite au-delà).
 
-## GeoParquet partitionné
+## (Geo)Parquet partitionné
 
 « Partitionner par » écrit un sous-dossier `colonne=valeur/` par valeur (500 partitions maximum). La colonne
-reste dans les fichiers. Pour relire : Reader avec le motif `dossier/**/*.parquet`.
+reste dans les fichiers. Pour relire : *Lecture (Geo)Parquet* avec le motif `dossier/**/*.parquet`.
 
 ## Oracle
 

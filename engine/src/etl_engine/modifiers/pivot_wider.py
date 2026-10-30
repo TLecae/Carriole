@@ -9,7 +9,16 @@ import pyarrow as pa
 from pydantic import Field
 
 from etl_engine.blocking import collect, duck, quote
-from etl_engine.sdk import Attribute, AttributeList, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import (
+    Attribute,
+    AttributeList,
+    ConfigError,
+    Emit,
+    Modifier,
+    Params,
+    missing_attributes,
+    require_attributes,
+)
 
 Function = Literal["first", "sum", "count", "min", "max", "mean", "concat"]
 
@@ -99,16 +108,10 @@ class PivotWider(Modifier):
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
         self._check()
         schema = inputs.get("input")
+        require_attributes(schema, [*self.params.group_by, self.params.pivot_attribute, self.params.value_attribute])
         if schema is None or not self.params.columns:
             return {"output": None}
         empty = schema.empty_table()
-        missing = [
-            a
-            for a in [*self.params.group_by, self.params.pivot_attribute, self.params.value_attribute]
-            if a and a not in schema.names
-        ]
-        if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
         return {"output": self._pivot(empty, self.params.columns).schema}
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
@@ -119,7 +122,7 @@ class PivotWider(Modifier):
             return
         missing = [a for a in [*p.group_by, p.pivot_attribute, p.value_attribute] if a and a not in table.column_names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         values = list(p.columns)
         if not values:
             found = duck(

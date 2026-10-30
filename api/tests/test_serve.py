@@ -1,12 +1,14 @@
 """Le backend de bureau pour de vrai : processus `etl serve`, jeton, workers, arrêt propre."""
 
 import json
+import socket
 import subprocess
 import sys
+import threading
 import time
 
 import pytest
-from etl_api.serve import InstanceLock, WorkerSupervisor
+from etl_api.serve import GRACEFUL_SECONDS, InstanceLock, WorkerSupervisor, http_server
 from etl_engine import backend
 from serve_support import make_backend  # noqa: F401 - fixture
 
@@ -68,6 +70,35 @@ def test_serve_runs_a_flow_end_to_end_and_stops_cleanly(make_backend, tmp_path, 
     assert (again.info.port, again.info.token) == (info.port, info.token)
     assert [f["name"] for f in again.call("GET", "/api/flows")] == ["bureau"]  # le flux récent est retrouvé
     assert again.stop() == 0
+
+
+def test_a_connection_asyncio_never_releases_does_not_block_the_stop(monkeypatch):
+    """Sous Windows, `shutdown()` du socket d'un client parti brutalement échoue parfois dans `_call_connection_lost` :
+    asyncio ne libère jamais la connexion et `Server.wait_closed()` attend sans fin. L'arrêt reste borné."""
+
+    async def app(scope, receive, send):  # application ASGI minimale : seul l'arrêt du serveur compte ici
+        while scope["type"] == "lifespan":
+            message = await receive()
+            await send({"type": message["type"] + ".complete"})
+            if message["type"] == "lifespan.shutdown":
+                return
+
+    def reset(self, how):
+        raise ConnectionResetError(10054, "connexion fermée par l'hôte distant")
+
+    server = http_server(app)
+    sock = socket.create_server(("127.0.0.1", 0))
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 15
+    while not server.started and time.monotonic() < deadline:
+        time.sleep(0.05)
+    monkeypatch.setattr(socket.socket, "shutdown", reset)
+    socket.create_connection(sock.getsockname()).close()  # client parti ; côté serveur, shutdown() échoue
+    time.sleep(0.5)
+    server.should_exit = True
+    thread.join(GRACEFUL_SECONDS + 10)
+    assert not thread.is_alive()
 
 
 def test_instance_lock_is_exclusive_and_released(tmp_path):

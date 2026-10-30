@@ -171,6 +171,8 @@ test("inspecter une connexion : table filtrée, tri, carte synchronisée", async
   await expect(page.getByTestId("map")).toBeVisible();
   await page.getByLabel("Colorer par").selectOption("pop");
   await expect(page.getByTestId("map")).toHaveAttribute("data-color", "pop");
+  // les tuiles déjà affichées sont redemandées avec l'attribut (MapLibre ignorait la nouvelle adresse : points gris)
+  await expect.poll(() => tiles.some((t) => t.url.includes("color=pop")), { message: "tuiles colorées" }).toBe(true);
   // La carte a rendu des entités à partir des tuiles reçues du serveur
   const rendered = async () => Number(await page.getByTestId("map").getAttribute("data-features"));
   try {
@@ -183,6 +185,25 @@ test("inspecter une connexion : table filtrée, tri, carte synchronisée", async
   }
   // toute tuile reçue est valide ; on nomme celles qui ne le sont pas pour comprendre un échec
   expect(tiles.filter((t) => !(t.status === 200 && t.type === "application/x-protobuf"))).toEqual([]);
+  // Légende : un bouton sous le zoom quand la couche est colorée ; « pop » est lu comme du texte dans ce CSV : une
+  // couleur par valeur (les classes d'un attribut numérique sont testées dans legend.test.ts et test_data.py)
+  await page.getByRole("button", { name: "Légende" }).click();
+  const legend = page.getByTestId("map-legend");
+  await expect(legend).toContainText("pop");
+  await expect(legend.getByRole("listitem").first()).toHaveText(/^\d/);
+  await page.getByRole("button", { name: "Légende" }).click();
+  await expect(legend).toBeHidden();
+  // Filtre changé, carte affichée et colorée : la carte suit la table (tuiles du nouveau filtre, une seule entité)
+  const filtered = (url: string) => Buffer.from(new URL(url).searchParams.get("q") ?? "", "base64url").toString();
+  const seen = tiles.length;
+  await page.getByLabel("Filtre nom", { exact: true }).fill("lieu 15");
+  await page.getByLabel("Filtre nom", { exact: true }).press("Enter");
+  await expect(page.getByTestId("data-count")).toHaveText("1 / 20 entités");
+  await expect.poll(() => tiles.slice(seen).some((t) => filtered(t.url).includes("lieu 15")), { message: "tuiles du filtre" }).toBe(true);
+  await expect.poll(rendered, { message: "entités dessinées après le filtre" }).toBe(1);
+  await page.getByLabel("Filtre nom", { exact: true }).fill("lieu 1");
+  await page.getByLabel("Filtre nom", { exact: true }).press("Enter");
+  await expect(page.getByTestId("data-count")).toHaveText("11 / 20 entités");
 
   // Fond de plan : OpenStreetMap par défaut, puis satellite d'un clic
   await expect.poll(() => [...basemapHosts], { message: "tuiles OpenStreetMap" }).toContain("tile.openstreetmap.org");

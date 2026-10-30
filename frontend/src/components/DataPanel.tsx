@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { PortInfo, PortRef } from "../api/types";
-import { useEditor } from "../store/editor";
+import { staleOf, useEditor } from "../store/editor";
+import { computingNode, followsRun } from "../model/inspection";
 import { keyOf, sameTarget, useInspector } from "../store/inspector";
 import { DataTable } from "./DataTable";
 import { Loading, Spinner } from "./Spinner";
@@ -46,13 +47,16 @@ export function DataPanel() {
     if (selectedId) useInspector.getState().showNode(useEditor.getState().run, selectedId);
   }, [selectedId, run.id, hasData]);
 
-  // Un nouveau run : on garde le même nœud et le même port dans le run courant, une fois qu'il y a ses données (pas
-  // pendant que le run tourne encore : « données introuvables » resterait affiché).
+  // Un nouveau run : on garde le même nœud et le même port dans le run courant (`followsRun`).
   const portRows = target ? run.nodes[target.node]?.rows?.[target.port] : undefined;
   useEffect(() => {
+    const { run } = useEditor.getState();
     const t = useInspector.getState().target;
-    if (run.id && t && t.run !== run.id && portRows !== undefined) void setTarget({ ...t, run: run.id });
-  }, [run.id, portRows, setTarget]);
+    if (run.id && t && followsRun(t, run, selectedId)) void setTarget({ ...t, run: run.id });
+  }, [run.id, portRows, setTarget, selectedId]);
+  const busyNode = computingNode(run, insp.emptyNode, target);
+  // données d'un nœud modifié depuis le run (ou en aval d'un nœud modifié) : elles ne correspondent plus au flux
+  const staleTarget = useEditor((s) => !!target && target.run === s.run.id && staleOf(s).has(target.node));
 
   const [search, setSearch] = useState(query.search);
   useEffect(() => {
@@ -90,7 +94,7 @@ export function DataPanel() {
             ))}
           </select>
         </label>
-        {info && (
+        {info && !busyNode && (
           <>
             <input type="search" className="data-search" aria-label={t("Recherche globale")} placeholder={t("Recherche…")} value={search} onChange={(e) => setSearch(e.target.value)} />
             <input
@@ -156,14 +160,20 @@ export function DataPanel() {
           {error}
         </p>
       )}
-      {loading && !info && <Loading text={t("Chargement des données…")} />}
-      {insp.emptyNode && (
+      {loading && !info && !insp.emptyNode && !busyNode && <Loading text={insp.preparing ? t("Préparation des données…") : t("Chargement des données…")} />}
+      {busyNode && <Loading text={t("« {{node}} » en cours de calcul…", { node: busyNode })} />}
+      {staleTarget && info && !busyNode && !insp.emptyNode && (
+        <p className="stale-banner" role="status" data-testid="data-stale">
+          {t("Données du dernier run : ce nœud ou un nœud en amont a changé depuis. Relancer pour les mettre à jour.")}
+        </p>
+      )}
+      {insp.emptyNode && !busyNode && (
         <p className="muted pad" data-testid="data-empty-node">
           {t("« {{node}} » n'a pas de données dans ce run : lancez le flux jusqu'à ce nœud (▶ au-dessus du nœud).", { node: insp.emptyNode })}
         </p>
       )}
       {!target && !error && !insp.emptyNode && <p className="muted pad">{t("Choisissez un port, ou sélectionnez un nœud, ou cliquez une connexion.")}</p>}
-      {info && !insp.emptyNode && (
+      {info && !insp.emptyNode && !busyNode && (
         <div className={`data-body${mapPlace ? " with-map" : ""}`}>
           {loading && <Loading text={t("Chargement des données…")} overlay />}
           <DataTable info={info} />

@@ -1,51 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useEditor } from "../store/editor";
 import { useUi } from "../store/ui";
 import { DataPanel } from "./DataPanel";
+import { ResizeHandle } from "./ResizeHandle";
 import { formatTime, t } from "../i18n";
 
 const LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR"];
 const RANK: Record<string, number> = { DEBUG: 10, INFO: 20, WARNING: 30, ERROR: 40 };
-
-/** Poignée au bord supérieur du panneau : glisser pour régler la hauteur (flèches du clavier : 24 px). */
-function ResizeHandle() {
-  const start = useRef<{ y: number; height: number } | null>(null);
-  const { setBottomHeight } = useUi.getState();
-  const onDown = (e: PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    start.current = { y: e.clientY, height: useUi.getState().bottomHeight };
-  };
-  const onMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (start.current) setBottomHeight(start.current.height + (start.current.y - e.clientY), false);
-  };
-  const onUp = () => {
-    if (!start.current) return;
-    start.current = null;
-    setBottomHeight(useUi.getState().bottomHeight); // enregistre la hauteur choisie
-  };
-  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = e.key === "ArrowUp" ? 24 : e.key === "ArrowDown" ? -24 : 0;
-    if (step) {
-      e.preventDefault();
-      setBottomHeight(useUi.getState().bottomHeight + step);
-    }
-  };
-  return (
-    <div
-      className="resize-handle"
-      role="separator"
-      aria-orientation="horizontal"
-      aria-label={t("Redimensionner le panneau (glisser, ou flèches haut et bas)")}
-      title={t("Glisser pour redimensionner")}
-      tabIndex={0}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-      onKeyDown={onKey}
-    />
-  );
-}
 
 export function BottomPanel() {
   const { tab, fullscreen } = useUi();
@@ -70,7 +31,14 @@ export function BottomPanel() {
 
   return (
     <section className={`bottom-panel${fullscreen ? " fullscreen" : ""}`} aria-label={t("Journal et avertissements")}>
-      {!fullscreen && <ResizeHandle />}
+      {!fullscreen && (
+        <ResizeHandle
+          edge="top"
+          size={() => useUi.getState().bottomHeight}
+          set={useUi.getState().setBottomHeight}
+          label={t("Redimensionner le panneau (glisser, ou flèches haut et bas)")}
+        />
+      )}
       <div className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === "log"} onClick={() => setTab("log")}>
           {t("Journal")}

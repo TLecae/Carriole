@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ColumnFilter, FilterOp, PortInfo } from "../api/types";
 import { PAGE_SIZE, useInspector } from "../store/inspector";
 import { formatNumber, t } from "../i18n";
+import { Spinner } from "./Spinner";
 
 const ROW_H = 26;
 const COL_W = 150;
@@ -87,7 +88,7 @@ const colOf = (e: React.MouseEvent) => Number((e.target as HTMLElement).closest<
 const isActive = (a: Cell | null, row: number, col: number) => !!a && a.row === row && a.col === col;
 
 export function DataTable({ info }: { info: PortInfo }) {
-  const { columns, pages, filtered, selectedFid, scrollTo, query, stats, showStats, error } = useInspector();
+  const { columns, pages, filtered, selectedFid, scrollTo, locating, query, stats, showStats, error } = useInspector();
   const { loadPage, select, toggleSort, setFilter } = useInspector.getState();
   const parent = useRef<HTMLDivElement>(null);
   const virt = useVirtualizer({ count: filtered, getScrollElement: () => parent.current, estimateSize: () => ROW_H, overscan: 25 });
@@ -330,6 +331,11 @@ export function DataTable({ info }: { info: PortInfo }) {
       {copied && (
         <div className="table-copied" role="status">
           {copied}
+        </div>
+      )}
+      {locating && (
+        <div className="float-status" role="status" data-testid="table-locating">
+          <Spinner size={12} /> {t("Recherche de l'entité dans la table…")}
         </div>
       )}
     </div>

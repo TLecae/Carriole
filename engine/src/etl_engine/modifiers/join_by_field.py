@@ -11,7 +11,11 @@ from pydantic import Field
 
 from etl_engine.blocking import collect, join_result, match_pairs, quote
 from etl_engine.data import GEOM
-from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import ConfigError, Emit, Modifier, Params, attributes_of
+
+# l'éditeur ne propose, pour chaque champ, que les attributs de son entrée
+BaseAttributes = attributes_of("base")
+JoinAttributes = attributes_of("join")
 
 
 class JoinByField(Modifier):
@@ -24,7 +28,7 @@ class JoinByField(Modifier):
         "Les entités de « join » qui ne correspondent à aucune entité de « base » sortent sur « UnjoinedJoin ». "
         "Une clé nulle ne "
         "correspond jamais. Si les clés n'ont pas le même type (entier et texte), la comparaison se fait en texte. "
-        "La géométrie est celle de « base »."
+        "La géométrie du résultat est celle de « base », celle de « join » ou aucune, au choix."
     )
     mode = "blocking"
     inputs = ("base", "join")
@@ -32,15 +36,15 @@ class JoinByField(Modifier):
     rejected = False
 
     class Params(Params):
-        base_keys: AttributeList = Field(
+        base_keys: BaseAttributes = Field(
             [],
             title="Clés de « base »",
             description=(
                 "Attributs de « base » qui font le lien avec « join », dans le même ordre que les clés de « join »."
             ),
         )
-        join_keys: AttributeList = Field([], title="Clés de « join »", description="Dans le même ordre que « base ».")
-        attributes: AttributeList = Field(
+        join_keys: JoinAttributes = Field([], title="Clés de « join »", description="Dans le même ordre que « base ».")
+        attributes: JoinAttributes = Field(
             [], title="Attributs à ajouter", description="Vide = tous ceux de « join » hors clés."
         )
         prefix: str = Field("", title="Préfixe des attributs ajoutés", description="Évite les conflits de noms.")
@@ -54,6 +58,11 @@ class JoinByField(Modifier):
         )
         keep_unjoined: bool = Field(
             False, title="Garder les non-appariées dans Joined", description="Jointure « gauche » : attributs vides."
+        )
+        geometry: Literal["base", "join", "none"] = Field(
+            "base",
+            title="Géométrie du résultat",
+            description="Celle de « base », celle de « join » (vide pour une entité gardée sans correspondance), ou aucune.",
         )
 
     def _check(self) -> None:
@@ -73,22 +82,29 @@ class JoinByField(Modifier):
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
         self._check()
         base, other = inputs.get("base"), inputs.get("join")
+        if base is not None and (absent := [k for k in self.params.base_keys if k not in base.names]):
+            raise ConfigError(f"clés absentes de « base » : {', '.join(absent)}")
+        if other is not None and (absent := [k for k in self.params.join_keys if k not in other.names]):
+            raise ConfigError(f"clés absentes de « join » : {', '.join(absent)}")
         if base is None or other is None:
             return {"Joined": None, "UnjoinedBase": base, "UnjoinedJoin": other}
         empty_pairs = pa.table({"bi": pa.array([], pa.int64()), "ji": pa.array([], pa.int64())})
         joined, *_ = join_result(
             base.empty_table(), other.empty_table(), empty_pairs, self._attributes(other), self.params.prefix,
-            self.params.conflict,
+            self.params.conflict, self._geometry(),
         )  # fmt: skip
         return {"Joined": joined.schema, "UnjoinedBase": base, "UnjoinedJoin": other}
+
+    def _geometry(self) -> str:
+        return {"base": "base", "join": "other", "none": "none"}[self.params.geometry]
 
     def sql(self, relations, schemas):
         """Même jointure en SQL (DuckDB, avec débordement sur disque pour les gros volumes)."""
         self._check()
         p = self.params
         base, other = schemas.get("base"), schemas.get("join")
-        if base is None or other is None or p.on_multiple == "error":
-            return None  # l'erreur « plusieurs correspondances » est levée par la voie Python
+        if base is None or other is None or p.on_multiple == "error" or p.geometry != "base":
+            return None  # l'erreur « plusieurs correspondances » et le choix de la géométrie : voie Python
         for side, schema, keys in (("base", base, p.base_keys), ("join", other, p.join_keys)):
             absent = [k for k in keys if k not in schema.names]
             if absent:
@@ -148,10 +164,12 @@ class JoinByField(Modifier):
                 raise ConfigError(f"clés absentes de « {side} » : {absent}")
         pairs = match_pairs(base, other, list(p.base_keys), list(p.join_keys))
         joined, unmatched, _, _ = join_result(
-            base, other, pairs, self._attributes(other.schema), p.prefix, p.conflict, "base", p.on_multiple
+            base, other, pairs, self._attributes(other.schema), p.prefix, p.conflict, self._geometry(), p.on_multiple
         )
         if p.keep_unjoined and len(unmatched):
             rest = base.take(pa.array(unmatched, pa.int64()))
+            if p.geometry == "join" and GEOM in rest.column_names:  # sans correspondance, pas de géométrie de « join »
+                rest = rest.set_column(rest.column_names.index(GEOM), GEOM, pa.nulls(rest.num_rows, pa.binary()))
             for name in joined.column_names:
                 if name not in rest.column_names:
                     rest = rest.append_column(name, pa.nulls(rest.num_rows, joined.schema.field(name).type))

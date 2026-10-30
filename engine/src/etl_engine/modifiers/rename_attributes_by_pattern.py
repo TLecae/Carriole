@@ -10,7 +10,8 @@ import pyarrow as pa
 from pydantic import Field
 
 from etl_engine.data import GEOM
-from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params
+from etl_engine.expr import quote
+from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params, missing_attributes
 
 
 def _plain(text: str) -> str:
@@ -88,7 +89,7 @@ class RenameAttributesByPattern(Modifier):
         selected = set(self.params.attributes) if self.params.attributes else set(names)
         missing = [a for a in self.params.attributes if a not in names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         mapping = {n: self._new_name(n) if n in selected and n != GEOM else n for n in names}
         if any(not v for v in mapping.values()):
             raise ConfigError("un nom d'attribut deviendrait vide")
@@ -104,6 +105,14 @@ class RenameAttributesByPattern(Modifier):
             return {"output": None}
         mapping = self._mapping(schema.names)
         return {"output": pa.schema([f.with_name(mapping[f.name]) for f in schema], metadata=schema.metadata)}
+
+    def sql(self, relations, schemas):
+        schema = schemas.get("input")
+        if schema is None:
+            return None
+        mapping = self._mapping(schema.names)
+        columns = ", ".join(f"{quote(n)} AS {quote(mapping[n])}" for n in schema.names)
+        return {"output": f"SELECT {columns} FROM {relations['input']}"}
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         mapping = self._mapping(batch.column_names)

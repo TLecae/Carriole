@@ -12,7 +12,7 @@ import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.modifiers.writer import Format, abort_target, finish_target, open_target
-from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, OutPath, Params
+from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, OutPath, Params, missing_attributes
 
 _PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
 _UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
@@ -58,8 +58,8 @@ class SplitToFiles(Modifier):
     help = (
         "Écrire {attribut} dans le chemin crée un fichier par valeur de cet attribut, ex. "
         "D:\\sorties\\{departement}\\communes.gpkg ou {departement}_{annee}.csv. Les caractères interdits dans un "
-        "nom de fichier sont remplacés par _ et une valeur vide donne « _vide ». Les réglages du format sont ceux de "
-        "« Écriture de fichier ». Chaque fichier est ouvert une seule fois : au plus 200 fichiers à la fois. La sortie "
+        "nom de fichier sont remplacés par _ et une valeur vide donne « _vide ». Les réglages du format sont ceux "
+        "de l'écriture de ce format. Chaque fichier est ouvert une seule fois : au plus 200 fichiers à la fois. La sortie "
         "« summary » donne une entité par fichier écrit (chemin, nombre d'entités, format), pour la suite du flux "
         "(journal, SetVariables, RunFlow…)."
     )
@@ -85,11 +85,11 @@ class SplitToFiles(Modifier):
         encoding: str = Field("", title="Encodage", description="Vide = celui du format (utf-8).")
         delimiter: str = Field(",", title="Séparateur (CSV)", description="Séparateur de colonnes du CSV écrit.")
         compression: Literal["zstd", "snappy", "gzip", "none"] = Field(
-            "zstd", title="Compression (GeoParquet)", description="Compression des fichiers GeoParquet."
+            "zstd", title="Compression ((Geo)Parquet)", description="Compression des fichiers (Geo)Parquet."
         )
         partition_by: AttributeList = Field(
             default_factory=list,
-            title="Partitionner par (GeoParquet)",
+            title="Partitionner par ((Geo)Parquet)",
             description="Colonnes dont chaque valeur donne un sous-dossier de chaque fichier.",
         )
 
@@ -104,7 +104,7 @@ class SplitToFiles(Modifier):
         if upstream is not None:
             missing = [n for n in names if n not in upstream.names]
             if missing:
-                raise ConfigError(f"attributs absents : {', '.join(missing)}")
+                raise missing_attributes(missing)
         return {"summary": SUMMARY}
 
     def used_attributes(self) -> list[str]:
@@ -121,7 +121,7 @@ class SplitToFiles(Modifier):
                 self.ctx.check_cancel()
                 missing = [n for n in names if n not in batch.column_names]
                 if missing:
-                    raise ConfigError(f"attributs absents : {', '.join(missing)}")
+                    raise missing_attributes(missing)
                 for key, part in groups(batch, names):
                     path = self._path_for(dict(zip(names, key, strict=True)))
                     target = open_files.get(path)

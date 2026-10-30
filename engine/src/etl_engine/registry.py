@@ -55,7 +55,10 @@ class Registry:
                 self._register_module(loaded, ep.name)
 
     def load_directory(self, directory: str | Path) -> None:
-        """Importe chaque `*.py` du dossier (un modificateur par fichier, sans installation)."""
+        """Importe chaque `*.py` du dossier (un modificateur par fichier, sans installation). Sans dossier, rien : un
+        chemin vide désignerait le dossier courant, dont chaque script serait exécuté."""
+        if not str(directory).strip():
+            return
         directory = Path(directory)
         if not directory.is_dir():
             return
@@ -97,4 +100,9 @@ class Registry:
         return name in self._by_name
 
     def all(self) -> list[type[Modifier]]:
-        return sorted(self._by_name.values(), key=lambda c: (c.category, c.label or c.name))
+        """Par catégorie, puis par libellé sans sa ponctuation (« Lecture (Geo)Parquet » reste parmi les « Geo… »)."""
+
+        def label(c: type[Modifier]) -> str:
+            return "".join(ch for ch in c.label or c.name if ch.isalnum() or ch.isspace())
+
+        return sorted(self._by_name.values(), key=lambda c: (c.category, label(c)))

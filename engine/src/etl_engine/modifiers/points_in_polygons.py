@@ -13,6 +13,7 @@ from pydantic import Field
 from etl_engine.blocking import collect
 from etl_engine.data import GEOM, geometries, get_crs, with_crs
 from etl_engine.sdk import (
+    GEOMETRY_SLICE,
     REJECTED,
     AttributeList,
     ConfigError,
@@ -21,6 +22,7 @@ from etl_engine.sdk import (
     Params,
     ordered_map,
     reject,
+    slices,
 )
 from etl_engine.spatial import SpatialIndex, check_same_crs
 
@@ -124,6 +126,6 @@ class PointsInPolygons(Modifier):
                 out.append((REJECTED, reject(pts.filter(pa.array(missing)), "pas de géométrie")))
             return out
 
-        for out in ordered_map(overlay, inputs.get("points", ()), self.ctx.workers, self.ctx):
+        for out in ordered_map(overlay, slices(inputs.get("points", ()), GEOMETRY_SLICE), self.ctx.workers, self.ctx):
             for port, table in out:
                 emit(port, table)

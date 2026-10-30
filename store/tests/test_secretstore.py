@@ -27,6 +27,28 @@ def test_key_file_is_created_once_and_stable(tmp_path, monkeypatch):
         assert (tmp_path / "secret.key").read_bytes().startswith(secretstore.PREFIX)
 
 
+def test_key_protected_by_another_account_is_set_aside_and_replaced(tmp_path, monkeypatch):
+    # clé DPAPI d'un autre compte ou d'un autre poste : le moteur ne démarrait plus (« DPAPI : échec de la lecture »)
+    for name in ("ETL_SECRET_KEY", "ETL_SECRET_KEY_FILE"):
+        monkeypatch.delenv(name, raising=False)
+    foreign = secretstore.PREFIX + b"\x01\x00\x00\x00 blob d'un autre compte"
+    (tmp_path / "secret.key").write_bytes(foreign)
+    key = Settings(meta_dir=tmp_path).secret_key
+    assert len(key) == 44
+    assert Settings(meta_dir=tmp_path).secret_key == key
+    aside = list(tmp_path.glob("secret.key.illisible-*"))
+    assert len(aside) == 1 and aside[0].read_bytes() == foreign
+
+
+def test_unreadable_explicit_key_file_is_an_error(tmp_path, monkeypatch):
+    monkeypatch.delenv("ETL_SECRET_KEY", raising=False)
+    (tmp_path / "cle").write_bytes(secretstore.PREFIX + b"\x01\x00\x00\x00 blob d'un autre compte")
+    monkeypatch.setenv("ETL_SECRET_KEY_FILE", str(tmp_path / "cle"))
+    with pytest.raises(OSError):
+        _ = Settings(meta_dir=tmp_path).secret_key
+    assert (tmp_path / "cle").exists()
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="DPAPI : Windows seulement")
 def test_legacy_plain_key_is_protected_in_place(tmp_path, monkeypatch):
     from cryptography.fernet import Fernet

@@ -75,12 +75,12 @@ class CreateFeatures(Modifier):
         if p.geometry == "point":
             xs = evaluate(index, {"v": p.x}).column("v").to_numpy(zero_copy_only=False).astype(float)
             ys = evaluate(index, {"v": p.y}).column("v").to_numpy(zero_copy_only=False).astype(float)
-            geoms = shapely.points(xs, ys)
-        elif p.geometry == "wkt":
-            geoms = np.array([shapely.from_wkt(p.wkt)] * n, dtype=object)
+            column = pa.array(shapely.to_wkb(shapely.points(xs, ys)), pa.binary())
+        elif p.geometry == "wkt":  # la même géométrie pour toutes : encodée une fois
+            column = pa.repeat(pa.scalar(shapely.to_wkb(shapely.from_wkt(p.wkt)), pa.binary()), n)
         else:
             return table
-        table = table.append_column(GEOM, pa.array(shapely.to_wkb(geoms), pa.binary()))
+        table = table.append_column(GEOM, column)
         return with_crs(table, p.crs or None)
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:

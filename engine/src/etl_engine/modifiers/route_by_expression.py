@@ -9,7 +9,7 @@ import numpy as np
 import pyarrow as pa
 from pydantic import BaseModel, Field
 
-from etl_engine.expr import safe_mask
+from etl_engine.expr import expression_type, guarded, safe_mask, sql_base, sql_columns
 from etl_engine.sdk import REJECTED, ConfigError, Expression, Modifier, Params, reject
 
 FAILED = "Failed"
@@ -79,6 +79,25 @@ class RouteByExpression(Modifier):
         self._cases()
         schema = inputs.get("input")
         return {port: schema for port in self.ports(self.params)[1] if port != REJECTED}
+
+    def sql(self, relations, schemas):
+        schema = schemas.get("input")
+        cases = self._cases()
+        outputs = [c.output for c in cases]
+        if schema is None or len(set(outputs)) < len(outputs):
+            return None  # deux conditions vers la même sortie : l'ordre des lignes suit les lots, la voie par lots
+        tests = [c.condition for c in cases]
+        if not all(pa.types.is_boolean(expression_type(schema, t)) for t in tests):
+            return None  # condition non booléenne : la voie par lots le signale
+        rows = f"({sql_base(relations['input'], schema, tests)})"
+        columns = sql_columns(schema.names, schema, tests)
+        ok = [f"COALESCE({guarded(t)}, FALSE)" for t in tests]
+        queries = {}
+        for i, case in enumerate(cases):
+            earlier = f" AND NOT ({' OR '.join(ok[:i])})" if i and self.params.mode == "first" else ""
+            queries[case.output] = f"SELECT {columns} FROM {rows} WHERE {ok[i]}{earlier}"
+        queries[FAILED] = f"SELECT {columns} FROM {rows} WHERE NOT ({' OR '.join(ok)})"
+        return queries
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         cases = self._cases()

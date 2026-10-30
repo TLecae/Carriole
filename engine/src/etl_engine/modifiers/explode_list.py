@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.data import get_crs, with_crs
+from etl_engine.expr import quote
 from etl_engine.sdk import Attribute, ConfigError, Modifier, Params
 
 
@@ -16,7 +18,7 @@ class ExplodeList(Modifier):
     category = "Attributs"
     description = "Produit une entité par élément d'un attribut de type liste (les autres attributs sont recopiés)."
     help = (
-        "L'attribut doit être une liste (ex. issue d'un tableau PostgreSQL ou du SplitAttribute en mode liste). "
+        "L'attribut doit être une liste (ex. issue d'un tableau PostgreSQL ou de « Découper un texte » en mode liste). "
         "Une liste vide ou nulle ne produit aucune entité, sauf si « Garder les listes vides » est coché (une "
         "entité avec élément vide). « Attribut indice » numérote les éléments à partir de 0."
     )
@@ -53,9 +55,27 @@ class ExplodeList(Modifier):
         field = pa.field(target, kind.value_type)
         out = out.remove(out.get_field_index(target)) if target in out.names else out
         out = out.append(field)
-        if self.params.index and self.params.index not in out.names:
+        if self.params.index:
+            out = out.remove(out.get_field_index(self.params.index)) if self.params.index in out.names else out
             out = out.append(pa.field(self.params.index, pa.int64()))
         return {"output": out}
+
+    def sql(self, relations, schemas):
+        """Une entité par élément (`UNNEST`, dans l'ordre), l'indice par un second `UNNEST` de même longueur."""
+        schema = schemas.get("input")
+        if schema is None:
+            return None
+        self.output_schema(dict(schemas))  # mêmes contrôles que la voie par lots
+        source, target = self._names()
+        p = self.params
+        values = quote(source)
+        if p.keep_empty:  # liste vide ou nulle : un élément vide
+            values = f"CASE WHEN len(coalesce({values}, [])) = 0 THEN [NULL] ELSE {values} END"
+        kept = [quote(n) for n in schema.names if n not in {source, target, p.index}]
+        columns = [*kept, f"UNNEST({values}) AS {quote(target)}"]
+        if p.index:
+            columns.append(f"UNNEST(range(len({values}))) AS {quote(p.index)}")
+        return {"output": f"SELECT {', '.join(columns)} FROM {relations['input']}"}
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         source, target = self._names()
@@ -66,21 +86,18 @@ class ExplodeList(Modifier):
             raise ConfigError(f"« {source} » n'est pas une liste (type {column.type})")
         if self.params.keep_empty:  # une liste vide ou nulle devient une liste d'un élément nul
             empty = pc.fill_null(pc.equal(pc.list_value_length(column), 0), True)
-            column = pc.if_else(empty, pa.array([[None]] * len(column), column.type), column)
+            one_null = pa.ListArray.from_arrays(
+                pa.array(np.arange(len(column) + 1), pa.int32()), pa.nulls(len(column), column.type.value_type)
+            )
+            column = pc.if_else(empty, one_null.cast(column.type), column)
         parents = pc.list_parent_indices(column)
         values = pc.list_flatten(column)
-        rest = batch.drop_columns([source]).take(parents)
-        if target in rest.column_names:
-            rest = rest.drop_columns([target])
-        out = rest.append_column(target, values)
+        others = {target, self.params.index} - {source, ""}
+        rest = batch.drop_columns([source, *(n for n in others if n in batch.column_names)])
+        # la liste seule attribut : une table sans colonne n'a pas de lignes à répéter
+        out = rest.take(parents).append_column(target, values) if rest.num_columns else pa.table({target: values})
         if self.params.index:
             lengths = pc.list_value_length(column).fill_null(0).to_numpy(zero_copy_only=False)
-            out = out.append_column(self.params.index, pa.array(_positions(lengths), pa.int64()))
+            starts = np.repeat(np.cumsum(lengths) - lengths, lengths)  # début de la liste de chaque élément
+            out = out.append_column(self.params.index, pa.array(np.arange(len(values)) - starts, pa.int64()))
         return {"output": with_crs(out, get_crs(batch))}
-
-
-def _positions(lengths) -> list[int]:
-    out: list[int] = []
-    for n in lengths:
-        out.extend(range(int(n)))
-    return out

@@ -2,13 +2,17 @@
 
 Un lot est une `pyarrow.Table`. La géométrie, s'il y en a une, est dans la colonne
 `geometry` au format WKB (binaire). Le système de coordonnées est porté par les
-métadonnées du schéma (`etl.crs`), et survit à l'écriture Parquet.
+métadonnées du schéma (`etl.crs`), et survit à l'écriture Parquet. Un fichier GeoParquet
+lu tel quel comme port (ADR 0043) le porte dans ses métadonnées « geo ».
 """
 
 from __future__ import annotations
 
 import functools
+import json
+import threading
 from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
 import pyarrow as pa
@@ -23,9 +27,37 @@ DEFAULT_BATCH_ROWS = 100_000
 
 
 def get_crs(obj: pa.Table | pa.Schema) -> str | None:
+    """SCR : `etl.crs`, sinon celui de la colonne `geometry` dans les métadonnées GeoParquet (« geo »)."""
     schema = obj.schema if isinstance(obj, pa.Table) else obj
-    value = (schema.metadata or {}).get(CRS_KEY)
-    return value.decode() if value else None
+    metadata = schema.metadata or {}
+    value = metadata.get(CRS_KEY)
+    if value:
+        return value.decode()
+    geo = metadata.get(b"geo")
+    return _geo_crs(geo) if geo and GEOM in schema.names else None
+
+
+@functools.lru_cache(maxsize=64)
+def _geo_crs(geo: bytes) -> str | None:
+    try:
+        parsed = json.loads(geo)
+    except ValueError:
+        return None
+    return crs_from_geo(parsed, GEOM) if GEOM in parsed.get("columns", {}) else None
+
+
+def crs_from_geo(geo: dict[str, Any] | None, column: str) -> str | None:
+    """SCR de `column` d'après les métadonnées GeoParquet `geo`."""
+    if not geo:
+        return None
+    col = geo.get("columns", {}).get(column, {})
+    projjson = col.get("crs")
+    if projjson is None:
+        return "OGC:CRS84"  # défaut de la spécification GeoParquet
+    try:
+        return pyproj.CRS.from_json_dict(projjson).to_string()
+    except pyproj.exceptions.CRSError:
+        return None
 
 
 def with_crs(obj: pa.Table | pa.Schema, crs: str | None):
@@ -59,6 +91,35 @@ def type_ids(geoms: np.ndarray) -> np.ndarray:
 def present(geoms: np.ndarray) -> np.ndarray:
     """Géométrie présente et non vide."""
     return ~(shapely.is_missing(geoms) | shapely.is_empty(geoms))
+
+
+@functools.lru_cache(maxsize=64)
+def crs_object(name: str) -> pyproj.CRS:
+    """SCR lu une fois (un objet CRS ne change pas : partageable entre threads). Lève `pyproj.exceptions.CRSError`."""
+    return pyproj.CRS.from_user_input(name)
+
+
+_local = threading.local()
+
+
+def transformer(source: str, target: str) -> pyproj.Transformer:
+    """Transformation de `source` vers `target` (x, y), réutilisée d'un lot à l'autre, une par thread (un Transformer
+    pyproj ne se partage pas entre threads)."""
+    cache = _local.__dict__.setdefault("transformers", {})
+    found = cache.get((source, target))
+    if found is None:
+        found = cache[(source, target)] = pyproj.Transformer.from_crs(
+            crs_object(source), crs_object(target), always_xy=True
+        )
+    return found
+
+
+def to_crs(geoms: np.ndarray, source: str | None, target: str | None) -> np.ndarray:
+    """Géométries reprojetées de `source` vers `target` (rien à faire si identiques ou inconnus)."""
+    if not source or not target or source == target:
+        return geoms
+    move = transformer(source, target)
+    return shapely.transform(geoms, lambda coords: np.column_stack(move.transform(coords[:, 0], coords[:, 1])))
 
 
 @functools.lru_cache(maxsize=64)

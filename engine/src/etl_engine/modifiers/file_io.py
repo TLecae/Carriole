@@ -138,8 +138,8 @@ class FileReader(Modifier):
                 found = sorted(glob.glob(pattern, recursive=True))
                 for f in found:
                     paths.check(f, "read")  # dossiers autorisés (ETL_READ_ROOTS)
-            files.extend(f for f in found if f not in files)
-        return files
+            files.extend(found)
+        return list(dict.fromkeys(files))
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
         fmt = self._fmt()
@@ -182,7 +182,7 @@ class FileReader(Modifier):
                 for batch in formats.read_batches(fmt, src, self.ctx.batch_rows, **opts):
                     if add_filename and "filename" not in batch.column_names:
                         name = os.path.basename(src.split("?")[0])
-                        batch = batch.append_column("filename", pa.array([name] * batch.num_rows))
+                        batch = batch.append_column("filename", pa.repeat(pa.scalar(name, pa.string()), batch.num_rows))
                     yield batch
 
         total = 0
@@ -194,7 +194,41 @@ class FileReader(Modifier):
         self.ctx.info(f"{total} entités lues")
 
 
-class CsvReader(FileReader):
+class DuckDbReader(FileReader):
+    """Lecteur d'un format que DuckDB lit lui-même, sur tous les cœurs : le fichier du port est écrit par DuckDB (voie
+    SQL, ADR 0042), sans passer les lignes par Python. `run` reste la référence, et le repli si DuckDB échoue."""
+
+    sql_fallback = True
+
+    def _sources(self) -> tuple[str, list[str]] | None:
+        fmt = self._fmt()
+        files = self._files()
+        if not files or any(not formats.is_remote(p) and not glob.glob(p, recursive=True) for p in self._patterns()):
+            return None  # fichier introuvable : `run` le signale
+        return fmt, self._patterns() if fmt == "csv" else files
+
+    def sql(self, relations: Mapping[str, str], schemas: Mapping[str, pa.Schema | None]) -> dict[str, str] | None:
+        found = self._sources()
+        if found is None or self.output_schema({})["output"] is None:  # schéma (et SCR) inconnu : voie Python
+            return None
+        fmt, sources = found
+        query = formats.sql_query(fmt, sources, limit=self.params.max_rows or None, **self._options())
+        return None if query is None else {"output": query}
+
+    def ready_ports(self) -> dict[str, str] | None:
+        found = self._sources()
+        if found is None:
+            return None
+        fmt, sources = found
+        path = formats.as_port(fmt, sources, limit=self.params.max_rows or None, **self._options())
+        return None if path is None else {"output": path}
+
+    def sql_prepare(self, con: Any) -> None:
+        fmt, sources = self._sources() or (self._fmt(), [])
+        formats.sql_prepare(fmt, con, sources, self.params.max_rows or None, **self._options())
+
+
+class CsvReader(DuckDbReader):
     name = "CsvReader"
     label = "Lecture CSV"
     description = "Lit un fichier CSV (ou texte délimité) ; une colonne WKT ou des colonnes X/Y donnent la géométrie."
@@ -321,13 +355,18 @@ class FlatGeobufReader(FileReader):
         max_rows: int = row_limit()
 
 
-class GeoParquetReader(FileReader):
+class GeoParquetReader(DuckDbReader):
     name = "GeoParquetReader"
-    label = "Lecture GeoParquet"
-    description = "Lit un fichier Parquet ou GeoParquet, sur le disque ou à une adresse web (https://)."
+    label = "Lecture (Geo)Parquet"
+    description = (
+        "Lit un fichier Parquet, avec ou sans géométrie (GeoParquet), sur le disque ou à une adresse web (https://)."
+    )
     help = (
-        "La géométrie et son système de coordonnées sont lus dans les métadonnées GeoParquet. Une adresse https:// "
-        "est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des Paramètres)."
+        "Un Parquet sans géométrie est lu tel quel. Pour un GeoParquet, la géométrie et son système de coordonnées sont "
+        "lus dans ses métadonnées. Un fichier seul, local, sans nom du fichier ajouté ni limite de lignes, n'est pas "
+        "recopié : le résultat du nœud est le fichier lui-même (le modifier ensuite oblige à relancer le flux). Une "
+        "adresse https:// est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des "
+        "Paramètres)."
     )
     formats = ("parquet",)
     web = True
@@ -499,8 +538,10 @@ class FlatGeobufWriter(FileWriter):
 
 class GeoParquetWriter(FileWriter):
     name = "GeoParquetWriter"
-    label = "Écriture GeoParquet"
-    description = "Écrit les entités dans un fichier GeoParquet (ou un dossier partitionné)."
+    label = "Écriture (Geo)Parquet"
+    description = (
+        "Écrit les entités dans un fichier Parquet (GeoParquet s'il y a une géométrie) ou un dossier partitionné."
+    )
     help = "« Partitionner par » écrit un sous-dossier par valeur : « Fichier » est alors un dossier. " + SHARE
     formats = ("parquet",)
 

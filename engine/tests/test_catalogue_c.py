@@ -3,6 +3,7 @@
 import pyarrow as pa
 import pytest
 import shapely
+from etl_engine import renames
 from etl_engine.data import GEOM, get_crs, with_crs
 from etl_engine.modifiers.buffer import Buffer
 from etl_engine.modifiers.centroids import Centroids
@@ -116,7 +117,7 @@ def test_clip_edge_cases(clip_data):
     assert nothing["Inside"].num_rows == 0 and nothing["Outside"].num_rows == 2
     with pytest.raises(ConfigError, match="même système"):
         run_modifier(Clip, {}, {"input": clip_data["input"], "overlay": with_crs(clip_data["overlay"], "EPSG:4326")})
-    with pytest.raises(ConfigError, match="absents"):
+    with pytest.raises(ConfigError, match="absents?"):
         run_modifier(Clip, {"mode": "each", "overlay_attributes": ["nope"]}, clip_data)
 
 
@@ -136,7 +137,7 @@ def test_point_on_area_first_all_error_and_outside():
     assert col(every["Inside"], "pop") == [10, 10, 20]
     with pytest.raises(ConfigError, match="plusieurs polygones"):
         run_modifier(PointsInPolygons, {"on_multiple": "error"}, {"points": pts, "areas": areas})
-    with pytest.raises(ConfigError, match="absents"):
+    with pytest.raises(ConfigError, match="absents?"):
         run_modifier(PointsInPolygons, {"attributes": ["nope"]}, {"points": pts, "areas": areas})
 
 
@@ -164,15 +165,21 @@ def test_validator_splits_and_explains():
     assert col(lenient["Valid"], "id") == [1, 3, 4] and col(lenient["Invalid"], "id") == [2]
 
 
-def test_validator_repair():
+def test_validator_with_repair_becomes_fix_geometries():
+    """« Réparer » a quitté CheckValidity : un ancien nœud réglé ainsi devient FixGeometries, même résultat."""
     t = make([shapely.box(0, 0, 1, 1), bowtie()], id=[1, 2])
-    out = run_modifier(CheckValidity, {"repair": True}, t)
-    assert col(out["Valid"], "id") == [1, 2] and out["Invalid"].num_rows == 0
-    assert shapely.is_valid(geom_of(out["Valid"], 1)) and geom_of(out["Valid"], 1).area == pytest.approx(2.0)
+    data = {"nodes": [{"id": "v", "type": "CheckValidity", "params": {"repair": True}}], "links": []}
+    node = renames.migrate(data)["nodes"][0]
+    assert node["type"] == "FixGeometries"
+    out = run_modifier(FixGeometries, node["params"], t)
+    assert col(out["output"], "id") == [1, 2] and out["Rejected"].num_rows == 0
+    assert shapely.is_valid(geom_of(out["output"], 1)) and geom_of(out["output"], 1).area == pytest.approx(2.0)
     assert (
-        col(out["Valid"], "_repaired_reason")[0] is None
-        and "Self-intersection" in col(out["Valid"], "_repaired_reason")[1]
+        col(out["output"], "_repaired_reason")[0] is None
+        and "Self-intersection" in col(out["output"], "_repaired_reason")[1]
     )
+    plain = {"nodes": [{"id": "v", "type": "CheckValidity", "params": {"repair": False}}], "links": []}
+    assert renames.migrate(plain)["nodes"][0] == {"id": "v", "type": "CheckValidity", "params": {}}
 
 
 # ------------------------------------------------------------------------ FixGeometries

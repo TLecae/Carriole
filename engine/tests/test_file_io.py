@@ -167,3 +167,34 @@ def test_spatialite_tables_overwrite_one_and_sql_query(tmp_path):
 
     with sqlite3.connect(path) as con:  # une vraie base SpatiaLite : ses métadonnées géométriques
         assert con.execute("SELECT COUNT(*) FROM geometry_columns").fetchone()[0] == 2
+
+
+def test_parquet_without_geometry_is_read_and_written_as_plain_parquet(tmp_path):
+    """« (Geo)Parquet » : un Parquet sans géométrie se lit tel quel, et s'écrit sans métadonnées GeoParquet."""
+    plain = pa.table({"code": ["031", "009"], "pop": [10, 20]})
+    pq.write_table(plain, tmp_path / "plain.parquet")
+    got = read(GeoParquetReader, {"path": str(tmp_path / "plain.parquet")})
+    assert got.column_names == ["code", "pop"] and get_crs(got) is None
+    assert got.to_pydict() == plain.to_pydict()
+    write(GeoParquetWriter, {"path": str(tmp_path / "out.parquet")}, got)
+    assert b"geo" not in (pq.read_metadata(tmp_path / "out.parquet").metadata or {})
+    assert pq.read_table(tmp_path / "out.parquet").to_pydict() == plain.to_pydict()
+
+
+def test_file_schemas_are_kept_until_the_file_changes(tmp_path, monkeypatch):
+    """L'éditeur redemande le schéma à chaque modification : un fichier inchangé n'est pas relu (GDAL relit tout un
+    GeoJSON pour le donner) ; modifié, il l'est."""
+    import os
+
+    from etl_engine import formats
+
+    path = tmp_path / "a.parquet"
+    pq.write_table(pa.table({"a": [1]}), path)
+    calls = []
+    real = formats.parquet.read_schema
+    monkeypatch.setattr(formats.parquet, "read_schema", lambda p, **kw: calls.append(p) or real(p, **kw))
+    assert formats.read_schema("parquet", str(path)).names == ["a"]
+    assert formats.read_schema("parquet", str(path)).names == ["a"] and len(calls) == 1
+    pq.write_table(pa.table({"a": [1], "b": ["x"]}), path)
+    os.utime(path, ns=(path.stat().st_atime_ns, path.stat().st_mtime_ns + 10**9))
+    assert formats.read_schema("parquet", str(path)).names == ["a", "b"] and len(calls) == 2

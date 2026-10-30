@@ -1,7 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { PublishedParam } from "../api/types";
 import { isBookmark, isEtl, isNote, upstreamAttributes } from "../model/graph";
 import { useEditor } from "../store/editor";
+import { useUi } from "../store/ui";
+import { ResizeHandle } from "./ResizeHandle";
 import { PublishVersions, VersionPicker } from "./ComponentVersions";
 import { SchemaForm, type FormCtx } from "./SchemaForm";
 import { formatNumber, t } from "../i18n";
@@ -11,9 +13,18 @@ export function RightPanel() {
   const nodes = useEditor((s) => s.nodes);
   const selected = nodes.filter((n) => n.selected);
   const one = selected.length === 1 ? selected[0] : null;
+  // la fenêtre redimensionnée ne doit pas laisser le panneau plus large que ce qu'elle permet
+  useEffect(() => {
+    const onResize = () => useUi.getState().setRightWidth(useUi.getState().rightWidth, false);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   return (
     <aside className="right-panel" aria-label={t("Propriétés")}>
-      {one && isEtl(one) ? <NodePanel id={one.id} /> : one && isBookmark(one) ? <BookmarkPanel id={one.id} /> : one && isNote(one) ? <p className="muted">{t("Annotation : modifiez le texte directement sur le canvas.")}</p> : selected.length > 1 ? <p className="muted">{t("{{count}} éléments sélectionnés.", { count: selected.length })}</p> : <FlowPanel />}
+      <ResizeHandle edge="left" size={() => useUi.getState().rightWidth} set={useUi.getState().setRightWidth} label={t("Redimensionner le panneau (glisser, ou flèches gauche et droite)")} />
+      <div className="right-body">
+        {one && isEtl(one) ? <NodePanel id={one.id} /> : one && isBookmark(one) ? <BookmarkPanel id={one.id} /> : one && isNote(one) ? <p className="muted">{t("Annotation : modifiez le texte directement sur le canvas.")}</p> : selected.length > 1 ? <p className="muted">{t("{{count}} éléments sélectionnés.", { count: selected.length })}</p> : <FlowPanel />}
+      </div>
     </aside>
   );
 }
@@ -35,6 +46,9 @@ function NodePanel({ id }: { id: string }) {
         ? {
             defs: info.params_schema.$defs ?? {},
             attributes: upstreamAttributes(id, edges, analysis?.schemas),
+            inputAttributes: Object.fromEntries(
+              [...new Set(edges.filter((e) => e.target === id).map((e) => e.targetHandle ?? "input"))].map((port) => [port, upstreamAttributes(id, edges, analysis?.schemas, port)]),
+            ),
             parameters: published.map((p) => p.name),
             variables: buildHints(meta, allNodes),
           }
@@ -67,7 +81,7 @@ function NodePanel({ id }: { id: string }) {
           {i.message}
         </p>
       ))}
-      <SchemaForm schema={info.params_schema} value={node.data.params} onChange={(p) => updateParams(id, p)} ctx={ctx} />
+      <SchemaForm key={id} schema={info.params_schema} value={node.data.params} onChange={(p) => updateParams(id, p)} ctx={ctx} />
       {info.help && (
         <details className="help">
           <summary>{t("Aide")}</summary>

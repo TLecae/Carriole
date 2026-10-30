@@ -21,6 +21,7 @@ import math
 import os
 import re
 import threading
+import time
 import uuid
 from collections import OrderedDict
 from collections.abc import Callable, Iterator
@@ -38,6 +39,7 @@ import pyarrow.parquet as pq
 import shapely
 from etl_engine import duck
 from etl_engine import view as views
+from etl_engine.cache import SourceChanged, has_port, materialize, port_data, sql_path
 from etl_engine.data import GEOM, get_crs
 from etl_engine.expr import check_single_expression
 from etl_engine.sdk import ConfigError
@@ -45,6 +47,7 @@ from pydantic import BaseModel, Field
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9_.\-]{1,100}$")
 QUERY_TIMEOUT = 30.0
+TABLE_TIMEOUT = 120.0  # page de la table, ligne d'une entité cliquée : attendues avec un indicateur, triées en entier
 TILE_CAP = 20_000  # morceaux de géométrie maximum par tuile (échantillonnage au-delà)
 MAP_LIMIT = 50_000  # entités dessinées au plus par métatuile : au-delà, les plus grandes et « zoomez »
 META = 2  # une métatuile : 4 × 4 tuiles du même zoom, qui partagent le choix de leurs entités
@@ -53,6 +56,7 @@ PREBUILD_MAX_TILES = 2_000  # … et au plus autant de tuiles par port (un jeu m
 MAX_EVERY = 2**20
 EXTENT, TILE_BUFFER = 4096, 64  # unités d'une tuile MVT, marge autour
 PIXEL = 8  # unités par pixel (tuile de 512 px)
+HEAVY_POLYGON = 256  # sommets au-delà desquels un polygone de la tuile est simplifié anneau par anneau
 FEATURE_MAX_POINTS = 100_000  # au-delà, la géométrie de la sélection est généralisée
 FEATURE_PIXELS = 1_000  # finesse de la généralisation : l'entité tient sur ~1 000 pixels (la carte, zoomée dessus)
 WORLD = 20037508.342789244  # demi-largeur du monde en EPSG:3857
@@ -62,6 +66,14 @@ NEEDS_GEOMETRY = re.compile(r"\bST_|\bgeometry\b", re.IGNORECASE)
 
 
 OUT_OF_MEMORY = 507  # statut d'une requête qui dépasse la mémoire de l'inspecteur
+PREPARING = 425  # port calculé à la demande (ADR 0044) : ses données se préparent, redemander un peu plus tard
+ABANDONED_S = 5.0  # préparation que l'interface ne redemande plus depuis ce délai (autre port affiché) : arrêtée
+
+# ports calculés à la demande : écrits en arrière-plan à leur première ouverture, une fois
+_DATA_BUILDS = ThreadPoolExecutor(max_workers=2, thread_name_prefix="etl-data")
+_data_jobs: dict[Path, Future] = {}
+_data_asked: dict[Path, float] = {}  # dernière demande des données de chaque port en préparation
+_data_guard = threading.Lock()
 
 # vues cartographiques préparées en arrière-plan : la table n'attend pas la carte
 _VIEW_BUILDS = ThreadPoolExecutor(max_workers=2, thread_name_prefix="etl-view")
@@ -272,11 +284,26 @@ def _json_value(v: Any) -> Any:
 
 
 class Duck:
-    """Une connexion DuckDB par thread, verrouillée sur le dossier du cache."""
+    """Une connexion DuckDB par thread, verrouillée sur le dossier du cache (et sur le seul fichier `file` en plus :
+    celui que désigne un port, ADR 0043)."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, file: Path | None = None) -> None:
         self.root = root.resolve()
+        self.file = file
         self._local = threading.local()
+        self._files: OrderedDict[Path, Duck] = OrderedDict()
+        self._files_guard = threading.Lock()
+
+    def for_file(self, data: Path) -> Duck:
+        """Les connexions qui lisent `data` : celles-ci s'il est dans le cache, sinon celles qui l'autorisent aussi."""
+        if self.root in data.parents:
+            return self
+        with self._files_guard:
+            found = self._files.pop(data, None) or Duck(self.root, data)
+            self._files[data] = found
+            while len(self._files) > 16:
+                self._files.popitem(last=False)
+            return found
 
     def con(self) -> duckdb.DuckDBPyConnection:
         con = getattr(self._local, "con", None)
@@ -284,6 +311,8 @@ class Duck:
             con = duck.connect("inspect")  # l'inspecteur ne doit pas prendre la mémoire des runs
             duck.load_spatial(con)
             con.execute(f"SET allowed_directories=[{_lit(self.root.as_posix())}]")
+            if self.file is not None:
+                con.execute(f"SET allowed_paths=[{_lit(self.file.as_posix())}]")
             con.execute("SET enable_external_access=false")
             con.execute("SET lock_configuration=true")
             self._local.con = con
@@ -292,12 +321,23 @@ class Duck:
     def run(
         self, sql: str, params: list[Any] | None = None, timeout: float | None = None
     ) -> tuple[list[str], list[tuple]]:
+        with self.guarded(timeout) as con:
+            cur = con.execute(sql, params or [])
+            return [d[0] for d in cur.description], cur.fetchall()
+
+    def arrow(self, sql: str, params: list[Any] | None = None) -> pa.Table:
+        with self.guarded() as con:
+            return con.sql(sql, params=params or []).to_arrow_table()
+
+    @contextmanager
+    def guarded(self, timeout: float | None = None) -> Iterator[duckdb.DuckDBPyConnection]:
+        """La connexion du thread, pour des requêtes au plus `timeout` secondes (`QUERY_TIMEOUT`) ; erreurs de DuckDB
+        rendues en `DataError` (trop longue : 504, mémoire ou disque : 507)."""
         con = self.con()
         timer = threading.Timer(timeout or QUERY_TIMEOUT, con.interrupt)
         timer.start()
         try:
-            cur = con.execute(sql, params or [])
-            return [d[0] for d in cur.description], cur.fetchall()
+            yield con
         except duckdb.InterruptException:
             raise DataError("requête trop longue : affinez les filtres", 504) from None
         except duckdb.OutOfMemoryException:
@@ -306,6 +346,8 @@ class Duck:
                 OUT_OF_MEMORY,
             ) from None
         except duckdb.Error as exc:
+            if isinstance(found := duck.resource_error(exc), duck.DiskFull):
+                raise DataError(str(found), OUT_OF_MEMORY) from None
             raise DataError(f"requête invalide : {str(exc).splitlines()[0]}") from None
         finally:
             timer.cancel()
@@ -323,7 +365,8 @@ class Port:
     run: str
     node: str
     name: str
-    raw: Path
+    raw: Path  # place du port dans le run : ses vues sont rangées à côté
+    data: Path  # fichier lu : celui du port, ou le fichier qu'il désigne (ADR 0043)
     crs: str | None
     has_geometry: bool
     total: int  # entités du port
@@ -337,7 +380,7 @@ class Port:
         """Sous-requête SQL : attributs + `fid` (+ `geometry` typée GEOMETRY si `geometry`)."""
         base = (
             f"SELECT * EXCLUDE (file_row_number), file_row_number AS fid "
-            f"FROM read_parquet({_lit(self.raw.as_posix())}, file_row_number=true)"
+            f"FROM read_parquet({_lit(self.data.as_posix())}, file_row_number=true)"
         )
         if geometry and self.has_geometry:
             base = f"SELECT * REPLACE (ST_GeomFromWKB({GEOM}) AS {GEOM}) FROM ({base})"
@@ -357,16 +400,58 @@ def open_port(duck: Duck, run: str, node: str, port: str, prepare: bool = True) 
         if not SAFE_ID.match(part):
             raise DataError("identifiant invalide", 400)
     raw = (duck.root / run / node / f"{port}.parquet").resolve()
-    if duck.root not in raw.parents or not raw.is_file():
+    if duck.root not in raw.parents:
         raise DataError("données introuvables : le cache a peut-être été purgé", 404)
-    file = pq.ParquetFile(raw)
+    try:
+        data = port_data(raw)
+    except SourceChanged as exc:
+        raise DataError(str(exc), 404) from None
+    if data is None and sql_path(raw).is_file():
+        data = _prepared(duck.root / run, node, port, raw)
+    if data is None:
+        raise DataError("données introuvables : le cache a peut-être été purgé", 404)
+    file = pq.ParquetFile(data)
     schema, total = file.schema_arrow, file.metadata.num_rows
-    found = Port(duck, run, node, port, raw, get_crs(schema), GEOM in schema.names, total)
+    found = Port(duck.for_file(data), run, node, port, raw, data, get_crs(schema), GEOM in schema.names, total)
     if prepare and found.has_geometry and found.crs:
         found.map_status, found.meta, found.map_error = _map_view(raw)
         if found.meta is not None:
             found.view, found.entities = views.view_path(raw), views.entities_path(raw)
             _prebuild(found)
+    return found
+
+
+def _prepared(run_dir: Path, node: str, port: str, raw: Path) -> Path:
+    """Le fichier d'un port calculé à la demande, une fois écrit ; sinon lance son calcul en arrière-plan et lève
+    `PREPARING` (l'interface redemande). Une erreur du calcul est rendue telle quelle, puis le calcul pourra être
+    relancé (fichier lu modifié, mémoire…). Un calcul que l'interface ne redemande plus (autre port, autre nœud) est
+    arrêté au bout de `ABANDONED_S` : choisir un nœud ouvre sa première sortie, qui peut être longue à calculer ; il
+    reprend si on y revient."""
+    with _data_guard:
+        _data_asked[raw] = time.monotonic()
+        job = _data_jobs.get(raw)
+        if job is None or (job.done() and (job.exception() is not None or not raw.is_file())):
+            exc = job.exception() if job is not None else None
+            if exc is not None and not isinstance(exc, duckdb.InterruptException):
+                del _data_jobs[raw]
+                if isinstance(exc, SourceChanged):
+                    raise DataError(str(exc), 404) from None
+                found = duck.resource_error(exc)
+                if isinstance(found, MemoryError):
+                    raise DataError("mémoire insuffisante pour préparer ces données", OUT_OF_MEMORY) from None
+                if found is not None:
+                    raise DataError(str(found), OUT_OF_MEMORY) from None
+                raise DataError(f"préparation impossible : {str(exc).splitlines()[0][:300]}", 500) from None
+
+            def abandoned() -> bool:
+                return time.monotonic() - _data_asked[raw] > ABANDONED_S
+
+            job = _data_jobs[raw] = _DATA_BUILDS.submit(materialize, run_dir, node, port, "inspect", abandoned)
+    if not job.done():
+        raise DataError("préparation des données…", PREPARING)
+    found = job.result()
+    if found is None:
+        raise DataError("données introuvables : le cache a peut-être été purgé", 404)
     return found
 
 
@@ -464,24 +549,42 @@ def rows(port: Port, q: Query) -> dict[str, Any]:
     types = port.types()
     geom = _needs_geometry(q)
     where, params = _where(port, q, types)
-    attributes = ["fid", *(_q(c) for c in port.attributes(types))]
     src = port.src(geometry=geom)
-    order = f" FROM {src}{where} ORDER BY {_order(q, types)} LIMIT {q.limit} OFFSET {q.offset}"
+    if where or q.sort:
+        # les fid de la page d'abord (tri des seules clés), puis ses lignes : les attributs et le type de géométrie ne
+        # sont lus que pour la page, pas pour toutes les lignes qui la précèdent (une page loin dans la table)
+        _, found = port.duck.run(
+            f"SELECT fid FROM {src}{where} ORDER BY {_order(q, types)} LIMIT {q.limit} OFFSET {q.offset}",
+            params,
+            timeout=TABLE_TIMEOUT,
+        )
+        fids = [int(r[0]) for r in found]
+        page = f"fid IN ({', '.join(map(str, fids))})" if fids else "FALSE"
+    else:  # ordre d'origine, sans filtre : la ligne n est l'entité n
+        fids = list(range(q.offset, min(q.offset + q.limit, port.total)))
+        page = f"fid >= {q.offset} AND fid < {q.offset + q.limit}"
+    attributes = ", ".join(["fid", *(_q(c) for c in port.attributes(types))])
+
+    def select(kind: str | None) -> tuple[list[str], list[tuple]]:
+        extra = f", {kind} AS {GEOM}" if kind else ""
+        return port.duck.run(f"SELECT {attributes}{extra} FROM {port.src()} WHERE {page}")
+
     if not port.has_geometry:
-        columns, data = port.duck.run(f"SELECT {', '.join(attributes)}{order}", params)
-    elif port.entities is not None and not geom:  # type de géométrie de chaque entité, noté dans la vue
-        columns, data = port.duck.run(f"SELECT {', '.join(attributes)}, NULL AS {GEOM}{order}", params)
+        columns, data = select(None)
+    elif port.entities is not None:  # type de géométrie de chaque entité, noté dans la vue
+        columns, data = select("NULL")
         kinds = _kinds(port, [r[0] for r in data])
         data = [(*r[:-1], kinds.get(r[0])) for r in data]
     else:  # type de géométrie affiché dans la table (pas la géométrie elle-même)
-        kind = f"ST_GeometryType({GEOM})::VARCHAR" if geom else _wkb_kind(GEOM)
         try:
-            columns, data = port.duck.run(f"SELECT {', '.join(attributes)}, {kind} AS {GEOM}{order}", params)
+            columns, data = select(_wkb_kind(GEOM))
         except DataError as exc:
-            if exc.status != OUT_OF_MEMORY or geom:
+            if exc.status != OUT_OF_MEMORY:
                 raise
             # géométries trop volumineuses pour être lues par l'inspecteur : la table reste, sans leur type
-            columns, data = port.duck.run(f"SELECT {', '.join(attributes)}, NULL AS {GEOM}{order}", params)
+            columns, data = select("NULL")
+    rank = {f: i for i, f in enumerate(fids)}
+    data.sort(key=lambda r: rank[r[0]])
     total = port.total
     filtered = port.duck.scalar(f"SELECT count(*) FROM {src}{where}", params) if where else total
     return {
@@ -570,16 +673,57 @@ def values(port: Port, column: str, q: Query, limit: int = 50) -> list[dict[str,
     return [{"value": _json_value(v), "count": int(n)} for v, n in data]
 
 
+def classes(port: Port, column: str, q: Query, count: int = 5) -> dict[str, Any]:
+    """Classes d'effectifs égaux (quantiles) d'un attribut numérique, sur les lignes filtrées, pour colorer la carte :
+    bornes de la plus petite à la plus grande valeur finie, prises parmi les valeurs (doublons retirés : peu de valeurs
+    distinctes donnent moins de classes) ; nombre de lignes sans valeur. Approchées sur une grande table."""
+    types = port.types()
+    if column not in types or category(types[column]) != "numeric":
+        raise DataError(f"classes impossibles sur : {column}")
+    where, params = _where(port, q, types)
+    x = f"{_q(column)}::DOUBLE"
+    quantile = "quantile_disc" if port.total <= EXACT_DISTINCT_MAX_ROWS else "approx_quantile"
+    probabilities = [i / count for i in range(1, count)]
+    finite = f"FILTER (WHERE isfinite({x}))"
+    _, ((lo, hi, cuts, nulls),) = port.duck.run(
+        f"SELECT min({x}) {finite}, max({x}) {finite}, {quantile}({x}, {probabilities}) {finite}, "
+        f"count(*) FILTER (WHERE {_q(column)} IS NULL) FROM {port.src(geometry=_needs_geometry(q))}{where}",
+        params,
+    )
+    breaks = [] if lo is None else sorted({lo, *(cuts or []), hi})
+    return {"breaks": [_json_value(b) for b in breaks], "nulls": int(nulls)}
+
+
 def locate(port: Port, q: Query, fid: int) -> int | None:
-    """Position (à partir de 0) de l'entité `fid` dans la liste filtrée et triée ; None si elle est exclue par les filtres."""
+    """Position (à partir de 0) de l'entité `fid` dans la liste filtrée et triée ; None si elle est exclue par les filtres.
+
+    Sans tri ni filtre, c'est son fid. Sinon, ses clés de tri sont lues (une ligne), puis on compte les lignes qui la
+    précèdent dans l'ordre de `_order` (nuls en dernier, puis fid) : un parcours de la table, pas son tri complet."""
     types = port.types()
     where, params = _where(port, q, types)
+    if not where and not q.sort:
+        return fid if 0 <= fid < port.total else None
+    _order(q, types)  # contrôle des colonnes de tri
+    terms: list[str] = []
+    ties: list[str] = []
+    for i, s in enumerate(q.sort):
+        c, k = _q(s.column), f"t.__k{i}"
+        first = f"(({k} IS NULL AND {c} IS NOT NULL) OR {c} {'>' if s.desc else '<'} {k})"
+        terms.append(" AND ".join([*ties, first]))
+        ties.append(f"{c} IS NOT DISTINCT FROM {k}")
+    terms.append(" AND ".join([*ties, "fid < t.__fid"]))
+    keys = "".join(f", {_q(s.column)} AS __k{i}" for i, s in enumerate(q.sort))
+    cond = where.removeprefix(" WHERE ") or "TRUE"
+    src = port.src(geometry=_needs_geometry(q))
     _, data = port.duck.run(
-        f"SELECT rn - 1 FROM (SELECT fid, row_number() OVER (ORDER BY {_order(q, types)}) AS rn "
-        f"FROM {port.src(geometry=_needs_geometry(q))}{where}) WHERE fid = ?",
-        [*params, fid],
+        f"WITH t AS (SELECT fid AS __fid{keys} FROM {src} WHERE ({cond}) AND fid = ?) "
+        f"SELECT count(*) FILTER (WHERE {' OR '.join(f'({t})' for t in terms)}), count(*) FILTER (WHERE fid = t.__fid) "
+        f"FROM {src}, t WHERE {cond}",
+        [*params, fid, *params],
+        timeout=TABLE_TIMEOUT,
     )
-    return int(data[0][0]) if data else None
+    before, found = data[0]
+    return int(before) if found else None
 
 
 def _wgs84(port: Port, geometry: str = GEOM) -> str:
@@ -609,9 +753,11 @@ def feature(port: Port, fid: int) -> dict[str, Any]:
                 [fid],
             )
             if rows and rows[0][1] is not None:
-                found = json.loads(rows[0][0]), [rows[0][1], rows[0][2], rows[0][3], rows[0][4]]
+                found = json.loads(rows[0][0]), [rows[0][1], rows[0][2], rows[0][3], rows[0][4]], False
         if found is not None:
-            result["geometry"], result["bbox"] = found
+            result["geometry"], result["bbox"], edges = found
+            if edges:  # la carte trace le contour (les lignes de la collection), pas celui de chaque pièce
+                result["outline"] = "edges"
     return result
 
 
@@ -623,10 +769,10 @@ def _to_wgs84(xy: np.ndarray) -> np.ndarray:
     return np.round(np.c_[lon, lat], 6)
 
 
-def _generalized_geometry(port: Port, fid: int) -> tuple[dict[str, Any], list[float]] | None:
+def _generalized_geometry(port: Port, fid: int) -> tuple[dict[str, Any], list[float], bool] | None:
     """Géométrie d'une entité énorme (parcelles fusionnées…) pour la sélection : lue dans un niveau généralisé de la
-    vue, à la finesse de `FEATURE_PIXELS` pixels sur son emprise. None : entité ordinaire (lue telle quelle) ou pas
-    de vue."""
+    vue, à la finesse de `FEATURE_PIXELS` pixels sur son emprise ; son emprise ; vrai si elle porte son contour à part
+    (polygone découpé). None : entité ordinaire (lue telle quelle) ou pas de vue."""
     if port.view is None or port.entities is None:
         return None
     _, found = port.duck.run(
@@ -640,28 +786,28 @@ def _generalized_geometry(port: Port, fid: int) -> tuple[dict[str, Any], list[fl
     extent = max(box[2] - box[0], box[3] - box[1])
     finest = [lv for lv in views.LEVELS if extent / views.pixel(lv + 1) <= FEATURE_PIXELS]
     level = max(finest) if finest else min(views.LEVELS)
-    found = (
-        port.duck.con()
-        .sql(
-            f"SELECT geom_3857, bbox FROM read_parquet({_lit(port.view.as_posix())}) WHERE lvl = ? AND fid = ?",
-            params=[level, fid],
-        )
-        .to_arrow_table()
+    found = port.duck.arrow(
+        f"SELECT geom_3857, bbox, role FROM read_parquet({_lit(port.view.as_posix())}) WHERE lvl = ? AND fid = ?",
+        [level, fid],
     )
     if found.num_rows == 0:
         return None
     wkb = found.column("geom_3857").to_numpy(zero_copy_only=False)
     drawn = np.array([w is not None for w in wkb], bool)
-    shapes = shapely.from_wkb(wkb[drawn])
+    role = found.column("role").to_numpy()
+    edges = drawn & (role == views.EDGE)
+    shapes = shapely.from_wkb(wkb[drawn & ~edges])
     if not drawn.all():  # morceaux de moins d'un pixel : des cellules, regroupées en surfaces
         cells = found.column("bbox").combine_chunks().filter(pa.array(~drawn))
         cx, cy = ((cells.field(f"{a}min").to_numpy() + cells.field(f"{a}max").to_numpy()) / 2 for a in "xy")
         shapes = np.concatenate([shapes, _cells(cx, cy, extent / FEATURE_PIXELS)])
+    if edges.any():  # polygone découpé : ses pièces (sans contour) et son contour à part, sans les coupes
+        shapes = np.concatenate([shapes, [shapely.multilinestrings(shapely.get_parts(shapely.from_wkb(wkb[edges])))]])
     shapes = shapely.transform(shapes, _to_wgs84)
     polygons = shapes[shapely.get_type_id(shapes) == 3]
     geometry = shapely.multipolygons(polygons) if len(polygons) == len(shapes) else shapely.geometrycollections(shapes)
     corners = _to_wgs84(np.array([[box[0], box[1]], [box[2], box[3]]]))
-    return json.loads(shapely.to_geojson(geometry)), [*corners[0], *corners[1]]
+    return json.loads(shapely.to_geojson(geometry)), [*corners[0], *corners[1]], bool(edges.any())
 
 
 def _cells(cx: np.ndarray, cy: np.ndarray, size: float) -> np.ndarray:
@@ -812,7 +958,8 @@ def _tile_shapes(wkb: np.ndarray, x0: float, y1: float, size: float) -> tuple[np
 
     Calcul vectorisé, sans réparation (inutile pour dessiner) : `ST_AsMVTGeom` réparait chaque polygone replié par
     l'arrondi, ~1 ms par entité à faible zoom. Un polygone plus petit qu'un pixel devient un carré d'un pixel (il reste
-    visible ; un seul par pixel) ; les autres sont simplifiés à deux unités près. Anneaux orientés selon la
+    visible ; un seul par pixel) ; les autres sont simplifiés à deux unités près, les gros anneau par anneau
+    (`simplify_polygons` : `shapely.simplify` valide et répare chaque polygone simplifié). Anneaux orientés selon la
     spécification MVT. Toujours des morceaux (jamais un multipolygone entier) : simplifier d'un bloc un multipolygone
     de 300 000 morceaux prend des minutes à GEOS.
     """
@@ -826,7 +973,9 @@ def _tile_shapes(wkb: np.ndarray, x0: float, y1: float, size: float) -> tuple[np
     cx, cy = np.round((b[tiny, 0] + b[tiny, 2]) / 2), np.round((b[tiny, 1] + b[tiny, 3]) / 2)
     half = PIXEL / 2
     g[tiny] = shapely.box(cx - half, cy - half, cx + half, cy + half)
-    g[~tiny] = shapely.simplify(g[~tiny], 2.0, preserve_topology=False)
+    heavy = ~tiny & np.isin(shapely.get_type_id(g), (3, 6)) & (shapely.get_num_coordinates(g) > HEAVY_POLYGON)
+    g[heavy] = views.simplify_polygons(g[heavy], 2.0)
+    g[~tiny & ~heavy] = shapely.simplify(g[~tiny & ~heavy], 2.0, preserve_topology=False)
     g = shapely.set_precision(g, 1.0, mode="pointwise")
     keep = ~(shapely.is_missing(g) | shapely.is_empty(g))
     if tiny.any():  # un seul carré par pixel : une zone dense de petits morceaux ne se répète pas
@@ -900,7 +1049,7 @@ def _prebuild_tiles(port: Port, key: tuple[Path, int]) -> None:
     assert port.meta is not None
     try:
         for z, x, y in prebuild_tiles(port.meta["extent_3857"]):
-            if not port.raw.is_file():  # cache libéré entre-temps : on s'arrête
+            if not has_port(port.raw):  # cache libéré entre-temps : on s'arrête
                 return
             tile(port, z, x, y, Query(), abandoned=lambda: _ahead_of != key, ahead=True)
         with _builds_guard:
@@ -941,26 +1090,26 @@ def _make_tile(
     elif every != 1:  # points échantillonnés (le même échantillon dans toutes les tuiles), ou aucun
         spatial += f" AND (v.esize > 0 OR hash(v.fid) % {int(every)} = 0)" if every else " AND v.esize > 0"
     source = f"read_parquet({_lit(port.view.as_posix())}) v{join} WHERE {spatial}"
-    con = port.duck.con()
     count = port.duck.scalar(f"SELECT count(*) FROM {source} AND v.geom_3857 IS NOT NULL", [*params, *box])
     sample = f" AND hash(v.fid, v.bbox.xmin) % {math.ceil(count / TILE_CAP)} = 0" if count > TILE_CAP else ""
     c = ", a.c AS c" if color else ""
-    found = con.sql(
-        f"SELECT v.fid AS fid{c}, v.geom_3857 FROM {source} AND v.geom_3857 IS NOT NULL{sample}",
-        params=[*params, *box],
-    ).to_arrow_table()
+    found = port.duck.arrow(
+        f"SELECT v.fid AS fid{c}, v.role, v.geom_3857 FROM {source} AND v.geom_3857 IS NOT NULL{sample}",
+        [*params, *box],
+    )
     shapes, keep = _tile_shapes(found.column("geom_3857").to_numpy(zero_copy_only=False), x0, y1, size)
     rows = found.drop_columns(["geom_3857"]).filter(pa.array(keep))
     wkb = [shapely.to_wkb(shapes[keep])]
     # morceaux de moins d'un pixel (cellules de la vue, sans géométrie) : un carré d'un pixel par pixel occupé
     px = size / (EXTENT / PIXEL)
     c = ", arg_min(a.c, v.fid) AS c" if color else ""
-    dots = con.sql(
-        f"""SELECT min(v.fid) AS fid{c}, floor(((v.bbox.xmin + v.bbox.xmax) / 2 - {x0}) / {px})::INTEGER AS i,
+    dots = port.duck.arrow(
+        f"""SELECT min(v.fid) AS fid{c}, {views.PART}::UTINYINT AS role,
+                   floor(((v.bbox.xmin + v.bbox.xmax) / 2 - {x0}) / {px})::INTEGER AS i,
                    floor(({y1} - (v.bbox.ymin + v.bbox.ymax) / 2) / {px})::INTEGER AS j
             FROM {source} AND v.geom_3857 IS NULL GROUP BY i, j""",
-        params=[*params, *box],
-    ).to_arrow_table()
+        [*params, *box],
+    )
     if dots.num_rows:
         i, j = (dots.column(k).to_numpy().astype(float) * PIXEL for k in ("i", "j"))
         squares = shapely.orient_polygons(shapely.box(i, j, i + PIXEL, j + PIXEL), exterior_cw=False)
@@ -969,12 +1118,15 @@ def _make_tile(
     rows = rows.append_column("wkb", pa.array(np.concatenate(wkb), pa.binary()))
     name = f"tile_{uuid.uuid4().hex[:8]}"
     prop = ", 'c': c" if color else ""
-    con.register(name, rows)
-    try:
-        blob = con.execute(
-            f"SELECT ST_AsMVT({{'geom': ST_GeomFromWKB(wkb), 'fid': fid{prop}}}, "
-            f"'data', {EXTENT}, 'geom', 'fid') FROM {name}"
-        ).fetchall()[0][0]  # lu jusqu'au bout : DuckDB 2 refuse `con.sql` après un résultat inachevé
-    finally:
-        con.unregister(name)
+    with port.duck.guarded() as con:
+        con.register(name, rows)
+        try:
+            # `r` : surface (1) ou contour (2) d'un polygone découpé (la carte dessine le contour à part) ; absent
+            # pour un morceau ordinaire (ST_AsMVT omet une propriété NULL)
+            blob = con.execute(
+                f"SELECT ST_AsMVT({{'geom': ST_GeomFromWKB(wkb), 'fid': fid, "
+                f"'r': NULLIF(role, {views.PART})::INTEGER{prop}}}, 'data', {EXTENT}, 'geom', 'fid') FROM {name}"
+            ).fetchall()[0][0]  # lu jusqu'au bout : DuckDB 2 refuse `con.sql` après un résultat inachevé
+        finally:
+            con.unregister(name)
     return bytes(blob) if blob else b""

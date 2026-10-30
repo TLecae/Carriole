@@ -7,7 +7,7 @@ import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.data import GEOM, get_crs, with_crs
-from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params
+from etl_engine.sdk import AttributeList, ConfigError, Modifier, Params, missing_attributes
 
 
 def _common_type(types: list[pa.DataType]) -> pa.DataType:
@@ -58,7 +58,7 @@ class PivotLonger(Modifier):
         p = self.params
         missing = [a for a in p.attributes if a not in schema.names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         kept = [f for f in schema if f.name not in p.attributes and f.name not in (p.name_attribute, p.value_attribute)]
         value_type = _common_type([schema.field(a).type for a in p.attributes])
         return pa.schema(
@@ -84,7 +84,7 @@ class PivotLonger(Modifier):
             column = batch.column(attr)
             if column.type != value_type:
                 column = column.cast(value_type)
-            part = base.append_column(p.name_attribute, pa.array([attr] * batch.num_rows, pa.string()))
+            part = base.append_column(p.name_attribute, pa.repeat(pa.scalar(attr, pa.string()), batch.num_rows))
             part = part.append_column(p.value_attribute, column)
             if not p.keep_nulls:
                 part = part.filter(pc.is_valid(column))

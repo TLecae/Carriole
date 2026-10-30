@@ -26,12 +26,11 @@ from typing import Any
 
 import numpy as np
 import pyarrow as pa
-import pyproj
 import rasterio
 import shapely
 from rasterio.windows import Window
 
-from etl_engine.data import GEOM, get_crs, with_crs
+from etl_engine.data import GEOM, get_crs, transformer, with_crs
 from etl_engine.sdk import ConfigError
 
 RASTER = "raster"
@@ -121,9 +120,7 @@ def to_table(descs: Sequence[dict[str, Any]], attributes: dict[str, Sequence[Any
     for d in descs:
         xmin, ymin, xmax, ymax = extent_of(d)
         if crs and d.get("crs") and d["crs"] != crs:  # emprise ramenée au système du premier raster
-            xmin, ymin, xmax, ymax = pyproj.Transformer.from_crs(d["crs"], crs, always_xy=True).transform_bounds(
-                xmin, ymin, xmax, ymax
-            )
+            xmin, ymin, xmax, ymax = transformer(d["crs"], crs).transform_bounds(xmin, ymin, xmax, ymax)
         boxes.append(shapely.box(xmin, ymin, xmax, ymax))
     columns: dict[str, pa.Array] = {RASTER: pa.array([dict(d) for d in descs], STRUCT)}
     for name, values in (attributes or {}).items():
@@ -369,15 +366,6 @@ def writer(
         except BaseException:
             Path(path).unlink(missing_ok=True)
             raise
-
-
-def is_geographic(crs: str | None) -> bool:
-    if not crs:
-        return False
-    try:
-        return bool(pyproj.CRS.from_user_input(crs).is_geographic)
-    except pyproj.exceptions.CRSError:
-        return False
 
 
 def pixel_size(desc: dict[str, Any]) -> tuple[float, float]:

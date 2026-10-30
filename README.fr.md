@@ -29,7 +29,7 @@ Application de bureau (Windows, Linux) : elle lit et écrit vos fichiers (`Z:`, 
 - **Des flux en fichiers JSON**, rangés où l'équipe veut ; composants partagés par un dossier commun.
 - **104 modificateurs** (un lecteur et un écrivain par format de fichier, attributs, filtres, jointures, statistiques, géométrie, bases SQL (PostgreSQL, Oracle, SQLite), rasters et STAC…) : [catalogue](docs/catalogue.md).
 - **Assistant IA** (Claude, OpenAI, OpenRouter, Ollama) : il lit le flux, les fichiers et les runs, et propose des modifications que l'on applique d'un clic ; confidentialité réglable : [ADR 0027](docs/decisions/0027-assistant-ia.md).
-- **Formats géographiques** : PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, GeoParquet, FlatGeobuf, CSV (WKT ou X/Y), Excel ; rasters GeoTIFF/COG, JPEG 2000, NetCDF, catalogues STAC : [formats](docs/formats.md).
+- **Formats géographiques** : PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT ou X/Y), Excel ; rasters GeoTIFF/COG, JPEG 2000, NetCDF, catalogues STAC : [formats](docs/formats.md).
 - **Runs en arrière-plan** sur des workers (reprise, annulation, notification), planifiables (cron).
 - **Français et anglais** : langue choisie à l'installation, modifiable dans les paramètres ([ADR 0023](docs/decisions/0023-internationalisation.md)).
 - **Ligne de commande** `etl` : exécuter, valider, inspecter un fichier, piloter le backend local.
@@ -53,11 +53,12 @@ Prérequis : [uv](https://docs.astral.sh/uv/) et Node.js 22 ou plus.
 ```powershell
 uv sync                                  # environnement Python
 cd frontend; npm ci; npx vite build      # interface
-.\.venv\Scripts\etl.exe open             # démarre le backend local et ouvre l'interface
+cd ..
+uv run etl open                          # démarre le backend local et ouvre l'interface
 ```
 
 Utilisateurs : [télécharger](https://github.com/TLecae/Carriole/releases/latest) l'installeur Windows
-`Carriole-Setup-<version>.exe` (double-clic) ou l'AppImage Linux ; tout est embarqué (voir [installation.md](docs/installation.md)). Fenêtre de bureau en développement : `cd desktop; npm ci; npm start`.
+`Carriole-Setup-<version>.exe` (double-clic) ou l'AppImage Linux ; tout est embarqué (voir [installation.md](docs/installation.md)). Fenêtre de bureau en développement : `cd desktop; npm ci; npm start` (depuis la racine du dépôt). Pour contribuer, voir [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Structure
 

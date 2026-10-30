@@ -11,6 +11,7 @@ import pyarrow as pa
 from pydantic import Field
 from rasterio.windows import Window
 
+from etl_engine.data import is_geographic
 from etl_engine.raster import core
 from etl_engine.sdk import ConfigError, Modifier, Params
 
@@ -86,7 +87,7 @@ class TerrainAnalysis(Modifier):
             self.ctx.check_cancel()
             if p.band > desc["count"]:
                 raise ConfigError(f"le raster n'a que {desc['count']} bande(s)")
-            geographic = core.is_geographic(desc["crs"])
+            geographic = is_geographic(desc["crs"])
             xres, yres = core.pixel_size(desc)
             top = desc["transform"][5]
             grid = core.grid_of(desc)

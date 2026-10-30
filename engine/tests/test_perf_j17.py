@@ -151,5 +151,20 @@ def test_duck_connections_get_a_share_of_the_run_budget(tmp_path):
         heavy = duck.connect("heavy").execute("SELECT current_setting('threads')").fetchone()[0]
         assert heavy == 8
         assert duck.limits("heavy")[0] == int(4000 * 0.6 / duck.heavy_slots())
+        duck.configure_heavy_nodes(1)  # un seul nœud lourd dans le run : toute la part de DuckDB
+        assert duck.limits("heavy")[0] == int(4000 * 0.6)
+        duck.configure_heavy_nodes(5)  # plus que de places : partagée entre les nœuds qui tournent ensemble
+        assert duck.limits("heavy")[0] == int(4000 * 0.6 / duck.heavy_slots())
+    finally:
+        duck.configure_run()
+
+
+def test_batches_take_their_share_of_the_run_budget(tmp_path, monkeypatch):
+    monkeypatch.setenv("ETL_BATCH_WORKERS", "4")
+    try:
+        duck.configure_run(memory_mb=8000, threads=8, spill_dir=tmp_path)
+        assert duck.batch_bytes() == int(8000 * 0.4 * 2**20 / (2 * 4 * 4))  # 100 Mo
+        duck.configure_run(memory_mb=512, threads=8, spill_dir=tmp_path)
+        assert duck.batch_bytes() == 16 * 2**20  # jamais de lots minuscules
     finally:
         duck.configure_run()

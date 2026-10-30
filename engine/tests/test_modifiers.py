@@ -133,7 +133,7 @@ def test_renamer_swap_and_errors():
         RenameAttributes, {"renamings": [{"source": "a", "target": "b"}, {"source": "b", "target": "a"}]}, t
     )["output"]
     assert out.column_names == ["b", "a"]
-    with pytest.raises(ConfigError, match="absents"):
+    with pytest.raises(ConfigError, match="absents?"):
         run_modifier(RenameAttributes, {"renamings": [{"source": "zz", "target": "y"}]}, t)
     with pytest.raises(ConfigError, match="double"):
         run_modifier(RenameAttributes, {"renamings": [{"source": "a", "target": "b"}]}, t)

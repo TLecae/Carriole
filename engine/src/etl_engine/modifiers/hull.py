@@ -20,8 +20,10 @@ from etl_engine.sdk import (
     Emit,
     Modifier,
     Params,
+    missing_attributes,
     ordered_map,
     reject,
+    require_attributes,
     slices,
 )
 
@@ -82,6 +84,8 @@ class Hull(Modifier):
         schema = inputs.get("input")
         if schema is not None and GEOM not in schema.names:
             raise ConfigError("le modificateur a besoin d'une géométrie en entrée")
+        if self.params.scope == "group":
+            require_attributes(schema, self.params.group_by)
         return {"output": schema}
 
     def _usable(self, batch: pa.Table) -> tuple[pa.Table, pa.Table | None, np.ndarray]:
@@ -121,7 +125,7 @@ class Hull(Modifier):
         else:
             missing = [a for a in p.group_by if a not in good.column_names]
             if missing:
-                raise ConfigError(f"attributs absents : {', '.join(missing)}")
+                raise missing_attributes(missing)
             keys, count = group_codes(good, list(p.group_by))
         order, bounds = group_slices(keys, count)
         first = order[bounds[:-1]]

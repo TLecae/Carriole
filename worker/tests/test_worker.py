@@ -3,6 +3,7 @@ import threading
 import time
 
 import pytest
+from etl_engine.cache import has_port
 from etl_engine.flow import Flow
 from etl_engine.registry import Registry
 from etl_engine.sdk import Modifier, Params
@@ -75,7 +76,7 @@ def test_execute_run_writes_status_result_and_events(env):
     )
     kinds = [e["type"] for e in store.events_after(rid)]
     assert kinds[0] == "run_started" and kinds[-1] == "run_finished" and "counts" in kinds
-    assert (settings.cache_dir / rid / "r" / "output.parquet").exists()
+    assert has_port(settings.cache_dir / rid / "r" / "output.parquet")
     assert (tmp / "out.parquet").exists()
 
 

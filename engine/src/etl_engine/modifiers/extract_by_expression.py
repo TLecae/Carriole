@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from pydantic import Field
 
-from etl_engine.expr import safe_mask
+from etl_engine.expr import expression_type, guarded, safe_mask, sql_base, sql_columns
 from etl_engine.sdk import REJECTED, ConfigError, Expression, Modifier, Params, reject
 
 
@@ -43,6 +43,19 @@ class ExtractByExpression(Modifier):
         if not tests:
             raise ConfigError("au moins une condition est nécessaire")
         return tests
+
+    def sql(self, relations, schemas):
+        schema = schemas.get("input")
+        tests = self._check()
+        if schema is None or not all(pa.types.is_boolean(expression_type(schema, t)) for t in tests):
+            return None  # condition non booléenne : la voie par lots le signale
+        rows = f"({sql_base(relations['input'], schema, tests)})"
+        ok = f" {self.params.combine} ".join(f"COALESCE({guarded(t)}, FALSE)" for t in tests)
+        columns = sql_columns(schema.names, schema, tests)
+        return {
+            "Passed": f"SELECT {columns} FROM {rows} WHERE {ok}",
+            "Failed": f"SELECT {columns} FROM {rows} WHERE NOT ({ok})",
+        }
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         tests = self._check()

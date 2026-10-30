@@ -224,6 +224,7 @@ function General({ data, fail }: { data: AppSettings | null; fail: (err: unknown
 function Compute({ data, save }: { data: AppSettings; save: (p: Patch) => Promise<boolean> }) {
   const [workers, setWorkers] = useState(String(data.values.workers ?? ""));
   const [memory, setMemory] = useState(String(data.values.memory_budget_mb ?? ""));
+  const [cache, setCache] = useState(data.values.cache_dir);
   const number = (text: string) => (text.trim() === "" ? null : Number(text));
   return (
     <>
@@ -239,7 +240,7 @@ function Compute({ data, save }: { data: AppSettings; save: (p: Patch) => Promis
           onBlur={() => void save({ workers: number(workers) })}
         />
       </Field>
-      <Field label={t("Mémoire maximale du moteur (Mo)")} hint={t("Au-delà, les calculs SQL débordent sur le disque. Vide : 60 % de la mémoire du poste.")}>
+      <Field label={t("Mémoire maximale du moteur (Mo)")} hint={t("Au-delà, les calculs débordent sur le disque, dans le dossier du cache. Vide : 75 % de la mémoire du poste.")}>
         <input
           type="number"
           min={256}
@@ -248,6 +249,19 @@ function Compute({ data, save }: { data: AppSettings; save: (p: Patch) => Promis
           aria-label={t("Mémoire maximale du moteur (Mo)")}
           onChange={(e) => setMemory(e.target.value)}
           onBlur={() => void save({ memory_budget_mb: number(memory) })}
+        />
+      </Field>
+      <Field
+        label={t("Dossier du cache")}
+        hint={t("Résultats des runs et données temporaires des calculs qui dépassent la mémoire : un disque local avec de la place. Actuellement : {{path}}", { path: data.paths.cache })}
+      >
+        <input
+          type="text"
+          value={cache}
+          placeholder={data.paths.cache}
+          aria-label={t("Dossier du cache")}
+          onChange={(e) => setCache(e.target.value)}
+          onBlur={() => void save({ cache_dir: cache.trim() || null })}
         />
       </Field>
     </>

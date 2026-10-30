@@ -9,6 +9,7 @@ import os
 from collections.abc import Iterator, Mapping
 from datetime import datetime
 from pathlib import Path
+from stat import S_ISDIR
 from typing import Any, Literal
 
 import pyarrow as pa
@@ -153,14 +154,17 @@ class ListFiles(Modifier):
         """Le résultat change quand les fichiers changent : le cache ne doit pas servir une liste périmée."""
         digest = hashlib.sha1(usedforsecurity=False)
         try:
-            for path, stat in self._entries():
+            self._listed = self._entries()  # gardée pour le run : le dossier n'est parcouru qu'une fois
+            for path, stat in self._listed:
                 digest.update(f"{path}|{stat.st_size}|{stat.st_mtime_ns}\n".encode())
         except ConfigError:
             return "erreur"
         return digest.hexdigest()
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
-        entries = self._entries()
+        entries = getattr(self, "_listed", None)
+        if entries is None:
+            entries = self._entries()
         for start in range(0, len(entries), self.ctx.batch_rows):
             self.ctx.check_cancel()
             chunk = entries[start : start + self.ctx.batch_rows]
@@ -173,9 +177,9 @@ class ListFiles(Modifier):
                         "name": [p.name for p, _ in chunk],
                         "stem": [p.stem for p, _ in chunk],
                         "ext": [p.suffix.lower() for p, _ in chunk],
-                        "size": pa.array([0 if p.is_dir() else s.st_size for p, s in chunk], pa.int64()),
+                        "size": pa.array([0 if S_ISDIR(s.st_mode) else s.st_size for _, s in chunk], pa.int64()),
                         "mtime": pa.array([datetime.fromtimestamp(s.st_mtime) for _, s in chunk], pa.timestamp("s")),
-                        "is_dir": [p.is_dir() for p, _ in chunk],
+                        "is_dir": [S_ISDIR(s.st_mode) for _, s in chunk],
                     },
                     schema=SCHEMA,
                 ),

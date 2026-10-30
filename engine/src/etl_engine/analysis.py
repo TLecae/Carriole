@@ -7,7 +7,7 @@ import pyarrow as pa
 from etl_engine import i18n
 from etl_engine.components import PREFIX as COMPONENT_PREFIX
 from etl_engine.components import SEP, expand_components
-from etl_engine.data import schema_to_json
+from etl_engine.data import GEOM, get_crs, schema_to_json, with_crs
 from etl_engine.flow import Flow, late_names, resolve_params, system_values
 from etl_engine.plan import Issue, Plan, build_plan
 from etl_engine.registry import Registry
@@ -38,8 +38,13 @@ def compute_schemas(plan: Plan) -> tuple[SchemaMap, list[Issue]]:
         except Exception as exc:  # noqa: BLE001 - un modificateur ne doit pas casser l'analyse des autres
             issues.append(Issue("warning", "schema_unknown", f"schéma de sortie non calculable ({exc})", nid))
             outs = {}
+        # géométrie déclarée sans SCR (schéma reconstruit sans ses métadonnées) : celui des entrées, s'il est unique
+        known_crs = {get_crs(s) for s in inputs.values() if s is not None and GEOM in s.names} - {None}
         for port in inst.ports(inst.params)[1]:
-            schemas[(nid, port)] = outs.get(port)
+            out = outs.get(port)
+            if out is not None and len(known_crs) == 1 and GEOM in out.names and not get_crs(out):
+                out = with_crs(out, next(iter(known_crs)))
+            schemas[(nid, port)] = out
     return schemas, issues
 
 

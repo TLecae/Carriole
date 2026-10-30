@@ -4,18 +4,17 @@ import type { ExpressionSpecification, GeoJSONSource, Map as MlMap, VectorTileSo
 // sinon l'URL relative par défaut ne mène nulle part une fois ce code déplacé dans un chunk (« Worker failed to load »).
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { api, rasterTileTemplate, tileTemplate } from "../api/client";
 import type { DataQuery, PortInfo, PortRef, RasterInfo, RasterStyle } from "../api/types";
 import { keyOf, sameTarget, useInspector } from "../store/inspector";
 import { t } from "../i18n";
+import { CATEGORY_COLORS, type Coloring, RAMP, categoriesColoring, classesColoring, shapeOf } from "../model/legend";
 import { Spinner } from "./Spinner";
 
 maplibregl.setWorkerUrl(workerUrl);
 
 const PALETTE = ["#1d6fb8", "#d9480f", "#2b8a3e", "#862e9c", "#c2255c", "#e67700"];
-const CATEGORY_COLORS = ["#1d6fb8", "#d9480f", "#2b8a3e", "#862e9c", "#c2255c", "#e67700", "#0b7285", "#5f3dc4", "#868e96", "#a61e4d"];
-const RAMP = ["#ffffcc", "#a1dab4", "#41b6c4", "#2c7fb8", "#253494"];
 
 /** Fonds de plan raster proposés. Leurs hôtes sont autorisés dans la CSP du backend (`etl_api/security.py`). */
 const BASEMAPS = {
@@ -70,36 +69,111 @@ const paletteLabel = (name: string): string =>
 
 const sourceId = (i: number) => `data-${i}`;
 const NO_FILTER: DataQuery = { filters: [], where: "", search: "", sort: [] };
-const layerIds = (i: number) => [`${sourceId(i)}-fill`, `${sourceId(i)}-outline`, `${sourceId(i)}-line`, `${sourceId(i)}-circle`];
+const layerIds = (i: number) => [`${sourceId(i)}-fill`, `${sourceId(i)}-cut-fill`, `${sourceId(i)}-outline`, `${sourceId(i)}-line`, `${sourceId(i)}-circle`];
+const CLICKABLE = ["fill", "cut-fill", "line", "circle"]; // couches de l'entité visée par un clic
 
-/** Expression MapLibre de coloration par attribut : dégradé pour un nombre, couleurs distinctes pour un texte. */
-async function colorExpression(target: PortRef, info: PortInfo, column: string, query: Parameters<typeof api.dataValues>[2]): Promise<ExpressionSpecification | null> {
+/** Coloration par attribut, sur les lignes filtrées : classes d'effectifs égaux pour un nombre, une couleur par valeur
+ * fréquente sinon. */
+async function coloringOf(target: PortRef, info: PortInfo, column: string, query: DataQuery): Promise<Coloring | null> {
   const col = info.columns.find((c) => c.name === column);
   if (!col) return null;
   if (col.category === "numeric") {
-    const stats = (await api.dataStats(target)).columns[column];
-    const [lo, hi] = [Number(stats?.min), Number(stats?.max)];
-    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) return null;
-    const stops = RAMP.flatMap((c, i) => [lo + ((hi - lo) * i) / (RAMP.length - 1), c]);
-    return ["interpolate", ["linear"], ["to-number", ["get", "c"], lo], ...stops] as ExpressionSpecification;
+    const { breaks, nulls } = await api.dataClasses(target, column, query, RAMP.length);
+    return classesColoring(breaks, nulls);
   }
-  const values = await api.dataValues(target, column, query, CATEGORY_COLORS.length);
-  const pairs = values.flatMap((v, i) => (v.value === null ? [] : [String(v.value), CATEGORY_COLORS[i % CATEGORY_COLORS.length]]));
-  if (!pairs.length) return null;
-  return ["match", ["to-string", ["get", "c"]], ...pairs, "#9aa5b1"] as ExpressionSpecification;
+  return categoriesColoring(await api.dataValues(target, column, query, CATEGORY_COLORS.length + 1));
 }
+
+const LEGEND_ICON =
+  '<svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><g fill="none" stroke="#333" stroke-width="1.6">' +
+  '<rect x="3" y="3.5" width="4.5" height="4.5"/><rect x="3" y="12" width="4.5" height="4.5"/><path d="M10.5 5.8h6.5M10.5 14.2h6.5"/></g></svg>';
+
+/** Bouton « Légende », sous ceux du zoom ; affiché quand il y a quelque chose à expliquer. */
+class LegendButton implements maplibregl.IControl {
+  private box = document.createElement("div");
+  private button = document.createElement("button");
+
+  constructor(onClick: () => void) {
+    this.box.className = "maplibregl-ctrl maplibregl-ctrl-group map-legend-button";
+    this.button.type = "button";
+    this.button.title = t("Légende");
+    this.button.setAttribute("aria-label", t("Légende"));
+    this.button.innerHTML = LEGEND_ICON;
+    this.button.addEventListener("click", onClick);
+    this.box.append(this.button);
+    this.show(false, false);
+  }
+
+  onAdd(): HTMLElement {
+    return this.box;
+  }
+
+  onRemove(): void {
+    this.box.remove();
+  }
+
+  show(visible: boolean, open: boolean): void {
+    this.box.style.display = visible ? "" : "none";
+    this.button.setAttribute("aria-pressed", String(open));
+  }
+}
+
+interface LegendLayer {
+  key: string;
+  name: string;
+  color: string;
+  shape: "polygon" | "line" | "point";
+  coloring: Coloring | null;
+}
+
+/** Légende : chaque couche affichée avec sa couleur, ou les classes / catégories de l'attribut qui la colore. */
+function Legend({ layers, column }: { layers: LegendLayer[]; column: string | null }) {
+  return (
+    <div className="map-legend" role="region" aria-label={t("Légende")} data-testid="map-legend">
+      {layers.map((l) => (
+        <div key={l.key} className="legend-layer">
+          <div className="legend-title">
+            {!l.coloring && <Swatch shape={l.shape} color={l.color} />}
+            {l.name}
+          </div>
+          {l.coloring && (
+            <>
+              <div className="legend-column">{column}</div>
+              <ul>
+                {l.coloring.items.map((it) => (
+                  <li key={it.label}>
+                    <Swatch shape={l.shape} color={it.color} />
+                    {it.label}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const Swatch = ({ shape, color }: { shape: LegendLayer["shape"]; color: string }) => (
+  <span className={`legend-swatch ${shape}`} style={{ "--swatch": color } as CSSProperties} />
+);
 
 export function MapView({ info }: { info: PortInfo }) {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
   const [ready, setReady] = useState(false);
-  const [tilesLoading, setTilesLoading] = useState(true); // tuiles en cours de chargement (données ou fond de plan)
+  const [tilesLoading, setTilesLoading] = useState(true); // tuiles des données en cours de chargement
+  const [tileError, setTileError] = useState<string | null>(null); // une tuile du port n'a pas pu être calculée
   const [basemap, setBasemap] = useState<Basemap>(loadBasemap);
   const [config, setConfig] = useState(false);
   const [overlayInfo, setOverlayInfo] = useState<Record<string, PortInfo>>({});
-  const [colors, setColors] = useState<ExpressionSpecification | null>(null);
+  const [colored, setColored] = useState<{ key: string; coloring: Coloring | null } | null>(null);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const legendButton = useRef<LegendButton | null>(null);
   const { target, query, selectedFid, overlays, colorBy } = useInspector();
+  useEffect(() => setTileError(null), [target, query, colorBy]); // d'autres tuiles : l'erreur d'avant ne vaut plus
 
   // --- raster : la ligne affichée est la ligne sélectionnée (la première par défaut)
   const isRaster = info.columns.some((c) => c.name === "raster");
@@ -143,10 +217,18 @@ export function MapView({ info }: { info: PortInfo }) {
       refreshExpiredTiles: false, // les tuiles d'un run ne changent pas
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    legendButton.current = new LegendButton(() => setLegendOpen((open) => !open));
+    map.addControl(legendButton.current, "top-right");
     map.addControl(new maplibregl.ScaleControl({}), "bottom-left");
     map.on("load", () => setReady(true));
-    map.on("dataloading", () => setTilesLoading(true));
-    map.on("idle", () => setTilesLoading(false));
+    // seules les données comptent : un fond de plan injoignable (hors ligne, proxy) laissait « Chargement » sans fin
+    const ids = [...Array.from({ length: 12 }, (_, i) => sourceId(i)), RASTER_LAYER];
+    const loading = () => setTilesLoading(ids.some((id) => map.getSource(id) !== undefined && !map.isSourceLoaded(id)));
+    for (const event of ["dataloading", "sourcedata", "error", "idle"] as const) map.on(event, loading);
+    // une tuile du port qui échoue (délai, mémoire…) : la zone reste vide, on le dit (une tuile abandonnée, non)
+    map.on("error", (e: { sourceId?: string; error?: { status?: number; message?: string } }) => {
+      if (e.sourceId?.startsWith("data-") && e.error?.status !== 499) setTileError(e.error?.message ?? "");
+    });
     mapRef.current = map;
     // Le panneau se redimensionne à la souris et passe en pleine page : MapLibre n'écoute que la fenêtre.
     const observer = new ResizeObserver(() => map.resize());
@@ -178,11 +260,34 @@ export function MapView({ info }: { info: PortInfo }) {
     }
   }, [basemap, ready]);
 
-  // --- coloration par attribut (calculée côté serveur : bornes ou valeurs fréquentes)
+  // --- coloration par attribut (calculée côté serveur : classes ou valeurs fréquentes). Tant qu'elle se calcule, la
+  // couche garde son affichage : couleur et adresse des tuiles changent ensemble (voir les couches de données).
+  const colorKey = target && colorBy ? JSON.stringify([keyOf(target), colorBy, query]) : null;
+  const coloring = colored && colored.key === colorKey ? colored.coloring : null;
+  const coloringPending = colorKey !== null && colored?.key !== colorKey;
   useEffect(() => {
-    setColors(null);
-    if (target && colorBy) void colorExpression(target, info, colorBy, query).then(setColors);
-  }, [target, info, colorBy, query]);
+    if (!target || !colorBy || !colorKey) return;
+    let alive = true;
+    coloringOf(target, info, colorBy, query)
+      .then((c) => alive && setColored({ key: colorKey, coloring: c }))
+      .catch(() => alive && setColored({ key: colorKey, coloring: null }));
+    return () => {
+      alive = false;
+    };
+  }, [target, info, colorBy, query, colorKey]);
+
+  // --- légende : plusieurs couches, ou une couche colorée par un attribut
+  const legendLayers = useMemo<LegendLayer[]>(
+    () =>
+      sources.flatMap(({ ref, info: pi }, i) =>
+        pi?.geometry?.map
+          ? [{ key: keyOf(ref), name: `${ref.node} / ${ref.port}`, color: PALETTE[i % PALETTE.length], shape: shapeOf(pi.geometry.types), coloring: i === 0 && colorBy ? coloring : null }]
+          : [],
+      ),
+    [sources, colorBy, coloring],
+  );
+  const hasLegend = legendLayers.length > 1 || legendLayers.some((l) => l.coloring);
+  useEffect(() => legendButton.current?.show(hasLegend, hasLegend && legendOpen), [hasLegend, legendOpen, ready]);
 
   // --- couches de données : une source de tuiles vectorielles par port affiché. Créée une fois par port ; un autre
   // filtre ou une autre couleur ne fait que changer l'adresse des tuiles (les anciennes restent affichées jusqu'à
@@ -195,7 +300,7 @@ export function MapView({ info }: { info: PortInfo }) {
     sources.forEach(({ ref, info: pi }, i) => {
       if (!pi?.geometry?.map) return;
       const active = i === 0;
-      const color = (active && colors ? colors : PALETTE[i % PALETTE.length]) as string;
+      const color = (active && coloring ? coloring.expression : PALETTE[i % PALETTE.length]) as string;
       const src = sourceId(i);
       const url = tileTemplate(ref, active ? query : NO_FILTER, active && colorBy ? colorBy : null);
       const types = pi.geometry.types.join(" ");
@@ -203,20 +308,40 @@ export function MapView({ info }: { info: PortInfo }) {
       wanted.add(src);
       const known = drawn.current[src];
       if (known?.shape === shape && map.getSource(src)) {
-        if (known.url !== url) (map.getSource(src) as VectorTileSource).setTiles([url]);
+        if (active && coloringPending) return; // couleur en calcul : l'affichage d'avant reste
+        if (known.url !== url) {
+          // nouvelle adresse appliquée après un rendu, la source chargée : MapLibre l'ignore tant qu'un changement de
+          // couleur selon un attribut met la source en pause, et une tuile en cours de chargement garde ses données
+          // d'avant (sans la couleur, ou sans le filtre)
+          const source = map.getSource(src) as VectorTileSource;
+          const apply = () => {
+            if (map.getSource(src) !== source || drawn.current[src]?.url !== url) return; // retirée, ou autre adresse
+            if (map.isSourceLoaded(src)) source.setTiles([url]);
+            else map.once("render", apply);
+          };
+          map.once("render", apply);
+          map.triggerRepaint();
+        }
         for (const id of layerIds(i)) if (map.getLayer(id)) map.setPaintProperty(id, colorProperty(id), color);
         drawn.current[src] = { shape, url };
         return;
       }
       removeData(map, i);
       map.addSource(src, { type: "vector", tiles: [url], minzoom: 0, maxzoom: 15 });
-      const polygon = ["==", ["geometry-type"], "Polygon"] as maplibregl.FilterSpecification;
+      const polygon = ["==", ["geometry-type"], "Polygon"] as ExpressionSpecification;
+      const line = ["==", ["geometry-type"], "LineString"] as ExpressionSpecification;
       const layer = { source: src, "source-layer": "data" } as const;
       if (/POLYGON/.test(types) || !types) {
-        map.addLayer({ id: `${src}-fill`, type: "fill", ...layer, filter: polygon, paint: { "fill-color": color, "fill-opacity": active && isRaster ? 0.04 : 0.35 } });
-        map.addLayer({ id: `${src}-outline`, type: "line", ...layer, filter: polygon, paint: { "line-color": color, "line-width": 1 } });
+        const fill = { "fill-color": color, "fill-opacity": active && isRaster ? 0.04 : 0.35 };
+        map.addLayer({ id: `${src}-fill`, type: "fill", ...layer, filter: ["all", polygon, ["!=", ["get", "r"], 1]], paint: fill });
+        // pièces d'un polygone découpé : sans anticrénelage (il trace le bord de chaque pièce, donc les coupes)
+        map.addLayer({ id: `${src}-cut-fill`, type: "fill", ...layer, filter: ["all", polygon, ["==", ["get", "r"], 1]], paint: { ...fill, "fill-antialias": false } });
+        // un polygone fusionné énorme est découpé en pièces (`r` 1, sans bord : les coupes) et son contour vient à part
+        // (lignes, `r` 2)
+        const outline = ["any", ["all", polygon, ["!=", ["get", "r"], 1]], ["all", line, ["==", ["get", "r"], 2]]] as ExpressionSpecification;
+        map.addLayer({ id: `${src}-outline`, type: "line", ...layer, filter: outline, paint: { "line-color": color, "line-width": 1 } });
       }
-      if (/LINESTRING/.test(types) || !types) map.addLayer({ id: `${src}-line`, type: "line", ...layer, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": color, "line-width": 2 } });
+      if (/LINESTRING/.test(types) || !types) map.addLayer({ id: `${src}-line`, type: "line", ...layer, filter: ["all", line, ["!=", ["get", "r"], 2]], paint: { "line-color": color, "line-width": 2 } });
       if (/POINT/.test(types) || !types) {
         map.addLayer({ id: `${src}-circle`, type: "circle", ...layer, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": color, "circle-radius": 4, "circle-stroke-color": "#fff", "circle-stroke-width": 1 } });
       }
@@ -229,7 +354,7 @@ export function MapView({ info }: { info: PortInfo }) {
     }
     if (map.getLayer("basemap")) map.moveLayer("basemap", firstDataLayer(map));
     for (const id of [`${SELECTION}-fill`, `${SELECTION}-line`, `${SELECTION}-circle`]) if (map.getLayer(id)) map.moveLayer(id); // la sélection reste au-dessus
-  }, [ready, sources, query, colorBy, colors, isRaster]);
+  }, [ready, sources, query, colorBy, coloring, coloringPending, isRaster]);
   useEffect(() => () => void (drawn.current = {}), []); // nouvelle carte : tout est à recréer
 
   // --- cadrage sur les données quand on change de port
@@ -248,8 +373,10 @@ export function MapView({ info }: { info: PortInfo }) {
     if (!map || !ready) return;
     map.addSource(SELECTION, { type: "geojson", data: EMPTY as unknown as GeoData });
     const yellow = "#ffd43b";
-    map.addLayer({ id: `${SELECTION}-fill`, type: "fill", source: SELECTION, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": yellow, "fill-opacity": 0.3 } });
-    map.addLayer({ id: `${SELECTION}-line`, type: "line", source: SELECTION, filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": yellow, "line-width": 4 } });
+    map.addLayer({ id: `${SELECTION}-fill`, type: "fill", source: SELECTION, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": yellow, "fill-opacity": 0.3, "fill-antialias": false } }); // le bord : la couche de ligne
+    // `edges` : polygone découpé, son contour est dans les lignes de la géométrie (pas le bord de chaque pièce)
+    const outline = ["all", ["!=", ["geometry-type"], "Point"], ["any", ["!", ["to-boolean", ["get", "edges"]]], ["==", ["geometry-type"], "LineString"]]];
+    map.addLayer({ id: `${SELECTION}-line`, type: "line", source: SELECTION, filter: outline as maplibregl.FilterSpecification, paint: { "line-color": yellow, "line-width": 4 } });
     map.addLayer({ id: `${SELECTION}-circle`, type: "circle", source: SELECTION, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": yellow, "circle-radius": 9, "circle-stroke-color": "#212529", "circle-stroke-width": 2 } });
   }, [ready]);
 
@@ -289,7 +416,7 @@ export function MapView({ info }: { info: PortInfo }) {
     const map = mapRef.current;
     if (!map || !ready) return;
     const report = () => {
-      const ids = ["fill", "line", "circle"].map((k) => `data-0-${k}`).filter((id) => map.getLayer(id));
+      const ids = CLICKABLE.map((k) => `data-0-${k}`).filter((id) => map.getLayer(id));
       box.current?.setAttribute("data-features", String(ids.length ? map.queryRenderedFeatures({ layers: ids }).length : 0));
     };
     // l'ordre des couches, à chaque changement de style : le fond de plan doit être sous toutes les données
@@ -321,7 +448,8 @@ export function MapView({ info }: { info: PortInfo }) {
     let alive = true;
     void api.dataFeature(target, selectedFid).then((f) => {
       if (!alive) return;
-      selection?.setData(f.geometry ? ({ type: "Feature", properties: {}, geometry: f.geometry } as unknown as GeoData) : (EMPTY as unknown as GeoData));
+      const properties = { edges: f.outline === "edges" };
+      selection?.setData(f.geometry ? ({ type: "Feature", properties, geometry: f.geometry } as unknown as GeoData) : (EMPTY as unknown as GeoData));
       if (!f.bbox) return;
       const [w, s, e, n] = f.bbox;
       const center: [number, number] = [(w + e) / 2, (s + n) / 2];
@@ -337,43 +465,32 @@ export function MapView({ info }: { info: PortInfo }) {
     };
   }, [selectedFid, target, ready]);
 
-  // --- clic : sélectionne l'entité (la table défile jusqu'à elle) et affiche ses attributs
+  // --- clic : sélectionne l'entité, la table défile jusqu'à sa ligne (ses attributs y sont : pas de bulle) ; un
+  // raster montre la valeur du pixel, qui n'est pas dans la table
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const onClick = (ev: maplibregl.MapMouseEvent) => {
-      const ids = ["fill", "line", "circle"].map((k) => `data-0-${k}`).filter((id) => map.getLayer(id));
+      const ids = CLICKABLE.map((k) => `data-0-${k}`).filter((id) => map.getLayer(id));
       const hit = ids.length ? map.queryRenderedFeatures(ev.point, { layers: ids })[0] : undefined;
       const fid = typeof hit?.id === "number" ? hit.id : null;
       void useInspector.getState().select(fid, "map");
       popup.current?.remove();
-      if (target && rasterFid !== null) {
-        void showPixel(map, target, rasterFid, ev.lngLat, popup);
-        return;
-      }
-      if (fid === null || !target) return;
-      void api.dataFeature(target, fid).then((f) => {
-        const el = document.createElement("div");
-        el.className = "feature-popup";
-        const table = document.createElement("table");
-        for (const [k, v] of Object.entries(f.attributes)) {
-          const tr = table.insertRow();
-          tr.insertCell().textContent = k;
-          tr.insertCell().textContent = v === null ? "" : String(v);
-        }
-        el.append(table);
-        popup.current = new maplibregl.Popup({ maxWidth: "320px" }).setLngLat(ev.lngLat).setDOMContent(el).addTo(map);
-      });
+      if (target && rasterFid !== null) void showPixel(map, target, rasterFid, ev.lngLat, popup);
     };
     map.on("click", onClick);
     const pointer = () => (map.getCanvas().style.cursor = "pointer");
     const reset = () => (map.getCanvas().style.cursor = "");
-    for (const k of ["fill", "line", "circle"]) {
+    for (const k of CLICKABLE) {
       map.on("mouseenter", `data-0-${k}`, pointer);
       map.on("mouseleave", `data-0-${k}`, reset);
     }
     return () => {
       map.off("click", onClick);
+      for (const k of CLICKABLE) {
+        map.off("mouseenter", `data-0-${k}`, pointer);
+        map.off("mouseleave", `data-0-${k}`, reset);
+      }
     };
   }, [ready, target, sources, rasterFid]);
 
@@ -381,8 +498,14 @@ export function MapView({ info }: { info: PortInfo }) {
     <div className="map-wrap">
       <div className="map" ref={box} data-testid="map" />
       {(!ready || tilesLoading) && (
-        <div className="map-loading" data-testid="map-loading">
+        <div className="float-status" data-testid="map-loading">
           <Spinner size={12} /> {t("Chargement de la carte…")}
+        </div>
+      )}
+      {hasLegend && legendOpen && <Legend layers={legendLayers} column={colorBy} />}
+      {tileError !== null && (
+        <div className="map-warning" role="status" title={tileError}>
+          {t("Certaines zones de la carte n'ont pas pu être dessinées.")}
         </div>
       )}
       <div className="map-config">

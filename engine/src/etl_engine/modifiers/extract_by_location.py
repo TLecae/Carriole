@@ -12,7 +12,7 @@ from pydantic import Field
 
 from etl_engine.blocking import collect
 from etl_engine.data import GEOM, geometries
-from etl_engine.sdk import REJECTED, ConfigError, Emit, Modifier, Params, ordered_map, reject
+from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, ConfigError, Emit, Modifier, Params, ordered_map, reject, slices
 from etl_engine.spatial import Predicate, SpatialIndex, check_same_crs
 
 
@@ -79,7 +79,9 @@ class ExtractByLocation(Modifier):
             return out, int((passed & ~missing).sum()), cand.num_rows
 
         kept = total = 0
-        for out, n_kept, n in ordered_map(split, inputs.get("candidate", ()), self.ctx.workers, self.ctx):
+        for out, n_kept, n in ordered_map(
+            split, slices(inputs.get("candidate", ()), GEOMETRY_SLICE), self.ctx.workers, self.ctx
+        ):
             for port, table in out:
                 emit(port, table)
             kept, total = kept + n_kept, total + n

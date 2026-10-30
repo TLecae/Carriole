@@ -12,7 +12,7 @@ from pydantic import Field
 
 from etl_engine.blocking import collect, group_codes, group_slices
 from etl_engine.data import GEOM, geometries, get_crs, with_crs
-from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import AttributeList, Emit, Modifier, Params, missing_attributes
 
 _MULTI = {0: shapely.multipoints, 1: shapely.multilinestrings, 3: shapely.multipolygons}
 
@@ -88,7 +88,7 @@ class Aggregate(Modifier):
         p = self.params
         missing = [a for a in [*p.group_by, *p.sum_attributes] if a not in table.column_names]
         if missing:
-            raise ConfigError(f"attributs absents : {missing}")
+            raise missing_attributes(missing)
         n = table.num_rows
         codes, count = group_codes(table, list(p.group_by))
         order, bounds = group_slices(codes, count)

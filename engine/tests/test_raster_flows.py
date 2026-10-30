@@ -1,5 +1,6 @@
 """Flux de rasters de bout en bout : les deux cas d'usage du jalon 14, sans réseau."""
 
+import shutil
 import threading
 import time
 
@@ -188,3 +189,33 @@ def test_memory_stays_bounded_on_a_large_raster(registry, tmp_path):
         window = rasterio.windows.Window(2500, 2500, 100, 100)
         red, nir = rasterio.open(path).read(window=window).astype("float32")
         assert np.allclose(ds.read(1, window=window), (nir - red) / (nir + red), atol=1e-5)
+
+
+def test_reused_rasters_survive_the_purge_of_the_previous_run(registry, tmp_path):
+    """Un nœud raster repris : ses fichiers (sous-dossier `rasters/`) passent dans le nouveau run, et les chemins des
+    ports et des VRT désignent ce run : supprimer l'ancien ne casse rien."""
+    z = np.arange(40 * 80, dtype="float32").reshape(40, 80)
+    for name, cols in (("dalle_1", slice(0, 40)), ("dalle_2", slice(40, 80))):
+        make_raster(tmp_path / f"{name}.tif", z[:, cols], origin=(600000.0 + cols.start * 10, 6500000.0))
+    nodes = [
+        {"id": "r", "type": "RasterReader", "params": {"path": str(tmp_path / "dalle_*.tif")}},
+        {"id": "m", "type": "MergeRasters", "params": {}},
+        {"id": "t", "type": "TerrainAnalysis", "params": {"products": ["slope"]}},
+        {"id": "w", "type": "RasterWriter", "params": {"path": str(tmp_path / "pente.tif")}},
+    ]
+    links = [("r", "output", "m", "input"), ("m", "output", "t", "input"), ("t", "output", "w", "input")]
+    flow = make_flow(nodes, links)
+    assert run_flow(flow, registry, tmp_path / "run1").status == "done"
+    partial = run_flow(flow, registry, tmp_path / "run2", reuse_from=tmp_path / "run1", target="t")
+    assert {partial.nodes[n].status for n in ("r", "m", "t")} == {"cached"}, partial.error
+    shutil.rmtree(tmp_path / "run1")
+    for node in ("m", "t"):
+        uris = pq.read_table(tmp_path / "run2" / node / "output.parquet").column("raster").to_pylist()
+        assert all(str(tmp_path / "run2") in u["uri"] for u in uris)
+    (tmp_path / "pente.tif").unlink()
+    aspect = make_flow([*nodes[:2], {**nodes[2], "params": {"products": ["aspect"]}}, nodes[3]], links)
+    again = run_flow(aspect, registry, tmp_path / "run3", reuse_from=tmp_path / "run2")  # relit la mosaïque reprise
+    assert again.status == "done", again.error
+    assert again.nodes["m"].status == "cached" and again.nodes["t"].status == "done"
+    with rasterio.open(tmp_path / "pente.tif") as ds:
+        assert (ds.width, ds.height) == (80, 40)

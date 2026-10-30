@@ -82,11 +82,11 @@ class Polygonize(Modifier):
             n = len(found)
             table = pa.table({"_row": pa.array(range(n), pa.int64())})
             for k, v in attributes.items():
-                table = table.append_column(k, pa.array([v[r]] * n))
+                table = table.append_column(k, pa.repeat(v[r], n))
             table = table.drop_columns(["_row"])
-            table = table.append_column("band", pa.array([p.band] * n, pa.int64()))
+            table = table.append_column("band", pa.repeat(pa.scalar(p.band, pa.int64()), n))
             table = table.append_column(p.value_attribute, pa.array([v for _, v in found], pa.float64()))
-            table = table.append_column(GEOM, pa.array([None] * n, pa.binary()))
+            table = table.append_column(GEOM, pa.nulls(n, pa.binary()))
             pieces.append(set_geometries(table, np.array([g for g, _ in found], dtype=object), desc["crs"]))
         if not pieces:
             return {}

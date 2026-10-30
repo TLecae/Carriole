@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 from urllib.parse import quote
@@ -16,7 +16,7 @@ import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine.data import get_crs, with_crs
-from etl_engine.sdk import ConfigError, Modifier, Params
+from etl_engine.sdk import REJECTED, ConfigError, Emit, Modifier, Params, missing_attributes, reject
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 MAX_BODY = 5_000_000  # octets de réponse conservés par appel
@@ -56,12 +56,11 @@ class HttpRequest(Modifier):
         "L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité avec {attribut} (dans l'adresse, la "
         "valeur est encodée). Exemple : https://api-adresse.data.gouv.fr/search/?q={adresse}&limit=1. Les entités dont la "
         "réponse a un code inférieur à 400 sortent sur « output » avec le corps de la réponse (attribut `_http_body`) "
-        "et le code (`_http_status`) ; les autres sortent sur « Failed » avec `_http_error`. Les appels se font en "
+        "et le code (`_http_status`) ; les autres sortent sur « Rejected » avec le motif (`_rejection_reason`). Les appels se font en "
         "parallèle (« Appels simultanés ») avec un débit maximal par seconde, et sont repris en cas d'erreur réseau, de "
         "code 429 ou 5xx. Le proxy du poste (HTTPS_PROXY) est utilisé. Pour lire le JSON reçu : « Extraire du JSON »."
     )
-    outputs = ("output", "Failed")
-    rejected = False
+    rejected = True
     stateful = True
 
     class Params(Params):
@@ -113,15 +112,15 @@ class HttpRequest(Modifier):
         self._check()
         schema = inputs.get("input")
         if schema is None:
-            return {"output": None, "Failed": None}
+            return {"output": None}
         missing = [n for n in self.used_attributes() if n not in schema.names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         p = self.params
         ok = schema
         for field in (pa.field(p.body_attribute, pa.string()), pa.field(p.status_attribute, pa.int64())):
             ok = ok.set(ok.get_field_index(field.name), field) if field.name in ok.names else ok.append(field)
-        return {"output": ok, "Failed": ok.append(pa.field("_http_error", pa.string()))}
+        return {"output": ok}
 
     @staticmethod
     def _fill(template: str, row: Mapping[str, Any], encode: bool) -> str:
@@ -166,19 +165,37 @@ class HttpRequest(Modifier):
                     time.sleep(min(2**attempt, 10))
         return None, None, error
 
+    def run(self, inputs: Mapping[str, Iterable[pa.Table]], emit: Emit) -> None:
+        """Un client (connexions gardées ouvertes), un pool et un limiteur de débit pour tout le run, pas un par lot."""
+        p = self.params
+        with (
+            httpx.Client(timeout=p.timeout, follow_redirects=True) as client,
+            ThreadPoolExecutor(p.concurrency) as pool,
+        ):
+            self._session = (client, pool, RateLimiter(p.rate))
+            try:
+                super().run(inputs, emit)
+            finally:
+                self._session = None
+
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         self._check()
         p = self.params
         missing = [n for n in self.used_attributes() if n not in batch.column_names]
         if missing:
-            raise ConfigError(f"attributs absents : {', '.join(missing)}")
+            raise missing_attributes(missing)
         names = sorted({*self.used_attributes()})
         rows = batch.select(names).to_pylist() if names else [{}] * batch.num_rows
-        limiter = RateLimiter(p.rate)
-        with (
-            httpx.Client(timeout=p.timeout, follow_redirects=True) as client,
-            ThreadPoolExecutor(p.concurrency) as pool,
-        ):
+        session = getattr(self, "_session", None)
+        if session is None:  # lot traité seul (hors d'un run)
+            with (
+                httpx.Client(timeout=p.timeout, follow_redirects=True) as client,
+                ThreadPoolExecutor(p.concurrency) as pool,
+            ):
+                limiter = RateLimiter(p.rate)
+                results = list(pool.map(lambda r: self._call(client, limiter, r), rows))
+        else:
+            client, pool, limiter = session
             results = list(pool.map(lambda r: self._call(client, limiter, r), rows))
         codes = pa.array([r[0] for r in results], pa.int64())
         bodies = pa.array([r[1] for r in results], pa.string())
@@ -197,5 +214,5 @@ class HttpRequest(Modifier):
         if good.num_rows:
             result["output"] = good
         if bad.num_rows:
-            result["Failed"] = with_crs(bad.append_column("_http_error", errors.filter(pc.invert(ok))), get_crs(batch))
+            result[REJECTED] = with_crs(reject(bad, errors.filter(pc.invert(ok))), get_crs(batch))
         return result

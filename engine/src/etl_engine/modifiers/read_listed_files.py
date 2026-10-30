@@ -10,7 +10,17 @@ import pyarrow as pa
 from pydantic import Field
 
 from etl_engine import formats, paths
-from etl_engine.sdk import Attribute, AttributeList, ConfigError, Crs, Emit, FilePath, Modifier, Params
+from etl_engine.sdk import (
+    Attribute,
+    AttributeList,
+    ConfigError,
+    Crs,
+    Emit,
+    FilePath,
+    Modifier,
+    Params,
+    missing_attributes,
+)
 
 Format = Literal["auto", "parquet", "gpkg", "csv", "geojson", "fgb", "shp", "tab", "mif", "xlsx"]
 
@@ -55,7 +65,7 @@ class ReadListedFiles(Modifier):
     description = "Lit le fichier désigné par chaque entité reçue et envoie leurs entités."
     help = (
         "Chaque entité reçue donne un chemin de fichier (attribut « Chemin ») ; le fichier est lu avec les mêmes "
-        "réglages que « Lecture de fichier » et ses entités sont envoyées. Les schémas des fichiers sont réunis par "
+        "réglages que le lecteur de son format et ses entités sont envoyées. Les schémas des fichiers sont réunis par "
         "nom d'attribut : un attribut absent d'un fichier est vide, deux types incompatibles deviennent du texte. Pour "
         "que le schéma soit connu avant l'exécution (formulaires des nœuds suivants), indiquer un fichier d'exemple. "
         "« Attributs à recopier » ajoute à chaque entité lue des attributs de l'entité reçue (par exemple stem, le nom "
@@ -156,7 +166,7 @@ class ReadListedFiles(Modifier):
                 raise ConfigError(f"attribut absent : {p.path_attribute}")
             missing = [a for a in p.copy_attributes if a not in batch.column_names]
             if missing:
-                raise ConfigError(f"attributs absents : {', '.join(missing)}")
+                raise missing_attributes(missing)
             for name in p.copy_attributes:
                 types.setdefault(name, batch.schema.field(name).type)
             copied = batch.select(p.copy_attributes).to_pylist() if p.copy_attributes else [{}] * batch.num_rows
@@ -200,10 +210,14 @@ class ReadListedFiles(Modifier):
                 for batch in formats.read_batches(self._fmt(path), path, self.ctx.batch_rows, **opts):
                     self.ctx.check_cancel()
                     if p.add_filename and "filename" not in batch.column_names:
-                        batch = batch.append_column("filename", pa.array([os.path.basename(path)] * batch.num_rows))
+                        batch = batch.append_column(
+                            "filename", pa.repeat(pa.scalar(os.path.basename(path), pa.string()), batch.num_rows)
+                        )
                     batch = conform(batch, union)
                     for name in p.copy_attributes:
-                        batch = batch.append_column(name, pa.array([attrs.get(name)] * batch.num_rows, types[name]))
+                        batch = batch.append_column(
+                            name, pa.repeat(pa.scalar(attrs.get(name), types[name]), batch.num_rows)
+                        )
                     total += batch.num_rows
                     self.ctx.progress(total)
                     emit("output", batch)

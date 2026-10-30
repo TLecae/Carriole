@@ -13,10 +13,9 @@ from pydantic import Field
 from rasterio.windows import Window
 
 from etl_engine.blocking import collect
-from etl_engine.data import GEOM, geometries, get_crs, with_crs
-from etl_engine.modifiers.clip_raster_by_mask import to_crs
+from etl_engine.data import GEOM, geometries, get_crs, to_crs, with_crs
 from etl_engine.raster import core
-from etl_engine.sdk import ConfigError, Emit, Modifier, Params
+from etl_engine.sdk import GEOMETRY_SLICE, ConfigError, Emit, Modifier, Params, slices
 
 MAX_WINDOW_PIXELS = 16_000_000
 
@@ -74,15 +73,14 @@ class SampleRasterValues(Modifier):
         descs = core.descriptors(rasters)
         bands = self._selected(descs[0])
         names = [f"{p.prefix}{b}" for _, b in bands]
-        for batch in inputs.get("points", ()):
+        for batch in slices(inputs.get("points", ()), GEOMETRY_SLICE):
             self.ctx.check_cancel()
             if GEOM not in batch.column_names:
                 raise ConfigError("les entités « points » n'ont pas de géométrie")
             geoms = geometries(batch)
-            ok = np.array([g is not None and not g.is_empty for g in geoms], dtype=bool)
-            reps = np.array(
-                [shapely.point_on_surface(g) if g is not None and not g.is_empty else None for g in geoms], dtype=object
-            )
+            ok = ~shapely.is_missing(geoms) & ~shapely.is_empty(geoms)
+            reps = np.full(len(geoms), None, dtype=object)
+            reps[ok] = shapely.point_on_surface(geoms[ok])
             values = np.full((len(bands), len(geoms)), np.nan)
             used = np.full(len(geoms), -1, dtype=np.int64)
             todo = ok.copy()
@@ -121,14 +119,14 @@ class SampleRasterValues(Modifier):
                     todo[positions] = False
             out = batch
             for k, name in enumerate(names):
-                column = pa.array(np.where(np.isnan(values[k]), None, values[k]).tolist(), pa.float64())
+                column = pa.array(values[k], pa.float64(), from_pandas=True)  # NaN : pas de valeur
                 out = (
                     out.set_column(out.column_names.index(name), name, column)
                     if name in out.column_names
                     else out.append_column(name, column)
                 )
             if len(descs) > 1:
-                out = out.append_column("_raster", pa.array([None if u < 0 else int(u) for u in used], pa.int64()))
+                out = out.append_column("_raster", pa.array(used, pa.int64(), mask=used < 0))
             covered = used >= 0
             if covered.any():
                 emit("output", with_crs(out.filter(pa.array(covered)), get_crs(batch)))

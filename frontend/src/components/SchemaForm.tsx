@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError, api } from "../api/client";
 import type { JsonSchema, PgTableInfo } from "../api/types";
-import { defaultValue, labelOf, resolveSchema, typeOf, widgetOf } from "../model/schema";
+import { defaultValue, fieldMatches, labelOf, resolveSchema, textMatches, typeOf, widgetOf } from "../model/schema";
 import { pickPath } from "../platform";
 import { resolvePreview, type VariableHint } from "../model/variables";
 import { kindLabel } from "../model/databases";
@@ -12,10 +12,17 @@ import { Spinner } from "./Spinner";
 
 export interface FormCtx {
   defs: Record<string, JsonSchema>;
-  attributes: string[]; // attributs disponibles en amont du nœud
+  attributes: string[]; // attributs disponibles en amont du nœud (toutes entrées)
+  inputAttributes: Record<string, string[]>; // ceux de chaque entrée : un champ qui désigne la sienne (`x-etl-input`)
   parameters: string[]; // paramètres publiés du flux
   variables: VariableHint[]; // tout ce qui peut s'écrire entre ${ et }
 }
+
+/** Attributs proposés par un champ : ceux de son entrée s'il en désigne une, sinon ceux de toutes les entrées. */
+const attributesFor = (s: JsonSchema, ctx: FormCtx): string[] => {
+  const port = s["x-etl-input"];
+  return port ? (ctx.inputAttributes[port] ?? []) : ctx.attributes;
+};
 
 // CodeMirror est chargé à la demande : seuls les nœuds qui ont un champ de code le paient.
 const CodeEditor = lazy(() => import("./CodeEditor"));
@@ -31,13 +38,23 @@ interface EditorProps {
   compact?: boolean;
 }
 
+const SEARCH_FROM = 7; // champs à partir desquels le formulaire propose une recherche
+const FILTER_FROM = 9; // choix à partir desquels une liste à cocher propose un filtre
+
 /** Formulaire généré depuis le JSON Schema Pydantic des paramètres d'un modificateur. */
 export function SchemaForm(props: { schema: JsonSchema; value: Record<string, unknown>; onChange: (v: Record<string, unknown>) => void; ctx: FormCtx }) {
+  const [query, setQuery] = useState("");
   const root = resolveSchema(props.schema, props.ctx.defs);
   const entries = Object.entries(root.properties ?? {});
   if (!entries.length) return <p className="muted">{t("Ce modificateur n'a pas de paramètre.")}</p>;
+  // les champs écartés par la recherche sont masqués, pas retirés : un éditeur de code garde son état
+  const shown = new Set(entries.filter(([key, raw]) => fieldMatches(key, raw, props.ctx.defs, query)).map(([key]) => key));
   return (
     <div className="form">
+      {entries.length >= SEARCH_FROM && (
+        <input type="search" className="form-search" value={query} placeholder={t("Rechercher un paramètre…")} aria-label={t("Rechercher un paramètre…")} onChange={(e) => setQuery(e.target.value)} />
+      )}
+      {!shown.size && <p className="muted">{t("Aucun paramètre ne correspond.")}</p>}
       {entries.map(([key, raw]) => {
         const s = resolveSchema(raw, props.ctx.defs);
         const value = props.value[key] ?? defaultValue(raw, props.ctx.defs);
@@ -47,6 +64,7 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
         return (
           <Field
             key={key}
+            hidden={!shown.has(key)}
             label={labelOf(key, s)}
             hint={s.description}
             inline={typeOf(s) === "boolean"}
@@ -65,7 +83,7 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
 }
 
 /** Un champ simple est un `<label>` (le clic sur le libellé active le champ) ; un champ composé est un groupe. */
-function Field({ label, hint, inline, simple, children }: { label: string; hint?: string; inline?: boolean; simple: boolean; children: ReactNode }) {
+function Field({ label, hint, inline, simple, hidden, children }: { label: string; hint?: string; inline?: boolean; simple: boolean; hidden?: boolean; children: ReactNode }) {
   const body = (
     <>
       <span className="field-label">{label}</span>
@@ -75,11 +93,11 @@ function Field({ label, hint, inline, simple, children }: { label: string; hint?
   );
   const className = inline ? "field inline" : "field";
   return simple ? (
-    <label className={className} title={hint}>
+    <label className={className} title={hint} hidden={hidden}>
       {body}
     </label>
   ) : (
-    <div className={className} role="group" aria-label={label} title={hint}>
+    <div className={className} role="group" aria-label={label} title={hint} hidden={hidden}>
       {body}
     </div>
   );
@@ -92,7 +110,8 @@ function Editor({ label, schema, value, onChange, ctx, compact }: EditorProps) {
 
   if (kind === "array") {
     const item = resolveSchema(s.items, ctx.defs);
-    if (widget === "attributes") return <AttributeChips value={asArray(value) as string[]} onChange={onChange} ctx={ctx} label={label} />;
+    if (widget === "attributes") return <CheckList value={asArray(value) as string[]} options={attributesFor(s, ctx)} free onChange={onChange} label={label} />;
+    if (item.enum) return <CheckList value={asArray(value) as string[]} options={item.enum.map(String)} onChange={onChange} label={label} />;
     if (typeOf(item) === "object") return <ObjectTable schema={item} rawItem={s.items!} value={asArray(value)} onChange={onChange} ctx={ctx} />;
     return <StringList item={item} value={asArray(value) as string[]} onChange={onChange} ctx={ctx} label={label} />;
   }
@@ -121,7 +140,7 @@ function Editor({ label, schema, value, onChange, ctx, compact }: EditorProps) {
   }
   if (widget === "connection") return <ConnectionSelect value={String(value ?? "")} onChange={onChange} label={label} kinds={s["x-etl-kinds"] as string[] | undefined} />;
   const example = typeof s.examples?.[0] === "string" ? s.examples[0] : undefined;
-  return <TextEditor widget={widget} value={String(value ?? "")} onChange={onChange} ctx={ctx} compact={compact} label={label} example={example} access={s["x-etl-access"]} codeLanguage={s["x-etl-language"]} extensions={s["x-etl-extensions"] as string[] | undefined} />;
+  return <TextEditor widget={widget} value={String(value ?? "")} onChange={onChange} ctx={ctx} compact={compact} label={label} example={example} access={s["x-etl-access"]} codeLanguage={s["x-etl-language"]} extensions={s["x-etl-extensions"] as string[] | undefined} inputPort={s["x-etl-input"]} />;
 }
 
 interface TextEditorProps {
@@ -135,9 +154,10 @@ interface TextEditorProps {
   access?: "read" | "write";
   codeLanguage?: "python" | "sql"; // champ de code : langage de l'éditeur
   extensions?: string[]; // champ chemin : l'explorateur ne montre que ces fichiers (lecteur d'un format)
+  inputPort?: string; // champ attribut : l'entrée dont il vient (modificateur à plusieurs entrées)
 }
 
-function TextEditor({ widget, value, onChange, ctx, compact, label, example, access, codeLanguage = "python", extensions }: TextEditorProps) {
+function TextEditor({ widget, value, onChange, ctx, compact, label, example, access, codeLanguage = "python", extensions, inputPort }: TextEditorProps) {
   const listId = useId();
   // Dialogue natif dans l'application de bureau, sinon explorateur du serveur (monté hors de ce champ : voir PickerHost).
   const browse = async () => {
@@ -199,7 +219,7 @@ function TextEditor({ widget, value, onChange, ctx, compact, label, example, acc
     );
   }
   if (widget === "connection") return <ConnectionSelect value={value} onChange={onChange} label={label} />;
-  const suggestions = widget === "attribute" ? ctx.attributes : widget === "crs" ? CRS_PRESETS : [];
+  const suggestions = widget === "attribute" ? attributesFor({ "x-etl-input": inputPort }, ctx) : widget === "crs" ? CRS_PRESETS : [];
   const placeholder = example ?? (widget === "path" ? t("/data/sources/fichier.gpkg") : widget === "crs" ? "EPSG:2154" : undefined);
   const input = (
     <input ref={field} type="text" aria-label={label} list={suggestions.length ? listId : undefined} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
@@ -272,30 +292,68 @@ function VariablePreview({ value, ctx }: { value: string; ctx: FormCtx }) {
   );
 }
 
-function AttributeChips({ value, onChange, ctx, label }: { value: string[]; onChange: (v: unknown) => void; ctx: FormCtx; label?: string }) {
-  const free = ctx.attributes.filter((a) => !value.includes(a));
+/** Choix multiple à cases à cocher. Cocher ajoute à la fin, décocher retire : l'ordre des choix est gardé (il compte
+ * pour garder des attributs ou joindre sur plusieurs clés). Un choix absent des options (attribut absent en amont)
+ * reste visible ; `free` : un nom peut être saisi (amont sans schéma connu). */
+function CheckList({ value, options, onChange, label, free }: { value: string[]; options: string[]; onChange: (v: unknown) => void; label?: string; free?: boolean }) {
+  const [filter, setFilter] = useState("");
+  const [typed, setTyped] = useState("");
+  const known = new Set(options);
+  const all = [...options, ...value.filter((v) => !known.has(v))];
+  const visible = all.filter((o) => textMatches(filter, o));
+  const toggle = (o: string, on: boolean) => onChange(on ? [...value, o] : value.filter((v) => v !== o));
+  const add = () => {
+    const name = typed.trim();
+    if (name && !value.includes(name)) onChange([...value, name]);
+    setTyped("");
+  };
+  const name = label ?? t("Attributs");
   return (
-    <div className="chips">
-      {value.map((a) => (
-        <span className="chip" key={a}>
-          {a}
-          <button type="button" aria-label={t("Retirer {{name}}", { name: a })} onClick={() => onChange(value.filter((x) => x !== a))}>
-            ×
+    <div className="check-list">
+      {all.length >= FILTER_FROM && <input type="search" value={filter} placeholder={t("Filtrer…")} aria-label={t("{{label}} : filtrer", { label: name })} onChange={(e) => setFilter(e.target.value)} />}
+      {all.length > 0 && (
+        <div className="check-actions">
+          <button type="button" className="link" onClick={() => onChange([...value, ...visible.filter((o) => !value.includes(o))])}>
+            {t("tous")}
           </button>
-        </span>
-      ))}
-      <select aria-label={t("{{label}} : ajouter", { label: label ?? t("Attributs") })} value="" onChange={(e) => e.target.value && onChange([...value, e.target.value])}>
-        <option value="">{t("+ ajouter")}</option>
-        {free.map((a) => (
-          <option key={a} value={a}>
-            {a}
-          </option>
-        ))}
-      </select>
-      {free.length > 1 && (
-        <button type="button" className="link" onClick={() => onChange([...value, ...free])}>
-          {t("tous")}
-        </button>
+          <button type="button" className="link" onClick={() => onChange(value.filter((v) => !visible.includes(v)))}>
+            {t("aucun")}
+          </button>
+          {value.length > 0 && <span className="muted">{t("{{n}} choisi(s)", { n: value.length })}</span>}
+        </div>
+      )}
+      {all.length > 0 && (
+        <div className="check-options" role="group" aria-label={name}>
+          {visible.map((o) => (
+            <label key={o} className={known.has(o) ? undefined : "absent"}>
+              <input type="checkbox" checked={value.includes(o)} onChange={(e) => toggle(o, e.target.checked)} />
+              <span>{o}</span>
+              {!known.has(o) && <small className="muted">{t("absent en amont")}</small>}
+            </label>
+          ))}
+          {!visible.length && <small className="muted">{t("Aucun résultat.")}</small>}
+        </div>
+      )}
+      {value.length > 1 && <small className="muted check-order">{t("Ordre : {{list}}", { list: value.join(", ") })}</small>}
+      {free && (
+        <div className="list-row">
+          <input
+            type="text"
+            value={typed}
+            placeholder={options.length ? t("Autre attribut…") : t("Nom d'attribut (amont pas encore connu)…")}
+            aria-label={t("{{label}} : saisir un nom", { label: name })}
+            onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+          <button type="button" onClick={add} disabled={!typed.trim()}>
+            {t("+ Ajouter")}
+          </button>
+        </div>
       )}
     </div>
   );

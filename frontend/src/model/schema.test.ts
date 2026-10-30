@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { JsonSchema } from "../api/types";
-import { defaultValue, labelOf, resolveSchema, typeOf, widgetOf } from "./schema";
+import { defaultValue, fieldMatches, labelOf, resolveSchema, textMatches, typeOf, widgetOf } from "./schema";
 
 const defs: Record<string, JsonSchema> = {
   Rule: {
@@ -32,5 +32,25 @@ describe("schéma de paramètres", () => {
     expect(labelOf("new_name", {})).toBe("New name");
     expect(labelOf("x", { title: "Nouveau nom" })).toBe("Nouveau nom");
     expect(widgetOf({ "x-etl-widget": "crs" })).toBe("crs");
+  });
+});
+
+describe("recherche d'un paramètre", () => {
+  const defs = {};
+  const functions: JsonSchema = { title: "Statistiques", type: "array", items: { enum: ["count", "sum", "median"] }, description: "Calculées pour chaque attribut." };
+
+  it("ignore la casse et les accents, et demande tous les mots", () => {
+    expect(textMatches("evaluee", "Expression évaluée")).toBe(true);
+    expect(textMatches("EXPRESSION éval", "Expression évaluée")).toBe(true);
+    expect(textMatches("expression date", "Expression évaluée")).toBe(false);
+    expect(textMatches("  ", "n'importe quoi")).toBe(true);
+  });
+
+  it("cherche dans le libellé, le nom, la description et les valeurs proposées", () => {
+    expect(fieldMatches("functions", functions, defs, "statist")).toBe(true);
+    expect(fieldMatches("functions", functions, defs, "function")).toBe(true);
+    expect(fieldMatches("functions", functions, defs, "chaque attribut")).toBe(true);
+    expect(fieldMatches("functions", functions, defs, "médiane")).toBe(false);
+    expect(fieldMatches("functions", functions, defs, "median")).toBe(true);
   });
 });

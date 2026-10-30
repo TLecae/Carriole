@@ -67,7 +67,8 @@ any node parameter: `${NAME}`; environment variable of the machine: `${env:NAME}
     web API and STAC readers, SQL and launched flows **always run again** with *Run* (their source can change
     without the flow changing), with all their downstream; *Up to node* reuses the reads (not the writes). *Run
     everything again* (*Run* menu) recomputes everything;
-  - **off**: everything is recomputed and nothing is kept: faster and less disk, but no inspector.
+  - **off**: everything is recomputed and nothing is kept: faster and less disk, but no inspector (except for the
+    last nodes of the flow). An unconnected output (`Failed` of a filter…) is only counted.
 - **Disk space** (desktop application): only the data of the **last run of each open flow** is kept, plus that of the
   running runs. Closing the flow (opening another flow, *New flow*) or the window deletes it within seconds; after a
   crash, at the next start. The log and counts of runs stay available in *Runs*, without their data.
@@ -83,7 +84,17 @@ any node parameter: `${NAME}`; environment variable of the machine: `${env:NAME}
 
 **Data** tab: click a node or a connection (the tab shows up). Table (sort, per-column filter, search, free `WHERE` clause) and **map**
 synchronized: selecting a row highlights it on the map and vice versa. Everything is computed server-side, even with
-millions of features. *Export*: CSV, GeoPackage or GeoParquet of the filtered view.
+millions of features. *Export*: CSV, GeoPackage or Parquet of the filtered view.
+
+Filters and attribute operations (*Extract by expression*, *Multi-output filter*, *Create attributes*, *Manage
+attributes*, *Convert attribute types*, *Keep attributes*, *Remove attributes*, *Rename attributes*, *Rename in bulk*)
+do not write their result during the run: it is computed when a downstream node reads it, or when it is opened here. The first opening shows
+"Preparing data…" while it is computed (a few seconds for a common file; several minutes for millions of rows with
+hundreds of columns read from a network drive), then the result is kept with the run. Sort, statistics and attribute
+join do the same for an output that no node reads, such as the features with their group's statistics when only the
+summary is used. If you switch to another port while it is being prepared, the preparation stops.
+
+During a run, the selected node stays displayed, with "… is being computed" until its data is there.
 
 The table shows **every feature** of the port: rows arrive as you scroll, and filters, sort, search, statistics
 and export cover the whole port. The feature count is shown once ("11 / 20 features" when a filter keeps 11).
@@ -96,12 +107,20 @@ The first opening of a port prepares its map **in the background**: the table ca
 shows "Loading the map…" (about 30 seconds for 1.6 million parcels, only once). If the geometries are too large
 for memory, the map says so in its place (the table can still be browsed). The map is made of vector tiles,
 generalized by zoom: outlines are simplified to half a pixel, a feature smaller than a pixel is a one-pixel dot;
-detail comes back when zooming in. The map draws **at most 50,000 features per area** (4 × 4 tiles): beyond that,
+detail comes back when zooming in. A huge polygon (output of a *Dissolve* or a merged *Buffer*, thousands of holes)
+is cut into pieces for the map: only its outline is drawn, the cuts do not show. The map draws **at most 50,000
+features per area** (4 × 4 tiles): beyond that,
 **the largest** (the same in every tile of the area), the smallest appear when zooming in; for points, a sample. A tile always has the same content whatever the view: panning or zooming
 reloads nothing already received, and small-scale tiles are computed in advance (about 35 s for 1.6 million parcels,
 after the map is prepared), for the last opened port: switching to another port does not make it wait for the
 tiles of the previous one. Changing the filter or the colour keeps the old image until the new one arrives. The
 table always shows every feature. Selecting a huge feature highlights a simplified outline.
+
+**Colour**: colours the map by an attribute, computed on the filtered rows. A numeric attribute gives five equal-count
+classes, from light to dark; another attribute, one colour per frequent value (the ten most frequent, the others in
+grey). **Overlay** adds other ports of the run to the map. As soon as there is a colour or several layers, the
+**Legend** button, under the zoom buttons, explains them. Clicking a feature on the map selects it and scrolls the
+table to its row ("Finding the feature in the table…" while it is being found).
 
 **Panel size**: drag the bar above the tabs (or `↑` / `↓` when focused); the height is remembered. **⤢ Full page** opens
 the panel over the whole window (Esc to go back to the editor).
@@ -114,7 +133,7 @@ basemap (offline) or a custom tile address. Tiles are loaded from the internet; 
 
 | Need | Modifier |
 | --- | --- |
-| Read / write a file | one reader and one writer **per format** (*Reading* and *Writing* categories): *CSV reader*, *GeoPackage reader*, *Shapefile reader*, *Excel reader*, *GeoJSON reader*, *GeoParquet reader*, *FlatGeobuf reader*, *MapInfo reader*, and the matching *… writer* |
+| Read / write a file | one reader and one writer **per format** (*Reading* and *Writing* categories): *CSV reader*, *GeoPackage reader*, *Shapefile reader*, *Excel reader*, *GeoJSON reader*, *(Geo)Parquet reader* (Parquet with or without geometry), *FlatGeobuf reader*, *MapInfo reader*, and the matching *… writer* |
 | Read / write a database | *PostgreSQL / PostGIS*, *Oracle* reader / writer; *SQLite / SpatiaLite* reader / writer (file) |
 | Run a SQL statement | *SQL (creator)*; *SQL (per feature)* with `{{attribute}}` |
 
@@ -126,7 +145,10 @@ basemap (offline) or a custom tile address. Tiles are loaded from the internet; 
   *File reader* are converted when opened.
 - **Maximum rows read** (every reader, files and databases): to try a flow on a sample, only the first N features
   are read (0 = all). The node then shows a “≤ N” badge; hovering it shows a reminder.
-- **GeoParquet on the web**: *GeoParquet reader* accepts an `https://…/file.parquet` address. The file is read by
+- **(Geo)Parquet read in place**: a single local file, without *Add the file name* or *Maximum rows read*, is not
+  copied into the cache: the node's result is the file itself, read in a fraction of a second whatever its size. If
+  the file is changed or moved after the run, run the flow again to view it.
+- **(Geo)Parquet on the web**: *(Geo)Parquet reader* accepts an `https://…/file.parquet` address. The file is read by
   ranges: only the useful parts are downloaded (with *Maximum rows read*, barely more than those rows). The proxy from
   *Settings* is used; a file changed on the server (ETag, date) is read again on the next run.
 - **Writing to the share**: a writer can target the team share. Two flows modifying the same GeoPackage at the

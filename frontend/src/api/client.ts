@@ -183,6 +183,8 @@ export const api = {
   dataStats: (t: PortRef, geometry = false) => call<PortStats>(`${dataPath(t)}/stats?geometry=${geometry}`),
   dataValues: (t: PortRef, column: string, q: DataQuery, limit = 50) =>
     call<{ value: unknown; count: number }[]>(`${dataPath(t)}/values`, { method: "POST", ...json({ column, query: q, limit }) }),
+  dataClasses: (t: PortRef, column: string, q: DataQuery, count: number) =>
+    call<{ breaks: number[]; nulls: number }>(`${dataPath(t)}/classes`, { method: "POST", ...json({ column, query: q, count }) }),
   dataLocate: (t: PortRef, q: DataQuery, fid: number) =>
     call<{ index: number | null }>(`${dataPath(t)}/locate`, { method: "POST", ...json({ query: q, fid }) }),
   holdCache: (page: string, runs: string[]) => call<{ policy: string }>("/cache/hold", { method: "POST", ...json({ page, runs }) }),

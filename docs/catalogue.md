@@ -9,12 +9,12 @@ Page générée par `etl modifiers doc` : ne pas la modifier à la main.
 | Composants | [Entrée du composant](#componentinput), [Sortie du composant](#componentoutput) |
 | Entrées / sorties | [Appeler une API web](#httprequest), [Créer des entités](#createfeatures), [SQL (créateur)](#databasequery) |
 | Filtres | [Filtre par type de géométrie](#splitbygeometrytype), [Filtre spatial](#extractbylocation), [Filtre à plusieurs sorties](#routebyexpression), [Filtrer les doublons](#findduplicates), [Filtrer par expression](#extractbyexpression), [Échantillonner](#sample) |
-| Géométrie | [Attribut vers géométrie](#geometryfromattribute), [Carroyage](#creategrid), [Créer un point / un sommet](#pointfromxy), [Découper](#clip), [Enveloppe des géométries](#hull), [Extraire des coordonnées](#extractcoordinates), [Fusionner (dissoudre)](#dissolve), [Géométrie vers attribut](#geometrytoattribute), [Longueur de lignes](#measurelength), [Remplacer par un point central](#centroids), [Reprojeter](#reproject), [Réparer les géométries](#fixgeometries), [Simplify les géométries](#simplify), [Superposition de polygones](#overlaypolygons), [Surface et périmètre](#measurearea), [Valider les géométries](#checkvalidity), [Zone tampon](#buffer), [Éclater les géométries multiples](#multiparttosingleparts) |
-| Jointures | [Compléter par correspondance](#lookupjoin), [Compter les points dans les emprises](#countpointsinpolygon), [Jointure attributaire](#joinbyfield), [Plus proches voisines](#joinbynearest), [Point dans polygone](#pointsinpolygons), [Relateur spatial](#joinbylocation), [SQL (par entité)](#databasequeryperfeature) |
-| Lecture | [Lecture CSV](#csvreader), [Lecture Excel](#excelreader), [Lecture FlatGeobuf](#flatgeobufreader), [Lecture GeoJSON](#geojsonreader), [Lecture GeoPackage](#geopackagereader), [Lecture GeoParquet](#geoparquetreader), [Lecture MapInfo](#mapinforeader), [Lecture Oracle](#oraclereader), [Lecture PostgreSQL / PostGIS](#postgresreader), [Lecture SQLite / SpatiaLite](#spatialitereader), [Lecture Shapefile](#shapefilereader) |
+| Géométrie | [Attribut vers géométrie](#geometryfromattribute), [Carroyage](#creategrid), [Créer un point / un sommet](#pointfromxy), [Découper](#clip), [Enveloppe des géométries](#hull), [Extraire des coordonnées](#extractcoordinates), [Fusionner (dissoudre)](#dissolve), [Géométrie vers attribut](#geometrytoattribute), [Longueur de lignes](#measurelength), [Remplacer par un point central](#centroids), [Reprojeter](#reproject), [Réparer les géométries](#fixgeometries), [Simplifier les géométries](#simplify), [Superposition de polygones](#overlaypolygons), [Surface et périmètre](#measurearea), [Valider les géométries](#checkvalidity), [Zone tampon](#buffer), [Éclater les géométries multiples](#multiparttosingleparts) |
+| Jointures | [Jointure attributaire](#joinbyfield), [Plus proches voisines](#joinbynearest), [Point dans polygone](#pointsinpolygons), [Relateur spatial](#joinbylocation), [SQL (par entité)](#databasequeryperfeature) |
+| Lecture | [Lecture CSV](#csvreader), [Lecture Excel](#excelreader), [Lecture FlatGeobuf](#flatgeobufreader), [Lecture GeoJSON](#geojsonreader), [Lecture GeoPackage](#geopackagereader), [Lecture (Geo)Parquet](#geoparquetreader), [Lecture MapInfo](#mapinforeader), [Lecture Oracle](#oraclereader), [Lecture PostgreSQL / PostGIS](#postgresreader), [Lecture SQLite / SpatiaLite](#spatialitereader), [Lecture Shapefile](#shapefilereader) |
 | Lots et variables | [Lancer un flux](#runflow), [Lire les fichiers listés](#readlistedfiles), [Lister des fichiers](#listfiles), [Poser des variables](#setvariables), [Écrire un fichier par groupe](#splittofiles) |
 | Rasters | [Analyse de terrain (pente, exposition, ombrage)](#terrainanalysis), [Calculatrice de rasters](#rastercalculator), [Courbes de niveau](#contour), [Découpe de rasters](#cliprasterbymask), [Empiler des bandes](#stackbands), [Entités vers raster](#rasterize), [Lecture de rasters](#rasterreader), [Mosaïque et composite de rasters](#mergerasters), [Raster vers polygones](#polygonize), [Recherche STAC](#stacsearch), [Reclasser un raster](#reclassifyraster), [Reprojection de rasters](#warpraster), [Rééchantillonner / aligner](#resampleraster), [Statistiques de rasters](#rasterstatistics), [Statistiques zonales](#zonalstatistics), [Valeur du raster sous des points](#samplerastervalues), [Écriture de rasters](#rasterwriter) |
-| Écriture | [Écriture CSV](#csvwriter), [Écriture Excel](#excelwriter), [Écriture FlatGeobuf](#flatgeobufwriter), [Écriture GeoJSON](#geojsonwriter), [Écriture GeoPackage](#geopackagewriter), [Écriture GeoParquet](#geoparquetwriter), [Écriture MapInfo](#mapinfowriter), [Écriture Oracle](#oraclewriter), [Écriture PostgreSQL / PostGIS](#postgreswriter), [Écriture SQLite / SpatiaLite](#spatialitewriter), [Écriture Shapefile](#shapefilewriter) |
+| Écriture | [Écriture CSV](#csvwriter), [Écriture Excel](#excelwriter), [Écriture FlatGeobuf](#flatgeobufwriter), [Écriture GeoJSON](#geojsonwriter), [Écriture GeoPackage](#geopackagewriter), [Écriture (Geo)Parquet](#geoparquetwriter), [Écriture MapInfo](#mapinfowriter), [Écriture Oracle](#oraclewriter), [Écriture PostgreSQL / PostGIS](#postgreswriter), [Écriture SQLite / SpatiaLite](#spatialitewriter), [Écriture Shapefile](#shapefilewriter) |
 
 ## Attributs
 
@@ -71,11 +71,12 @@ Ajoute ou remplace des attributs calculés par des expressions SQL.
 
 - **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : au fil de l'eau
 
-Chaque attribut est calculé par une expression SQL DuckDB, dans l'ordre : une expression peut utiliser les attributs créés plus haut. Exemples : "surface" * 2 ; upper("nom") ; CASE WHEN "pop" > 1000 THEN 'ville' ELSE 'village' END ; ST_Area(geometry). Une entité dont l'expression échoue part sur « Rejected » avec le motif.
+Chaque attribut est calculé par une expression SQL DuckDB, dans l'ordre : une expression peut utiliser les attributs créés plus haut. Exemples : "surface" * 2 ; upper("nom") ; CASE WHEN "pop" > 1000 THEN 'ville' ELSE 'village' END ; ST_Area(geometry). Une entité dont l'expression échoue (ou dont la valeur ne se convertit pas dans le type demandé) part sur « Rejected » avec le motif ; avec « En cas d'échec : null », l'attribut reste vide.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
 | Attributs à créer | Calculés dans l'ordre : chacun peut utiliser les précédents. |  |
+| En cas d'échec | reject : l'entité part sur « Rejected » avec le motif ; null : l'attribut reste vide. | `reject` |
 
 ### Découper un texte — `SplitText` {#splittext}
 
@@ -113,9 +114,9 @@ Chaque entité reçue donne une entité par attribut de « Attributs à dépivot
 
 Lit un attribut qui contient du JSON : extrait des valeurs dans de nouveaux attributs, ou éclate un tableau.
 
-- **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
+- **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : au fil de l'eau
 
-Chaque ligne de « Valeurs à extraire » lit un chemin (a.b, a[0].b, $.a.b) et le range dans un attribut typé. Avec « Tableau à éclater » (par exemple items ou $.results), le JSON de chaque entité donne **une entité par élément du tableau** : les chemins sont alors lus dans l'élément (chemin vide = l'élément entier, en texte), et les autres attributs sont recopiés. Un JSON invalide ou un chemin absent donne une valeur vide. Typique après un appel HTTP (HttpRequest).
+Chaque ligne de « Valeurs à extraire » lit un chemin (a.b, a[0].b, $.a.b) et le range dans un attribut typé. Avec « Tableau à éclater » (par exemple items ou $.results), le JSON de chaque entité donne **une entité par élément du tableau** : les chemins sont alors lus dans l'élément (chemin vide = l'élément entier, en texte), et les autres attributs sont recopiés. Un chemin absent ou une valeur non convertible donne une valeur vide ; un JSON invalide aussi, ou l'entité part sur « Rejected » si « JSON invalide » vaut reject. Typique après un appel HTTP (HttpRequest).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -123,6 +124,7 @@ Chaque ligne de « Valeurs à extraire » lit un chemin (a.b, a[0].b, $.a.b) et 
 | Valeurs à extraire | Un chemin et l'attribut qui le reçoit. |  |
 | Tableau à éclater | Chemin d'un tableau : une entité par élément ; vide = une entité par ligne. |  |
 | Retirer l'attribut JSON | Retire l'attribut d'origine du résultat. | false |
+| JSON invalide | null : les valeurs extraites sont vides ; reject : l'entité part sur « Rejected ». | `null` |
 
 ### Extraire du texte — `ExtractText` {#extracttext}
 
@@ -288,7 +290,7 @@ Produit une entité par élément d'un attribut de type liste (les autres attrib
 
 - **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-L'attribut doit être une liste (ex. issue d'un tableau PostgreSQL ou du SplitAttribute en mode liste). Une liste vide ou nulle ne produit aucune entité, sauf si « Garder les listes vides » est coché (une entité avec élément vide). « Attribut indice » numérote les éléments à partir de 0.
+L'attribut doit être une liste (ex. issue d'un tableau PostgreSQL ou de « Découper un texte » en mode liste). Une liste vide ou nulle ne produit aucune entité, sauf si « Garder les listes vides » est coché (une entité avec élément vide). « Attribut indice » numérote les éléments à partir de 0.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -419,9 +421,9 @@ Définit une sortie du composant : les entités reçues ici sortent par ce port.
 
 Appelle une adresse web (GET, POST…) pour chaque entité et range la réponse dans un attribut.
 
-- **Entrées** : `input` — **Sorties** : `output`, `Failed` — **Traitement** : au fil de l'eau
+- **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : au fil de l'eau
 
-L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité avec {attribut} (dans l'adresse, la valeur est encodée). Exemple : https://api-adresse.data.gouv.fr/search/?q={adresse}&limit=1. Les entités dont la réponse a un code inférieur à 400 sortent sur « output » avec le corps de la réponse (attribut `_http_body`) et le code (`_http_status`) ; les autres sortent sur « Failed » avec `_http_error`. Les appels se font en parallèle (« Appels simultanés ») avec un débit maximal par seconde, et sont repris en cas d'erreur réseau, de code 429 ou 5xx. Le proxy du poste (HTTPS_PROXY) est utilisé. Pour lire le JSON reçu : « Extraire du JSON ».
+L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité avec {attribut} (dans l'adresse, la valeur est encodée). Exemple : https://api-adresse.data.gouv.fr/search/?q={adresse}&limit=1. Les entités dont la réponse a un code inférieur à 400 sortent sur « output » avec le corps de la réponse (attribut `_http_body`) et le code (`_http_status`) ; les autres sortent sur « Rejected » avec le motif (`_rejection_reason`). Les appels se font en parallèle (« Appels simultanés ») avec un débit maximal par seconde, et sont repris en cas d'erreur réseau, de code 429 ou 5xx. Le proxy du poste (HTTPS_PROXY) est utilisé. Pour lire le JSON reçu : « Extraire du JSON ».
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -535,7 +537,7 @@ Chaque condition est une expression SQL booléenne : "pop" >= 1000 ; "nom" LIKE 
 
 Prélève un échantillon : les N premières, les N dernières, une entité sur N ou N entités au hasard.
 
-- **Entrées** : `input` — **Sorties** : `Sampled`, `Remaining` — **Traitement** : au fil de l'eau
+- **Entrées** : `input` — **Sorties** : `Sampled`, `Remaining` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
 « first » : les N premières entités reçues. « last » : les N dernières. « every » : une entité sur N (la première, puis la N+1-ième…). « random » : N entités tirées au hasard (graine fixe : le tirage se reproduit). Les entités retenues sortent sur « Sampled », les autres sur « Remaining », dans l'ordre d'arrivée. « first » et « every » travaillent au fil de l'eau ; « last » et « random » doivent lire toutes les entités.
 
@@ -553,7 +555,7 @@ Construit la géométrie de chaque entité à partir d'un attribut texte (WKT, G
 
 - **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : au fil de l'eau
 
-Une valeur vide donne une entité sans géométrie ; une valeur illisible envoie l'entité sur « Rejected » avec le motif. Le système de coordonnées est celui indiqué (ou celui des données).
+Une valeur vide donne une entité sans géométrie ; une valeur illisible envoie l'entité sur « Rejected » avec le motif. Le système de coordonnées est celui indiqué (ou celui des données). Pour des coordonnées X et Y dans deux attributs : « Créer un point / un sommet ».
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -725,7 +727,7 @@ Toutes les entités ressortent sur « output » avec une géométrie valide. Les
 | Garder le type de géométrie | Écarte les morceaux de dimension inférieure (lignes ou points nés d'un polygone aplati). | true |
 | Attribut du motif de réparation | Reçoit le défaut d'origine pour les géométries réparées, vide pour les autres. Vide = pas d'attribut. | `_repaired_reason` |
 
-### Simplify les géométries — `Simplify` {#simplify}
+### Simplifier les géométries — `Simplify` {#simplify}
 
 Réduit le nombre de sommets en gardant la forme à la tolérance près (Douglas-Peucker).
 
@@ -776,11 +778,10 @@ Sépare les géométries valides des invalides (auto-intersection, anneau non fe
 
 - **Entrées** : `input` — **Sorties** : `Valid`, `Invalid` — **Traitement** : au fil de l'eau
 
-Les entités valides sortent sur « Valid », les autres sur « Invalid » avec le motif dans `_invalid_reason`. Avec « Réparer », les géométries invalides sont corrigées (make_valid) et sortent sur « Valid » (le motif d'origine est conservé dans `_repaired_reason`) ; seules celles qui restent irréparables vont sur « Invalid ». Géométrie vide ou absente : « Invalid ».
+Les entités valides sortent sur « Valid », les autres sur « Invalid » avec le motif dans `_invalid_reason`. Géométrie vide ou absente : « Invalid » (sauf si décoché). Pour corriger les géométries invalides, utiliser « Réparer les géométries ».
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Réparer | Corrige les géométries invalides (make_valid) au lieu de les envoyer sur « Invalid ». Pour régler la réparation, voir « Réparer les géométries ». | false |
 | Refuser les géométries vides ou absentes | Coché : une géométrie vide ou absente va sur « Invalid » ; décoché : elle passe sur « Valid ». | true |
 
 ### Zone tampon — `Buffer` {#buffer}
@@ -815,44 +816,13 @@ Une entité dont la géométrie a N parties donne N entités qui recopient les a
 
 ## Jointures
 
-### Compléter par correspondance — `LookupJoin` {#lookupjoin}
-
-Ajoute à chaque entité « input » les attributs (et au choix la géométrie) de sa correspondance « lookup ».
-
-- **Entrées** : `input`, `lookup` — **Sorties** : `Joined`, `Unjoined`, `UnusedLookup` — **Traitement** : bloquant (lit toutes les données avant de produire)
-
-Même principe que la jointure attributaire, avec en plus le choix de la géométrie résultante : celle de l'entrée, celle de la correspondance, ou aucune. Les entités complétées sortent sur « Joined », les autres sur « Unjoined ». Plusieurs correspondances pour une clé : la première est retenue (ou toutes les combinaisons, au choix).
-
-| Paramètre | Rôle | Défaut |
-| --- | --- | --- |
-| Clés de l'entrée | Attributs de l'entrée qui font le lien avec la correspondance, dans le même ordre. |  |
-| Clés de la correspondance | Dans le même ordre. |  |
-| Attributs ajoutés | Vide = tous hors clés. |  |
-| Géométrie résultante | Géométrie des entités complétées : celle de l'entrée, celle de la correspondance, ou aucune. | `input` |
-| Si le nom existe déjà | Quelle valeur l'emporte. | `lookup` |
-| Plusieurs correspondances | Si plusieurs correspondances ont la même clé — first : on garde la première ; all : toutes les combinaisons. | `first` |
-
-### Compter les points dans les emprises — `CountPointsInPolygon` {#countpointsinpolygon}
-
-Ajoute à chaque polygone le nombre de points qu'il contient, et la somme d'attributs de ces points.
-
-- **Entrées** : `areas`, `points` — **Sorties** : `output`, `Rejected` — **Traitement** : bloquant (lit toutes les données avant de produire)
-
-Chaque polygone (« areas ») sort sur « output » avec le nombre de points (« points ») qu'il contient, 0 s'il n'en contient aucun, et, si demandé, la somme d'attributs numériques de ces points (« <attribut>_sum »). Un point sur la frontière compte comme dedans. Les points peuvent être d'autres entités (bâtiments…) : une entité compte dans chaque polygone qu'elle touche. « Plusieurs polygones » : un point sur la limite commune de deux polygones compte dans les deux (« all »), ou seulement dans le premier (« first » : la somme des comptes égale alors le nombre de points). Les polygones sans géométrie partent sur « Rejected » ; les points sans géométrie ne comptent nulle part.
-
-| Paramètre | Rôle | Défaut |
-| --- | --- | --- |
-| Attribut du nombre de points | Ajouté à chaque polygone (remplacé s'il existe). | `_count` |
-| Attributs des points à additionner | Attributs numériques des points : leur somme par polygone dans « <attribut>_sum ». |  |
-| Plusieurs polygones | Un point dans plusieurs polygones — all : compte dans chacun ; first : dans le premier seulement. | `all` |
-
 ### Jointure attributaire — `JoinByField` {#joinbyfield}
 
 Ajoute aux entités de « base » les attributs des entités de « join » qui ont la même clé.
 
 - **Entrées** : `base`, `join` — **Sorties** : `Joined`, `UnjoinedBase`, `UnjoinedJoin` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
-Les entités de « base » avec correspondance sortent sur « Joined » ; les autres sur « UnjoinedBase ». Les entités de « join » qui ne correspondent à aucune entité de « base » sortent sur « UnjoinedJoin ». Une clé nulle ne correspond jamais. Si les clés n'ont pas le même type (entier et texte), la comparaison se fait en texte. La géométrie est celle de « base ».
+Les entités de « base » avec correspondance sortent sur « Joined » ; les autres sur « UnjoinedBase ». Les entités de « join » qui ne correspondent à aucune entité de « base » sortent sur « UnjoinedJoin ». Une clé nulle ne correspond jamais. Si les clés n'ont pas le même type (entier et texte), la comparaison se fait en texte. La géométrie du résultat est celle de « base », celle de « join » ou aucune, au choix.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -863,12 +833,13 @@ Les entités de « base » avec correspondance sortent sur « Joined » ; les au
 | Si le nom existe déjà | other : la valeur de « join » ; base : on garde l'existante. | `other` |
 | Plusieurs correspondances | all : une entité par correspondance ; first ; error. | `all` |
 | Garder les non-appariées dans Joined | Jointure « gauche » : attributs vides. | false |
+| Géométrie du résultat | Celle de « base », celle de « join » (vide pour une entité gardée sans correspondance), ou aucune. | `base` |
 
 ### Plus proches voisines — `JoinByNearest` {#joinbynearest}
 
 Pour chaque entité « base », trouve ses k plus proches entités parmi les « candidate » et recopie leurs attributs.
 
-- **Entrées** : `base`, `candidate` — **Sorties** : `Matched`, `NoNeighbor`, `Rejected` — **Traitement** : au fil de l'eau
+- **Entrées** : `base`, `candidate` — **Sorties** : `Matched`, `NoNeighbor`, `Rejected` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
 Chaque « base » donne au plus k entités sur « Matched » (une par voisine, de la plus proche à la plus éloignée) : les attributs de la base, ceux de la voisine (préfixés), son rang (`_rank`, de 1) et la distance (`_distance`, dans l'unité du système de coordonnées). Une base sans voisine à moins de « Distance maximale » sort sur « NoNeighbor ». La distance est celle qui sépare les géométries (le bord à bord pour des polygones), pas celle des centres. Les deux entrées doivent avoir le même système de coordonnées ; une entité sans géométrie part sur « Rejected ».
 
@@ -897,20 +868,26 @@ Les points dans un polygone sortent sur « Inside » avec les attributs choisis 
 
 ### Relateur spatial — `JoinByLocation` {#joinbylocation}
 
-Ajoute à chaque entité « base » le nombre d'entités « related » en relation avec elle.
+Ajoute à chaque entité « base » le nombre d'entités « related » en relation avec elle, et au choix la somme ou la liste de leurs attributs, ou leurs attributs eux-mêmes.
 
 - **Entrées** : `base`, `related` — **Sorties** : `output`, `Rejected` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
-Pour chaque entité de « base », on compte les entités de « related » qui vérifient la relation (base <relation> related). Option : lister les valeurs d'un attribut des entités liées (séparées par un séparateur, sans doublon, triées). Les entités sans géométrie partent sur « Rejected ».
+Pour chaque entité de « base », on compte les entités de « related » qui vérifient la relation (base <relation> related), 0 s'il n'y en a aucune. Options : additionner des attributs numériques des entités liées (« <attribut>_sum ») ; lister les valeurs d'un attribut (séparées par un séparateur, sans doublon, triées) ; récupérer des attributs des entités liées, comme une jointure attributaire (préfixe, conflit de noms) : ceux de la première entité liée, une entité « base » par entité liée, ou la liste des valeurs de chaque attribut ; vides sans entité liée. Compter des points dans des polygones : relation intersects, polygones sur « base », points sur « related » ; un point sur une limite commune compte dans les deux polygones, ou seulement dans le premier avec « first ». Sans liste, les entités « related » passent lot par lot sans être gardées en mémoire : des millions de points se comptent sans peine. Les entités « base » sans géométrie partent sur « Rejected » ; les entités « related » sans géométrie ne comptent nulle part.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
 | Relation | base <relation> related. | `intersects` |
 | Distance (dwithin) | Distance maximale pour la relation dwithin, dans l'unité du système de coordonnées. | `0.0` |
 | Attribut du nombre d'entités liées | Nom de l'attribut qui reçoit le nombre d'entités de « related » vérifiant la relation. | `_related_count` |
+| Attributs à additionner | Attributs numériques de « related » : leur somme par entité « base » dans « <attribut>_sum ». |  |
+| Entité liée à plusieurs entités « base » | all : comptée pour chacune ; first : pour la première seulement (la somme des comptes égale alors le nombre d'entités liées). | `all` |
 | Lister cet attribut des entités liées | Vide = pas de liste. |  |
 | Nom de l'attribut de liste | Nom de l'attribut qui reçoit la liste (si « Lister cet attribut » est renseigné). | `_related_values` |
 | Séparateur | Texte placé entre deux valeurs de la liste. | `, ` |
+| Attributs à récupérer | Attributs de « related » ajoutés à l'entité « base », comme une jointure attributaire. Vide = aucun. |  |
+| Plusieurs entités liées | Pour les attributs récupérés. first : ceux de la première entité liée (ordre de « related ») ; all : une entité « base » par entité liée ; list : les valeurs distinctes de chaque attribut, jointes par le séparateur. | `first` |
+| Préfixe des attributs récupérés | Évite les conflits de noms. |  |
+| Si le nom existe déjà | other : la valeur de « related » ; base : on garde celle de « base ». | `other` |
 
 ### SQL (par entité) — `DatabaseQueryPerFeature` {#databasequeryperfeature}
 
@@ -1020,13 +997,13 @@ Indiquer la couche si le GeoPackage en contient plusieurs (vide : la première).
 | Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
 | Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture GeoParquet — `GeoParquetReader` {#geoparquetreader}
+### Lecture (Geo)Parquet — `GeoParquetReader` {#geoparquetreader}
 
-Lit un fichier Parquet ou GeoParquet, sur le disque ou à une adresse web (https://).
+Lit un fichier Parquet, avec ou sans géométrie (GeoParquet), sur le disque ou à une adresse web (https://).
 
 - **Entrées** : aucune — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-La géométrie et son système de coordonnées sont lus dans les métadonnées GeoParquet. Une adresse https:// est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des Paramètres).
+Un Parquet sans géométrie est lu tel quel. Pour un GeoParquet, la géométrie et son système de coordonnées sont lus dans ses métadonnées. Un fichier seul, local, sans nom du fichier ajouté ni limite de lignes, n'est pas recopié : le résultat du nœud est le fichier lui-même (le modifier ensuite oblige à relancer le flux). Une adresse https:// est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des Paramètres).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -1129,7 +1106,7 @@ L'encodage est lu dans le fichier .cpg s'il existe ; sinon utf-8, puis latin-1.
 
 Exécute un autre flux pour chaque entité reçue, avec des paramètres tirés de ses attributs.
 
-- **Entrées** : `input` — **Sorties** : `Succeeded`, `Failed` — **Traitement** : au fil de l'eau
+- **Entrées** : `input` — **Sorties** : `Succeeded`, `Failed` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
 Chaque entité reçue lance une exécution du flux indiqué (`etl run` dans un processus séparé : mémoire isolée, un plantage n'arrête pas les autres). Les paramètres publiés du flux lancé reçoivent la valeur d'un attribut de l'entité (ou une valeur fixe). Les entités dont le flux a réussi sortent sur « Succeeded », les autres sur « Failed » ; dans les deux cas elles gardent leurs attributs et reçoivent _flow_status, _flow_seconds et _flow_error. « En parallèle » règle le nombre d'exécutions simultanées. Pour un dossier de fichiers : ListFiles → RunFlow, avec le paramètre du flux lancé relié à l'attribut path.
 
@@ -1147,7 +1124,7 @@ Lit le fichier désigné par chaque entité reçue et envoie leurs entités.
 
 - **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-Chaque entité reçue donne un chemin de fichier (attribut « Chemin ») ; le fichier est lu avec les mêmes réglages que « Lecture de fichier » et ses entités sont envoyées. Les schémas des fichiers sont réunis par nom d'attribut : un attribut absent d'un fichier est vide, deux types incompatibles deviennent du texte. Pour que le schéma soit connu avant l'exécution (formulaires des nœuds suivants), indiquer un fichier d'exemple. « Attributs à recopier » ajoute à chaque entité lue des attributs de l'entité reçue (par exemple stem, le nom du fichier sans extension).
+Chaque entité reçue donne un chemin de fichier (attribut « Chemin ») ; le fichier est lu avec les mêmes réglages que le lecteur de son format et ses entités sont envoyées. Les schémas des fichiers sont réunis par nom d'attribut : un attribut absent d'un fichier est vide, deux types incompatibles deviennent du texte. Pour que le schéma soit connu avant l'exécution (formulaires des nœuds suivants), indiquer un fichier d'exemple. « Attributs à recopier » ajoute à chaque entité lue des attributs de l'entité reçue (par exemple stem, le nom du fichier sans extension).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -1194,7 +1171,7 @@ Lit une valeur dans les données (un attribut, ou le nombre d'entités) et la po
 
 - **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-Les entités passent sans changement. Les variables posées ici s'utilisent dans les nœuds situés **en aval** avec ${var:NOM}, dans n'importe quel paramètre : un nœud démarre quand tout son amont est terminé, donc la valeur est connue. L'analyse refuse une variable que rien ne pose en amont. Exemple : un Agrégateur calcule la date la plus récente, SetVariables la pose en DATE_MAX, une lecture PostgreSQL filtre sur "date" > '${var:DATE_MAX}'.
+Les entités passent sans changement. Les variables posées ici s'utilisent dans les nœuds situés **en aval** avec ${var:NOM}, dans n'importe quel paramètre : un nœud démarre quand tout son amont est terminé, donc la valeur est connue. L'analyse refuse une variable que rien ne pose en amont. Exemple : « Agréger » calcule la date la plus récente, SetVariables la pose en DATE_MAX, une lecture PostgreSQL filtre sur "date" > '${var:DATE_MAX}'.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -1206,7 +1183,7 @@ Les entités passent sans changement. Les variables posées ici s'utilisent dans
 
 - **Entrées** : `input` — **Sorties** : `summary` — **Traitement** : au fil de l'eau
 
-Écrire {attribut} dans le chemin crée un fichier par valeur de cet attribut, ex. D:\sorties\{departement}\communes.gpkg ou {departement}_{annee}.csv. Les caractères interdits dans un nom de fichier sont remplacés par _ et une valeur vide donne « _vide ». Les réglages du format sont ceux de « Écriture de fichier ». Chaque fichier est ouvert une seule fois : au plus 200 fichiers à la fois. La sortie « summary » donne une entité par fichier écrit (chemin, nombre d'entités, format), pour la suite du flux (journal, SetVariables, RunFlow…).
+Écrire {attribut} dans le chemin crée un fichier par valeur de cet attribut, ex. D:\sorties\{departement}\communes.gpkg ou {departement}_{annee}.csv. Les caractères interdits dans un nom de fichier sont remplacés par _ et une valeur vide donne « _vide ». Les réglages du format sont ceux de l'écriture de ce format. Chaque fichier est ouvert une seule fois : au plus 200 fichiers à la fois. La sortie « summary » donne une entité par fichier écrit (chemin, nombre d'entités, format), pour la suite du flux (journal, SetVariables, RunFlow…).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -1216,8 +1193,8 @@ Les entités passent sans changement. Les variables posées ici s'utilisent dans
 | Mode | create : échoue si un fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
 | Encodage | Vide = celui du format (utf-8). |  |
 | Séparateur (CSV) | Séparateur de colonnes du CSV écrit. | `,` |
-| Compression (GeoParquet) | Compression des fichiers GeoParquet. | `zstd` |
-| Partitionner par (GeoParquet) | Colonnes dont chaque valeur donne un sous-dossier de chaque fichier. |  |
+| Compression ((Geo)Parquet) | Compression des fichiers (Geo)Parquet. | `zstd` |
+| Partitionner par ((Geo)Parquet) | Colonnes dont chaque valeur donne un sous-dossier de chaque fichier. |  |
 
 ## Rasters
 
@@ -1308,7 +1285,7 @@ Les rasters reçus (par groupe, avec « Regrouper par ») deviennent les bandes 
 
 Transforme des polygones, lignes ou points en raster : valeur d'un attribut ou valeur fixe.
 
-- **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
+- **Entrées** : `input` — **Sorties** : `output` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
 Les entités sont dessinées dans un raster de pixels de « Taille du pixel » (dans l'unité de leur système de coordonnées), sur leur emprise ou sur celle de « Emprise ». Chaque pixel prend la valeur de « Attribut de la valeur » de l'entité qui le recouvre (la dernière en cas de recouvrement, ou la somme avec « add »), ou la « Valeur fixe » (1 par défaut : un masque). Les pixels non recouverts valent « Valeur de fond » (sans donnée si vide). « Pixels touchés » dessine tout pixel que l'entité touche, utile pour des lignes fines. Le dessin se fait par fenêtres de 512 pixels : la taille du raster n'est limitée que par le disque.
 
@@ -1571,9 +1548,9 @@ Plusieurs écritures GeoPackage peuvent viser des couches différentes du même 
 | Couche | Nom de la couche ; vide = le nom du fichier. |  |
 | Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
 
-### Écriture GeoParquet — `GeoParquetWriter` {#geoparquetwriter}
+### Écriture (Geo)Parquet — `GeoParquetWriter` {#geoparquetwriter}
 
-Écrit les entités dans un fichier GeoParquet (ou un dossier partitionné).
+Écrit les entités dans un fichier Parquet (GeoParquet s'il y a une géométrie) ou un dossier partitionné.
 
 - **Entrées** : `input` — **Sorties** : aucune — **Traitement** : au fil de l'eau
 

@@ -165,7 +165,7 @@ def test_feature_writer_cleans_names_and_refuses_unknown_attributes(registry, co
     assert (tmp_path / "o" / "commune 3.parquet").exists() and len(list((tmp_path / "o").glob("*.parquet"))) == 20
     nodes[1]["params"]["path"] = str(tmp_path / "o2" / "{inconnu}.parquet")
     assert (
-        "attributs absents"
+        "attribut absent"
         in run_flow(make_flow(nodes, [("r", "output", "w", "input")]), registry, tmp_path / "run2").error
     )
 

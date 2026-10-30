@@ -79,6 +79,7 @@ class JoinByNearest(Modifier):
     name = "JoinByNearest"
     label = "Plus proches voisines"
     category = "Jointures"
+    mode = "blocking"  # charge toute son entrée
     description = "Pour chaque entité « base », trouve ses k plus proches entités parmi les « candidate » et recopie leurs attributs."
     help = (
         "Chaque « base » donne au plus k entités sur « Matched » (une par voisine, de la plus proche à la plus éloignée) : "
@@ -143,7 +144,11 @@ class JoinByNearest(Modifier):
         cand = collect(inputs.get("candidate", ()))
         if cand is None or cand.num_rows == 0 or GEOM not in cand.column_names:
             for batch in inputs.get("base", ()):
-                emit("NoNeighbor", batch)
+                geoms = geometries(batch) if GEOM in batch.column_names else np.full(batch.num_rows, None)
+                ok = ~shapely.is_missing(geoms) & ~shapely.is_empty(geoms)
+                if not ok.all():
+                    emit(REJECTED, reject(batch.filter(pa.array(~ok)), "pas de géométrie"))
+                emit("NoNeighbor", batch.filter(pa.array(ok)))
             return
         fields = self._added(cand.schema)
         cgeoms = geometries(cand)

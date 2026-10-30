@@ -31,6 +31,36 @@ def check_select(sql: str) -> str:
     return text
 
 
+def final_select(text: str, described: list[tuple]) -> str:
+    """Le résultat de la requête `text` sous la forme des ports, quelle que soit la voie : géométrie en WKB, entiers
+    de 128 bits (une somme d'entiers) en DOUBLE, comme les écrit le format Parquet de DuckDB."""
+    swaps = []
+    for row in described:
+        kind = str(row[1]).upper()
+        if kind == "GEOMETRY":
+            swaps.append(f'ST_AsWKB("{row[0]}") AS "{row[0]}"')
+        elif kind in ("HUGEINT", "UHUGEINT"):
+            swaps.append(f'CAST("{row[0]}" AS DOUBLE) AS "{row[0]}"')
+    return f"SELECT * REPLACE ({', '.join(swaps)}) FROM ({text})" if swaps else f"SELECT * FROM ({text})"
+
+
+def describe(sql: str, schemas: Mapping[str, pa.Schema]) -> list[tuple]:
+    """Colonnes et types du résultat de `sql` (chaque entrée vue comme dans `run_query`), sans lire de données."""
+    con = duck.connect("expr")
+    try:
+        duck.load_spatial(con)
+        for name, schema in schemas.items():
+            con.register(f"__raw_{name}", schema.empty_table())
+            geom = f'ST_GeomFromWKB("{GEOM}")' if GEOM in schema.names else None
+            body = f'SELECT * REPLACE ({geom} AS "{GEOM}")' if geom else "SELECT *"
+            con.execute(f'CREATE VIEW "{name}" AS {body} FROM "__raw_{name}"')
+        return con.execute(f"DESCRIBE SELECT * FROM ({check_select(sql)})").fetchall()
+    except duckdb.Error as exc:
+        raise ConfigError(f"requête SQL invalide : {exc}") from exc
+    finally:
+        con.close()
+
+
 def run_query(sql: str, tables: Mapping[str, pa.Table]) -> pa.Table:
     """Exécute `sql` ; chaque table est visible sous son nom (la colonne `geometry` en GEOMETRY DuckDB)."""
     text = check_select(sql)
@@ -58,12 +88,7 @@ def run_query(sql: str, tables: Mapping[str, pa.Table]) -> pa.Table:
         con.execute("SET lock_configuration=true")
         try:
             described = con.execute(f"DESCRIBE SELECT * FROM ({text})").fetchall()
-            geometry_columns = [row[0] for row in described if str(row[1]).upper() == "GEOMETRY"]
-            final = f"SELECT * FROM ({text})"
-            if geometry_columns:
-                swap = ", ".join(f'ST_AsWKB("{c}") AS "{c}"' for c in geometry_columns)
-                final = f"SELECT * REPLACE ({swap}) FROM ({text})"
-            out = con.sql(final).to_arrow_table()
+            out = con.sql(final_select(text, described)).to_arrow_table()
         except (duckdb.ParserException, duckdb.BinderException, duckdb.CatalogException) as exc:
             raise ConfigError(f"requête SQL invalide : {exc}") from exc
         except duckdb.Error as exc:

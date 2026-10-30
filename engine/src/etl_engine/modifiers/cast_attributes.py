@@ -11,7 +11,7 @@ from pydantic import Field
 
 from etl_engine.blocking import quote
 from etl_engine.data import GEOM, get_crs, with_crs
-from etl_engine.expr import safe_evaluate
+from etl_engine.expr import guarded, safe_evaluate
 from etl_engine.sdk import REJECTED, Attribute, ConfigError, Modifier, Params, reject
 
 SQL_TYPES = {
@@ -104,6 +104,28 @@ class CastAttributes(Modifier):
         ):
             col = f"REPLACE(REPLACE(REPLACE(TRIM({col}), ' ', ''), CHR(160), ''), ',', '.')"
         return f"TRY_CAST({col} AS {SQL_TYPES[c.type]})"
+
+    def sql(self, relations, schemas):
+        schema = schemas.get("input")
+        out = self.output_schema(dict(schemas)).get("output")
+        if schema is None or out is None:
+            return None
+        query = f"SELECT * FROM {relations['input']}"
+        current = schema
+        for c in self._specs():
+            converted = self._expression(c, current.field(c.attribute).type)
+            if self.params.on_error == "reject":
+                # au contrôle, une valeur non convertible échoue (« # » ne se convertit en aucun de ces types) : le nœud
+                # passe par la voie par lots, qui rejette l'entité avec le motif
+                col = quote(c.attribute)
+                fails = f"CAST('#' || CAST({col} AS VARCHAR) AS {SQL_TYPES[c.type]})"
+                converted = f"CASE WHEN ({converted}) IS NULL AND {col} IS NOT NULL THEN {fails} ELSE ({converted}) END"
+            query = f"SELECT * REPLACE ({guarded(converted)} AS {quote(c.attribute)}) FROM ({query})"
+            current = current.set(current.get_field_index(c.attribute), pa.field(c.attribute, ARROW_TYPES[c.type]))
+        return {"output": f"SELECT {', '.join(quote(n) for n in out.names)} FROM ({query})"}
+
+    def sql_checked(self) -> list[str]:
+        return [c.attribute for c in self.params.conversions if c.attribute]
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         specs = self._specs()

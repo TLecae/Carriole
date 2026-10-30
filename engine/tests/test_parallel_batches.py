@@ -100,9 +100,9 @@ def test_single_worker_is_the_sequential_path(registry, numbers, tmp_path):
 
 
 def test_default_workers_come_from_environment(monkeypatch):
-    from etl_engine.executor import _default_batch_workers
+    from etl_engine.duck import batch_workers
 
     monkeypatch.setenv("ETL_BATCH_WORKERS", "3")
-    assert _default_batch_workers(12) == 3
+    assert batch_workers(12) == 3
     monkeypatch.delenv("ETL_BATCH_WORKERS")
-    assert _default_batch_workers(12) == 6 and _default_batch_workers(2) == 2 and _default_batch_workers(64) == 8
+    assert batch_workers(12) == 6 and batch_workers(2) == 2 and batch_workers(64) == 8

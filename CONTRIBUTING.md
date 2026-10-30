@@ -20,15 +20,23 @@ Requirements: [uv](https://docs.astral.sh/uv/), Node.js 22+.
 ```bash
 uv sync                                   # Python environment
 cd frontend && npm ci && npx vite build   # user interface
+cd ..
 uv run etl open                           # local backend + UI in the browser
 cd desktop && npm ci && npm start         # or the desktop window (Electron)
 ```
 
-Before opening a pull request:
+The first test run downloads DuckDB's spatial extension (internet needed once). Tests never touch your own Carriole
+data: each one runs in a temporary `ETL_HOME`.
+
+Before opening a pull request (the CI runs the first three on Linux and Windows):
 
 - `uv run ruff format .` then `uv run ruff check .` (lines up to 120 characters);
-- `uv run pytest engine api store worker assistant -m "not slow"`;
-- on Windows, `powershell -ExecutionPolicy Bypass -File scripts\ci.ps1` runs the whole chain (including Playwright);
+- `uv run pytest engine api store worker assistant -m "not slow"`; the PostgreSQL tests run only when `ETL_TEST_PG`
+  points to a disposable database;
+- in `frontend/`: `npx tsc --noEmit`, `npx vitest run`, `npx vite build`;
+- end-to-end tests (Playwright), after `npx vite build`: in `e2e/`, `npm ci` then `npx playwright test`. They use
+  Microsoft Edge; elsewhere, `npx playwright install chromium` and set `E2E_CHANNEL=chromium`;
+- on Windows, `powershell -ExecutionPolicy Bypass -File scripts\ci.ps1` runs the whole chain;
 - after changing a modifier, regenerate the catalogue: `uv run etl modifiers doc` and
   `uv run etl modifiers doc --lang en --out docs/en/catalogue.md`;
 - for an architecture choice, add a short decision record in [docs/decisions/](docs/decisions/).

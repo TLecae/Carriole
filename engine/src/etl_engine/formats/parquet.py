@@ -7,8 +7,8 @@ import json
 import os
 import re
 import time
-from collections import defaultdict
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import duckdb
@@ -20,7 +20,8 @@ import shapely
 
 from etl_engine import duck
 from etl_engine.atomic import part_name
-from etl_engine.data import GEOM, get_crs, has_geometry, with_crs
+from etl_engine.cache import batch_rows_for, dictionary_columns
+from etl_engine.data import GEOM, crs_from_geo, get_crs, has_geometry, with_crs
 from etl_engine.sdk import ConfigError
 
 _TYPE_NAMES = {
@@ -34,24 +35,11 @@ _TYPE_NAMES = {
 }
 
 
-def _crs_from_geo(geo: dict[str, Any] | None, column: str) -> str | None:
-    if not geo:
-        return None
-    col = geo.get("columns", {}).get(column, {})
-    projjson = col.get("crs")
-    if projjson is None:
-        return "OGC:CRS84"  # défaut de la spécification GeoParquet
-    try:
-        return pyproj.CRS.from_json_dict(projjson).to_string()
-    except pyproj.exceptions.CRSError:
-        return None
-
-
 def _prepare(schema: pa.Schema, metadata: dict[bytes, bytes]) -> tuple[pa.Schema, str | None, str | None]:
     """(schéma interne, colonne géométrie d'origine, SCR) pour un fichier Parquet."""
     geo = json.loads(metadata[b"geo"]) if b"geo" in metadata else None
     column = geo["primary_column"] if geo else (GEOM if GEOM in schema.names else None)
-    crs = get_crs(schema) or _crs_from_geo(geo, column) if column else None
+    crs = get_crs(schema) or crs_from_geo(geo, column) if column else None
     if column and column != GEOM:
         schema = schema.set(schema.get_field_index(column), pa.field(GEOM, schema.field(column).type))
     return with_crs(schema.remove_metadata(), crs), column, crs
@@ -120,7 +108,8 @@ def read_batches(
         return
     pf = pq.ParquetFile(path)
     _, column, crs = _prepare(pf.schema_arrow, pf.metadata.metadata or {})
-    for rb in pf.iter_batches(batch_size=batch_rows, columns=_wanted(columns, column)):
+    rows = batch_rows_for([Path(path)], batch_rows)  # lignes larges : des lots plus courts, dans le budget du run
+    for rb in pf.iter_batches(batch_size=rows, columns=_wanted(columns, column)):
         yield _named(pa.Table.from_batches([rb]), column, crs)
 
 
@@ -155,6 +144,64 @@ def _read_web(url: str, batch_rows: int, columns: list[str] | None, limit: int |
                 yield _named(pa.Table.from_batches([rb]), column, crs)
 
 
+def sql_literal(text: str) -> str:
+    return "'" + text.replace("'", "''") + "'"
+
+
+def sql_name(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def _footer(path: str) -> tuple[pa.Schema, dict[bytes, bytes]]:
+    if is_remote(path):
+        with _web(path) as con:
+            return _web_footer(con, path)
+    pf = pq.ParquetFile(path)
+    return pf.schema_arrow, pf.metadata.metadata or {}
+
+
+def sql_query(paths: list[str], add_filename: bool = False, limit: int | None = None, **_: Any) -> str | None:
+    """Requête DuckDB qui lit `paths` comme `read_batches` : géométrie (WKB) renommée `geometry`, nom du fichier,
+    `limit` premières lignes. None (lecture par `read_batches`) si les fichiers n'ont pas la même colonne géométrie."""
+    found = {_prepare(*_footer(path))[1] for path in paths}
+    names = _footer(paths[0])[0].names
+    column = found.pop() if len(found) == 1 else ""
+    if column == "" or (column and column != GEOM and GEOM in names):
+        return None
+    listing = ", ".join(sql_literal(p.replace("\\", "/")) for p in paths)
+    filename = add_filename and "filename" not in names
+    query = f"SELECT * FROM read_parquet([{listing}], union_by_name=true, filename={filename})"
+    if filename:  # le nom seul, comme `read_batches`
+        query = f"SELECT * REPLACE (parse_filename(filename, false, 'both_slash') AS filename) FROM ({query})"
+    if column and column != GEOM:
+        query = f"SELECT * RENAME ({sql_name(column)} AS {GEOM}) FROM ({query})"
+    return f"{query} LIMIT {int(limit)}" if limit else query
+
+
+def as_port(paths: list[str], add_filename: bool = False, limit: int | None = None, **_: Any) -> str | None:
+    """Le fichier, s'il se lit tel quel comme un port : un seul fichier local, sans colonne ajoutée ni limite, sans
+    géométrie ou avec sa géométrie en WKB dans `geometry`, SCR lu de même par `get_crs`. Le port le désigne alors
+    au lieu d'en recopier les lignes (ADR 0043). None sinon."""
+    if len(paths) != 1 or is_remote(paths[0]) or add_filename or limit:
+        return None
+    schema, metadata = _footer(paths[0])
+    _, column, crs = _prepare(schema, metadata)
+    if column is None:
+        return paths[0]
+    kind = schema.field(GEOM).type if GEOM in schema.names else None
+    wkb = kind is not None and (pa.types.is_binary(kind) or pa.types.is_large_binary(kind))
+    return paths[0] if column == GEOM and wkb and get_crs(schema) == crs else None
+
+
+def sql_prepare(con: duckdb.DuckDBPyConnection, paths: list[str], limit: int | None = None) -> None:
+    """Connexion de `sql_query` : géométrie lue en WKB ; extension web et lecture anticipée comme `_read_web`."""
+    con.execute("SET enable_geoparquet_conversion = false")
+    if any(is_remote(p) for p in paths):
+        duck.load_httpfs(con)
+        if limit:
+            con.execute("SET disable_parquet_prefetching = true")
+
+
 class ParquetWriter:
     """Écrit un GeoParquet 1.1 par lots (WKB, SCR, emprise et types de géométrie dans les métadonnées)."""
 
@@ -180,15 +227,19 @@ class ParquetWriter:
                 else np.concatenate([np.minimum(cur[:2], lo), np.maximum(cur[2:], hi)])
             )
         ids = shapely.get_type_id(geoms)
-        z = shapely.has_z(geoms)
-        for tid, has_z in {(int(i), bool(zz)) for i, zz in zip(ids, z, strict=True) if i >= 0}:
+        present = ids >= 0
+        # types présents, sans boucle sur les entités : (type, a un Z) codé en un entier
+        for code in np.unique(ids[present] * 2 + shapely.has_z(geoms[present])):
+            tid, has_z = divmod(int(code), 2)
             self._types.add(_TYPE_NAMES.get(tid, "Geometry") + (" Z" if has_z else ""))
 
     def write(self, table: pa.Table) -> None:
         if self._writer is None:
             self._schema = table.schema
             self._crs = get_crs(table)
-            self._writer = pq.ParquetWriter(self._part, self._schema, compression=self.compression)
+            self._writer = pq.ParquetWriter(
+                self._part, self._schema, compression=self.compression, use_dictionary=dictionary_columns(self._schema)
+            )
         elif not table.schema.equals(self._schema, check_metadata=False):
             raise ValueError("schéma incohérent entre deux lots")
         if has_geometry(table):
@@ -259,11 +310,13 @@ class PartitionedParquetWriter:
                         if name.endswith(".parquet"):
                             os.remove(os.path.join(root, name))
             self._started = True
-        keys = list(zip(*[table.column(c).to_pylist() for c in self.by], strict=True))
-        groups: dict[tuple, list[int]] = defaultdict(list)
-        for i, key in enumerate(keys):
-            groups[key].append(i)
-        for key, rows in groups.items():
+        # lignes de chaque valeur, sans boucle sur les entités (ordre des lignes gardé : un seul thread)
+        rows_of = pa.array(np.arange(table.num_rows, dtype=np.int64))
+        grouped = table.select(self.by).append_column("__row", rows_of).group_by(self.by, use_threads=False)
+        grouped = grouped.aggregate([("__row", "list")])
+        keys = list(zip(*[grouped.column(c).to_pylist() for c in self.by], strict=True))
+        for key, rows in zip(keys, grouped.column("__row_list").combine_chunks(), strict=True):
+            rows = rows.values
             writer = self._writers.get(key)
             if writer is None:
                 if len(self._writers) >= MAX_PARTITIONS:
@@ -271,7 +324,7 @@ class PartitionedParquetWriter:
                 folder = self._dir(key)
                 os.makedirs(folder, exist_ok=True)
                 writer = self._writers[key] = ParquetWriter(os.path.join(folder, "part-0.parquet"), self.compression)
-            writer.write(table.take(pa.array(rows)))
+            writer.write(table.take(rows))
 
     def abort(self) -> None:
         for writer in self._writers.values():

@@ -28,7 +28,7 @@ application for GIS teams who want visual workflows with modifiers that are
 plain Python files they can read and write.
 
 - **Spatial formats, read and written**: PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo (TAB, MIF), GeoJSON,
-  GeoParquet, FlatGeobuf, CSV with WKT or X/Y columns, Excel; Oracle and SQLite / SpatiaLite databases.
+  (Geo)Parquet, FlatGeobuf, CSV with WKT or X/Y columns, Excel; Oracle and SQLite / SpatiaLite databases.
   [Formats](docs/formats.md)
 - **Vector processing**: buffer, clip, dissolve, spatial relations and filters, point-on-area overlay, reprojection
   (official French IGN grids bundled), geometry validation, vertices, centroids, area… next to attributes, filters,
@@ -95,6 +95,7 @@ Requirements: [uv](https://docs.astral.sh/uv/) and Node.js 22+.
 ```bash
 uv sync                                   # Python environment
 cd frontend && npm ci && npx vite build   # user interface
+cd ..
 uv run etl open                           # starts the local backend and opens the UI in the browser
 cd desktop && npm ci && npm start         # or the desktop window (Electron)
 ```

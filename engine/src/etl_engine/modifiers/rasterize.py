@@ -28,6 +28,7 @@ class Rasterize(Modifier):
     name = "Rasterize"
     label = "Entités vers raster"
     category = "Rasters"
+    mode = "blocking"  # charge toute son entrée
     description = "Transforme des polygones, lignes ou points en raster : valeur d'un attribut ou valeur fixe."
     help = (
         "Les entités sont dessinées dans un raster de pixels de « Taille du pixel » (dans l'unité de leur système de "
@@ -82,7 +83,7 @@ class Rasterize(Modifier):
         if p.value_attribute and p.value_attribute not in table.column_names:
             raise ConfigError(f"attribut absent : {p.value_attribute}")
         geoms = geometries(table)
-        live = np.array([g is not None and not g.is_empty for g in geoms], dtype=bool)
+        live = ~shapely.is_missing(geoms) & ~shapely.is_empty(geoms)
         geoms = geoms[live]
         if not len(geoms):
             self.ctx.warning("aucune géométrie ; rien n'est produit")

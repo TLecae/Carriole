@@ -15,6 +15,7 @@ export interface JsonSchema {
   "x-etl-widget"?: string;
   "x-etl-language"?: "python" | "sql"; // champ de code : langage de l'éditeur
   "x-etl-access"?: "read" | "write"; // champ chemin : dossiers parcourus par l'explorateur de fichiers
+  "x-etl-input"?: string; // champ attribut d'un modificateur à plusieurs entrées : l'entrée dont il vient
   [key: string]: unknown;
 }
 
@@ -137,6 +138,7 @@ export interface Preferences {
 export interface AppSettingsValues {
   workers: number | null;
   memory_budget_mb: number | null;
+  cache_dir: string; // vide : le dossier par défaut (`paths.cache`)
   proxy: string;
   component_dirs: string[];
   tile_hosts: string[];
@@ -149,7 +151,7 @@ export interface AppSettings {
   values: AppSettingsValues;
   defaults: { workers: number };
   component_dirs_found: Record<string, boolean>;
-  paths: { data: string; settings: string; logs: string; plugins: string };
+  paths: { data: string; settings: string; logs: string; plugins: string; cache: string };
   restart_required?: string[];
 }
 
@@ -309,6 +311,7 @@ export interface FeatureInfo {
   attributes: Record<string, unknown>;
   bbox?: [number, number, number, number]; // WGS84 : ouest, sud, est, nord
   geometry?: GeoJsonGeometry; // WGS84 : sert à surligner l'entité choisie
+  outline?: "edges"; // polygone découpé (énorme) : son contour est dans les lignes de `geometry`, pas le bord des pièces
 }
 
 /** Type de base d'une connexion. */

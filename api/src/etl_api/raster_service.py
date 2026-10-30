@@ -54,7 +54,7 @@ _stats: OrderedDict[tuple[Any, ...], dict[str, Any]] = OrderedDict()
 def descriptor(port: Port, fid: int) -> dict[str, Any]:
     """La ligne `fid` (rang dans le fichier du port) de la colonne `raster`."""
     try:
-        table = pq.read_table(port.raw, columns=[core.RASTER])
+        table = pq.read_table(port.data, columns=[core.RASTER])
     except (KeyError, ValueError, OSError):
         raise DataError("ce port ne contient pas de raster", 404) from None
     if not 0 <= fid < table.num_rows:

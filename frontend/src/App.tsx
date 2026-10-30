@@ -109,6 +109,7 @@ export function App() {
   const view = useUi((s) => s.view);
   const lang = useLanguage();
   const bottomHeight = useUi((s) => s.bottomHeight);
+  const rightWidth = useUi((s) => s.rightWidth);
   const assistantOpen = useAssistant((s) => s.open);
   useEffect(() => {
     // La palette d'abord : ouvrir un flux en a besoin pour décrire ses nœuds. Ensuite l'adresse décide de la vue.
@@ -141,7 +142,7 @@ export function App() {
           <Toast />
         </>
       ) : (
-        <div className="app" style={{ ["--bottom" as string]: `${bottomHeight}px` }}>
+        <div className="app" style={{ ["--bottom" as string]: `${bottomHeight}px`, ["--right" as string]: `${rightWidth}px` }}>
           <TopBar />
           <div className={`main${assistantOpen ? " with-assistant" : ""}`}>
             <Palette />

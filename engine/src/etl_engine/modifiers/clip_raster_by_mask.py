@@ -7,7 +7,6 @@ from typing import Any, Literal
 
 import numpy as np
 import pyarrow as pa
-import pyproj
 import rasterio
 import shapely
 from pydantic import BaseModel, Field
@@ -15,17 +14,9 @@ from rasterio.features import geometry_mask
 from rasterio.windows import Window
 
 from etl_engine.blocking import collect
-from etl_engine.data import GEOM, geometries, get_crs
+from etl_engine.data import GEOM, geometries, get_crs, to_crs
 from etl_engine.raster import core
 from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params
-
-
-def to_crs(geoms: np.ndarray, source: str | None, target: str | None) -> np.ndarray:
-    """Géométries reprojetées de `source` vers `target` (rien à faire si identiques ou inconnus)."""
-    if not source or not target or source == target:
-        return geoms
-    transformer = pyproj.Transformer.from_crs(source, target, always_xy=True)
-    return shapely.transform(geoms, lambda coords: np.column_stack(transformer.transform(coords[:, 0], coords[:, 1])))
 
 
 class ClipRasterByMask(Modifier):
