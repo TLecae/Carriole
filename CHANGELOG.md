@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3
 
 - DuckDB 2.0.0 (LTS). Flows give the same results as with 1.5: an empty (`NULL`) attribute keeps a type and can
   be written to GeoPackage, `//` and `%` by zero give NULL, `~` matches the whole value. Lambdas are written

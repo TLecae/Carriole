@@ -503,7 +503,7 @@ wheels = [
 
 [[package]]
 name = "etl-api"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "api" }
 dependencies = [
     { name = "etl-assistant" },
@@ -524,7 +524,7 @@ requires-dist = [
 
 [[package]]
 name = "etl-assistant"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "assistant" }
 dependencies = [
     { name = "anthropic" },
@@ -543,7 +543,7 @@ requires-dist = [
 
 [[package]]
 name = "etl-engine"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "engine" }
 dependencies = [
     { name = "contourpy" },
@@ -588,7 +588,7 @@ requires-dist = [
 
 [[package]]
 name = "etl-store"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "store" }
 dependencies = [
     { name = "cryptography" },
@@ -612,7 +612,7 @@ provides-extras = ["pg"]
 
 [[package]]
 name = "etl-worker"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "worker" }
 dependencies = [
     { name = "etl-engine" },
@@ -627,7 +627,7 @@ requires-dist = [
 
 [[package]]
 name = "etl-workspace"
-version = "0.1.2"
+version = "0.1.3"
 source = { virtual = "." }
 dependencies = [
     { name = "etl-api" },
