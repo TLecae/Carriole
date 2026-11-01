@@ -8,7 +8,11 @@
   copied and deleted with it, and keep the link in the flow file (`node` field of the annotation). The overview map
   can be folded.
 - Inspector map: always seen from above, north up (no rotation or tilt). The *Map* checkbox stays visible when the
-  map is hidden, so it can be shown again. *Export* and *Layers* (formerly *Overlay*) are drop-down menus.
+  map is hidden, so it can be shown again. *Export* and *Layers* (formerly *Overlay*) are drop-down menus; *Colour*
+  and *Layers* sit on the map, next to the basemap buttons.
+- Inspector table: a table of more than about a million rows scrolls to its end, and a feature clicked on the map is
+  found at any row. The browser caps the height of an element (around 33 million pixels, less when zoomed in), so
+  beyond that cap the scrollbar position is scaled: wheel and keyboard still move row by row.
 - Node colours: each built-in category has its own, clearly distinct colour; the palette and the nodes use the same
   colour in every language.
 - Run log: a header (nodes to run, nodes taken from the cache, memory and cores), the start and end of each node

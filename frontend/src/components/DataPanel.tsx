@@ -131,28 +131,6 @@ export function DataPanel() {
                 <input type="checkbox" checked={mapVisible} onChange={(e) => setMapVisible(e.target.checked)} /> {t("Carte")}
               </label>
             )}
-            {mapPlace && hasMap && (
-              <>
-                <label>
-                  {t("Couleur")}{" "}
-                  <select aria-label={t("Colorer par")} value={colorBy ?? ""} onChange={(e) => setColorBy(e.target.value || null)}>
-                    <option value="">{t("uniforme")}</option>
-                    {numeric.map((c) => (
-                      <option key={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                </label>
-                <Menu label={overlays.length ? t("Couches ({{count}})", { count: overlays.length }) : t("Couches")} className="data-menu">
-                  <MenuLabel>{t("Superposer sur la carte")}</MenuLabel>
-                  {layers.map((o) => (
-                    <MenuItem key={keyOf(o.ref)} keepOpen checked={overlays.some((x) => sameTarget(x, o.ref))} onSelect={() => toggleOverlay(o.ref)}>
-                      {o.ref.node} / {o.ref.port}
-                    </MenuItem>
-                  ))}
-                  {!layers.length && <p className="menu-empty">{t("Aucun autre port avec des données.")}</p>}
-                </Menu>
-              </>
-            )}
           </>
         )}
       </div>
@@ -181,7 +159,32 @@ export function DataPanel() {
           {mapPlace && hasMap ? (
             <MapBoundary>
               <Suspense fallback={<Loading text={t("Chargement de la carte…")} />}>
-                <MapView info={info} />
+                <MapView
+                  info={info}
+                  tools={
+                    // sur la carte, à côté du fond de plan : ce qu'ils règlent est là
+                    <>
+                      <label className="map-color">
+                        {t("Couleur")}
+                        <select aria-label={t("Colorer par")} value={colorBy ?? ""} onChange={(e) => setColorBy(e.target.value || null)}>
+                          <option value="">{t("uniforme")}</option>
+                          {numeric.map((c) => (
+                            <option key={c.name}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <Menu label={overlays.length ? t("Couches ({{count}})", { count: overlays.length }) : t("Couches")} className="data-menu">
+                        <MenuLabel>{t("Superposer sur la carte")}</MenuLabel>
+                        {layers.map((o) => (
+                          <MenuItem key={keyOf(o.ref)} keepOpen checked={overlays.some((x) => sameTarget(x, o.ref))} onSelect={() => toggleOverlay(o.ref)}>
+                            {o.ref.node} / {o.ref.port}
+                          </MenuItem>
+                        ))}
+                        {!layers.length && <p className="menu-empty">{t("Aucun autre port avec des données.")}</p>}
+                      </Menu>
+                    </>
+                  }
+                />
               </Suspense>
             </MapBoundary>
           ) : mapPlace ? (

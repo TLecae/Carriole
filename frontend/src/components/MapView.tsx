@@ -4,7 +4,7 @@ import type { ExpressionSpecification, GeoJSONSource, Map as MlMap, VectorTileSo
 // sinon l'URL relative par défaut ne mène nulle part une fois ce code déplacé dans un chunk (« Worker failed to load »).
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api, rasterTileTemplate, tileTemplate } from "../api/client";
 import type { DataQuery, PortInfo, PortRef, RasterInfo, RasterStyle } from "../api/types";
 import { keyOf, sameTarget, useInspector } from "../store/inspector";
@@ -159,7 +159,7 @@ const Swatch = ({ shape, color }: { shape: LegendLayer["shape"]; color: string }
   <span className={`legend-swatch ${shape}`} style={{ "--swatch": color } as CSSProperties} />
 );
 
-export function MapView({ info }: { info: PortInfo }) {
+export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
@@ -527,34 +527,40 @@ export function MapView({ info }: { info: PortInfo }) {
         <button type="button" aria-label={t("Réglages du fond de plan")} aria-expanded={config} title={t("Réglages du fond de plan")} onClick={() => setConfig(!config)}>
           ⚙
         </button>
+        {tools}
+        {config && <BasemapPanel basemap={basemap} onChange={setBasemap} />}
       </div>
       {isRaster && rasterInfo && rasterStyle && (
         <RasterControls info={rasterInfo} style={rasterStyle} shown={rasterShown} onShown={setRasterShown} onStyle={setRasterStyle} />
       )}
-      {config && (
-        <div className="map-config-panel">
-          <label>
-            {t("Fond de plan")}
-            <select value={basemap.kind} onChange={(e) => setBasemap({ ...basemap, kind: e.target.value as BasemapKind })}>
-              {(Object.keys(BASEMAPS) as (keyof typeof BASEMAPS)[]).map((kind) => (
-                <option key={kind} value={kind}>
-                  {basemapLabel(kind)}
-                </option>
-              ))}
-              <option value="none">{t("Aucun (hors ligne)")}</option>
-              <option value="custom">{t("Adresse personnalisée")}</option>
-            </select>
-          </label>
-          {basemap.kind === "custom" && (
-            <label>
-              {t("Modèle d'URL")}
-              <input type="text" value={basemap.url} placeholder="https://…/{z}/{x}/{y}.png" onChange={(e) => setBasemap({ ...basemap, url: e.target.value })} />
-              <small className="muted">{t("Le serveur de tuiles doit être autorisé dans la politique CSP (voir le guide d'installation).")}</small>
-            </label>
-          )}
-          {basemap.kind !== "none" && basemap.kind !== "custom" && <small className="muted">{t("Les tuiles sont chargées depuis internet par votre navigateur.")}</small>}
-        </div>
+    </div>
+  );
+}
+
+/** Réglages du fond de plan, sous la barre de la carte. */
+function BasemapPanel({ basemap, onChange: setBasemap }: { basemap: Basemap; onChange: (basemap: Basemap) => void }) {
+  return (
+    <div className="map-config-panel">
+      <label>
+        {t("Fond de plan")}
+        <select value={basemap.kind} onChange={(e) => setBasemap({ ...basemap, kind: e.target.value as BasemapKind })}>
+          {(Object.keys(BASEMAPS) as (keyof typeof BASEMAPS)[]).map((kind) => (
+            <option key={kind} value={kind}>
+              {basemapLabel(kind)}
+            </option>
+          ))}
+          <option value="none">{t("Aucun (hors ligne)")}</option>
+          <option value="custom">{t("Adresse personnalisée")}</option>
+        </select>
+      </label>
+      {basemap.kind === "custom" && (
+        <label>
+          {t("Modèle d'URL")}
+          <input type="text" value={basemap.url} placeholder="https://…/{z}/{x}/{y}.png" onChange={(e) => setBasemap({ ...basemap, url: e.target.value })} />
+          <small className="muted">{t("Le serveur de tuiles doit être autorisé dans la politique CSP (voir le guide d'installation).")}</small>
+        </label>
       )}
+      {basemap.kind !== "none" && basemap.kind !== "custom" && <small className="muted">{t("Les tuiles sont chargées depuis internet par votre navigateur.")}</small>}
     </div>
   );
 }

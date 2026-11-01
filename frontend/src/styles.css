@@ -271,14 +271,16 @@ button.sort:disabled { cursor: default; }
 .map-wrap > .map, .map-wrap > .map.maplibregl-map { position: absolute; inset: 0; }
 .map-status { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; color: #374151; background: #f6f8fa; }
 .map-status p { margin: 0; max-width: 46ch; line-height: 1.5; }
-.map-config { position: absolute; left: 8px; top: 8px; z-index: 5; display: flex; gap: 4px; }
-.map-config button { padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.map-config { position: absolute; left: 8px; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: calc(100% - 56px); }
+.map-config > button, .map-config .segmented button, .map-config .menu-trigger { padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.map-color { display: flex; align-items: center; gap: 4px; padding: 0 0 0 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.map-color select { max-width: 160px; border: 0; border-left: 1px solid var(--line); border-radius: 0 5px 5px 0; }
 .segmented { display: inline-flex; }
 .segmented button { border-radius: 0; }
 .segmented button:first-child { border-radius: 5px 0 0 5px; }
 .segmented button:last-child { border-radius: 0 5px 5px 0; margin-left: -1px; }
 .segmented button[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
-.map-config-panel { position: absolute; left: 8px; top: 42px; z-index: 5; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: grid; gap: 6px; width: 260px; }
+.map-config-panel { position: absolute; left: 0; top: calc(100% + 6px); z-index: 5; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: grid; gap: 6px; width: 260px; }
 .map-raster { position: absolute; right: 8px; bottom: 28px; z-index: 5; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: grid; gap: 6px; width: 200px; font-size: 12px; }
 .map-raster label { display: grid; gap: 2px; }
 .map-raster label.inline { display: flex; gap: 6px; align-items: center; }

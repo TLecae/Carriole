@@ -1,11 +1,12 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ColumnFilter, FilterOp, PortInfo } from "../api/types";
 import { PAGE_SIZE, useInspector } from "../store/inspector";
 import { formatNumber, t } from "../i18n";
+import { MAX_SCROLL_HEIGHT, ScrollScale } from "../model/scrollScale";
 import { Spinner } from "./Spinner";
 
 const ROW_H = 26;
+const OVERSCAN = 25; // lignes rendues au-delà de la fenêtre, de part et d'autre
 const COL_W = 150;
 const FID_W = 70;
 
@@ -91,24 +92,48 @@ export function DataTable({ info }: { info: PortInfo }) {
   const { columns, pages, filtered, selectedFid, scrollTo, locating, query, stats, showStats, error } = useInspector();
   const { loadPage, select, toggleSort, setFilter } = useInspector.getState();
   const parent = useRef<HTMLDivElement>(null);
-  const virt = useVirtualizer({ count: filtered, getScrollElement: () => parent.current, estimateSize: () => ROW_H, overscan: 25 });
-  const items = virt.getVirtualItems();
+  const head = useRef<HTMLDivElement>(null);
   const [widths, setWidths] = useState<Record<string, number>>({}); // largeurs choisies à la souris
   const [active, setActive] = useState<Cell | null>(null); // cellule choisie : Ctrl+C la copie
   const [menu, setMenu] = useState<Menu | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Seules les lignes de la fenêtre sont dans la page. Au-delà d'un million de lignes environ, la position de
+  // l'ascenseur est mise à l'échelle : le navigateur ne sait pas faire défiler un contenu plus haut.
+  const [scale] = useState(() => new ScrollScale());
+  const [pos, setPos] = useState({ top: 0, offset: 0, view: 0 });
+  const sync = useCallback(
+    (center?: number) => {
+      const el = parent.current;
+      if (!el) return;
+      scale.total = filtered * ROW_H;
+      scale.view = Math.max(0, el.clientHeight - (head.current?.offsetHeight ?? 0));
+      if (center !== undefined) el.scrollTop = scale.toScroll(center * ROW_H - (scale.view - ROW_H) / 2);
+      const top = scale.fromScroll(el.scrollTop);
+      setPos({ top, offset: scale.offset, view: scale.view });
+    },
+    [scale, filtered],
+  );
+  useLayoutEffect(() => {
+    sync();
+    const observer = new ResizeObserver(() => sync());
+    if (parent.current) observer.observe(parent.current);
+    if (head.current) observer.observe(head.current);
+    return () => observer.disconnect();
+  }, [sync]);
+  const first = Math.max(0, Math.floor(pos.top / ROW_H) - OVERSCAN);
+  const last = Math.max(first, Math.min(filtered - 1, Math.ceil((pos.top + pos.view) / ROW_H) + OVERSCAN));
+  const items = filtered > 0 ? Array.from({ length: last - first + 1 }, (_, i) => first + i) : [];
+
   // Pages manquantes : chargées à la demande selon les lignes visibles.
-  const first = items[0]?.index ?? 0;
-  const last = items[items.length - 1]?.index ?? 0;
   useEffect(() => {
     for (let p = Math.floor(first / PAGE_SIZE); p <= Math.floor(last / PAGE_SIZE); p++) void loadPage(p);
   }, [first, last, loadPage, columns, filtered]);
 
   // La carte a sélectionné une entité : on fait défiler la table jusqu'à sa ligne.
   useEffect(() => {
-    if (scrollTo) virt.scrollToIndex(scrollTo.index, { align: "center" });
-  }, [scrollTo, virt]);
+    if (scrollTo) sync(scrollTo.index);
+  }, [scrollTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     parent.current?.scrollTo({ top: 0 });
@@ -184,9 +209,9 @@ export function DataTable({ info }: { info: PortInfo }) {
 
   return (
     <div className="table-wrap" role="region" aria-label={t("Table de données")} data-own-keys>
-      <div className="table-scroll" ref={parent} tabIndex={0} onKeyDown={onKeyDown}>
+      <div className="table-scroll" ref={parent} tabIndex={0} onKeyDown={onKeyDown} onScroll={() => sync()}>
         <div style={{ width, minWidth: "100%" }}>
-          <div className="table-head" style={{ width }}>
+          <div className="table-head" ref={head} style={{ width }}>
             <div className="cell fid" style={{ width: FID_W }}>
               fid
             </div>
@@ -244,37 +269,37 @@ export function DataTable({ info }: { info: PortInfo }) {
               );
             })}
           </div>
-          <div className="table-body" style={{ height: virt.getTotalSize(), width }}>
-            {items.map((item) => {
-              const row = rowAt(item.index);
+          <div className="table-body" style={{ height: Math.min(filtered * ROW_H, MAX_SCROLL_HEIGHT), width }}>
+            {items.map((index) => {
+              const row = rowAt(index);
               const fid = row ? (row[0] as number) : null;
               return (
                 <div
-                  key={item.key}
+                  key={index}
                   className={`row${fid !== null && fid === selectedFid ? " selected" : ""}${row ? "" : " loading"}`}
-                  style={{ transform: `translateY(${item.start}px)`, height: ROW_H, width }}
+                  style={{ transform: `translateY(${index * ROW_H - pos.offset}px)`, height: ROW_H, width }}
                   onClick={(e) => {
                     if (window.getSelection()?.toString()) return; // on sélectionnait du texte, pas l'entité
                     const col = colOf(e);
-                    if (Number.isInteger(col)) setActive({ row: item.index, col });
+                    if (Number.isInteger(col)) setActive({ row: index, col });
                     if (fid !== null) void select(fid === selectedFid ? null : fid, "table");
                   }}
                   onContextMenu={(e) => {
                     const col = colOf(e);
                     if (!row || !Number.isInteger(col)) return;
                     e.preventDefault();
-                    const cell = { row: item.index, col };
+                    const cell = { row: index, col };
                     setActive(cell);
                     setMenu({ x: e.clientX, y: e.clientY, column: columns[col], cell });
                   }}
                   data-testid="data-row"
                 >
-                  <div className={`cell fid${isActive(active, item.index, 0) ? " active" : ""}`} style={{ width: FID_W }} data-col={0}>
+                  <div className={`cell fid${isActive(active, index, 0) ? " active" : ""}`} style={{ width: FID_W }} data-col={0}>
                     {fid ?? ""}
                   </div>
                   {row?.slice(1).map((v, i) => (
                     <div
-                      className={`cell${typeof v === "number" ? " num" : ""}${isActive(active, item.index, i + 1) ? " active" : ""}`}
+                      className={`cell${typeof v === "number" ? " num" : ""}${isActive(active, index, i + 1) ? " active" : ""}`}
                       key={i}
                       style={{ width: widthOf(columns[i + 1]) }}
                       title={fmt(v)}

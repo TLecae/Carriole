@@ -130,7 +130,7 @@ zoomer ne recharge rien de ce qui est déjà venu, et les tuiles des petites éc
 garde l'ancienne image jusqu'à l'arrivée de la nouvelle. La table, elle, montre toujours toutes les entités. Sélectionner une entité énorme la surligne avec un contour
 simplifié.
 
-**Couleur** : colore la carte selon un attribut, calculé sur les lignes filtrées. Un attribut numérique donne cinq
+**Couleur**, en haut de la carte à côté du fond de plan : colore la carte selon un attribut, calculé sur les lignes filtrées. Un attribut numérique donne cinq
 classes d'effectifs égaux, du clair au foncé ; un autre attribut, une couleur par valeur fréquente (les dix plus
 fréquentes, les autres en gris). Le menu **Couches** superpose d'autres ports du run sur la carte (plusieurs cases à cocher, menu ouvert). Dès qu'il y a une couleur
 ou plusieurs couches, le bouton **Légende**, sous ceux du zoom, les explique. Cliquer une entité sur la carte la

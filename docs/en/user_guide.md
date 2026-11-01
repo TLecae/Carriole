@@ -121,7 +121,7 @@ after the map is prepared), for the last opened port: switching to another port 
 tiles of the previous one. Changing the filter or the colour keeps the old image until the new one arrives. The
 table always shows every feature. Selecting a huge feature highlights a simplified outline.
 
-**Colour**: colours the map by an attribute, computed on the filtered rows. A numeric attribute gives five equal-count
+**Colour**, at the top of the map next to the basemap: colours the map by an attribute, computed on the filtered rows. A numeric attribute gives five equal-count
 classes, from light to dark; another attribute, one colour per frequent value (the ten most frequent, the others in
 grey). The **Layers** menu overlays other ports of the run on the map (several checkboxes, the menu stays open). As soon as there is a colour or several layers, the
 **Legend** button, under the zoom buttons, explains them. Clicking a feature on the map selects it and scrolls the
