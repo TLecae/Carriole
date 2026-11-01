@@ -17,10 +17,10 @@
     "test": "tsc && playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^24.0.0",
     "electron": "^45.1.0",
-    "electron-builder": "^26.15.3",
+    "electron-builder": "^26.18.0",
     "rcedit": "^5.0.2",
     "typescript": "^7.0.2"
   }
