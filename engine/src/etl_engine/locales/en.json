@@ -1841,6 +1841,23 @@
   "attributs absents : {listing}": "missing attributes: {listing}",
   "clés absentes de « base » : {join}": "keys missing from \"base\": {join}",
   "clés absentes de « join » : {join}": "keys missing from \"join\": {join}",
-  "tri impossible : {v}": "sort impossible: {v}"
+  "tri impossible : {v}": "sort impossible: {v}",
+  "désactivé : ignoré, avec son aval": "disabled: skipped, with everything downstream",
+  "en attente : d'autres nœuds lourds occupent la mémoire": "waiting: other heavy nodes are using the memory",
+  "erreur : {error}": "error: {error}",
+  "exécution annulée": "run cancelled",
+  "exécution démarrée": "started",
+  "repris du cache": "taken from the cache",
+  "repris du cache : {ports}": "taken from the cache: {ports}",
+  "ressources : {share_mb} Mo de mémoire, {run_threads} cœur(s), {slots} nœud(s) lourd(s) à la fois": "resources: {share_mb} MB of memory, {run_threads} core(s), {slots} heavy node(s) at a time",
+  "run annulé après {seconds} s": "run cancelled after {seconds} s",
+  "run arrêté après {seconds} s : {done} nœud(s) exécuté(s), {errors} en erreur": "run stopped after {seconds} s: {done} node(s) run, {errors} in error",
+  "run complet : {count} nœud(s) à exécuter, {cached} repris du cache": "full run: {count} node(s) to run, {cached} taken from the cache",
+  "run jusqu'au nœud {target} : {count} nœud(s) à exécuter, {cached} repris du cache": "run up to node {target}: {count} node(s) to run, {cached} taken from the cache",
+  "run terminé en {seconds} s : {done} nœud(s) exécuté(s), {cached} repris du cache": "run finished in {seconds} s: {done} node(s) run, {cached} taken from the cache",
+  "terminé en {seconds} s": "finished in {seconds} s",
+  "terminé en {seconds} s : {ports}": "finished in {seconds} s: {ports}",
+  "terminé en {seconds} s, reçu : {ports}": "finished in {seconds} s, received: {ports}",
+  "{count} entité(s) rejetée(s) : le motif est dans l'attribut _rejection_reason": "{count} feature(s) rejected: the reason is in the _rejection_reason attribute"
  }
 }

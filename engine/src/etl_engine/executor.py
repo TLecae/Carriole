@@ -71,6 +71,16 @@ from etl_engine.sqlroute import Source, SqlRouteResult, has_sql_route, row_wise,
 EventSink = Callable[[dict[str, Any]], None]
 
 
+def _count(n: int) -> str:
+    """Nombre d'entités pour le journal : milliers séparés par une espace fine (lisible dans toutes les langues)."""
+    return f"{n:,}".replace(",", " ")
+
+
+def _ports(rows: dict[str, int]) -> str:
+    """Comptes par port pour le journal : « output 1 234, Rejected 0 »."""
+    return ", ".join(f"{port} {_count(n)}" for port, n in rows.items())
+
+
 def _common_crs(sources: list[Source]) -> str | None:
     """Le SCR des ports d'entrée, s'ils n'en portent qu'un : celui d'une sortie dont la géométrie l'aurait perdu (un
     modificateur, un plugin qui reconstruit sa table sans les métadonnées)."""
@@ -257,12 +267,32 @@ def run_flow(
         event(type="run_finished", status="error", error=res.error, seconds=0)
         return res
     results = {n.id: NodeResult(n.id, "disabled" if not n.enabled else "not_run") for n in flow.nodes}
+    launched = threading.Event()  # les nœuds ont commencé : le journal donne le bilan du run
 
     def finish(status: str, error: str | None) -> RunResult:
         error = loc(error)
         for node_result in results.values():
             node_result.error = loc(node_result.error)
         res = RunResult(status, results, time.perf_counter() - started, error)
+        if launched.is_set():
+            seconds = round(res.seconds, 1)
+            done = sum(r.status == "done" for r in results.values())
+            cached = sum(r.status == "cached" for r in results.values())
+            errors = sum(r.status == "error" for r in results.values())
+            if status == "done":
+                event(
+                    type="log",
+                    level="INFO",
+                    message=f"run terminé en {seconds} s : {done} nœud(s) exécuté(s), {cached} repris du cache",
+                )
+            elif status == "error":
+                event(
+                    type="log",
+                    level="ERROR",
+                    message=f"run arrêté après {seconds} s : {done} nœud(s) exécuté(s), {errors} en erreur",
+                )
+            else:
+                event(type="log", level="WARNING", message=f"run annulé après {seconds} s")
         event(type="run_finished", status=status, error=error, seconds=round(res.seconds, 3))
         return res
 
@@ -447,6 +477,7 @@ def run_flow(
         timer.daemon = True
         timer.start()
     event(type="run_started", nodes=selected)
+    after_header: list[Callable[[], None]] = []  # lignes du journal des nœuds repris : sous l'en-tête du run
 
     def adopt(nid: str, previous: dict) -> bool:
         """Le nœud passe dans ce run avec les fichiers du run précédent (liens, pas copies), état « cached ». Faux si
@@ -469,6 +500,12 @@ def run_flow(
         for port, count in res.rows.items():
             event(type="counts", node=nid, port=port, count=count)
         event(type="node", node=nid, status="cached", seconds=0, rows=res.rows, rows_in=res.rows_in)
+        if res.rows:
+            after_header.append(
+                lambda: event(type="log", node=nid, level="INFO", message=f"repris du cache : {_ports(res.rows)}")
+            )
+        else:
+            after_header.append(lambda: event(type="log", node=nid, level="INFO", message="repris du cache"))
         return True
 
     def run_node(nid: str) -> None:
@@ -476,6 +513,7 @@ def run_flow(
         res = results[nid]
         res.status = "running"
         event(type="node", node=nid, status="running")
+        event(type="log", node=nid, level="INFO", message="exécution démarrée")
         t_wall, t_mono = time.perf_counter(), time.monotonic()
         ndir = run_dir / nid
         ins, outs = inst.ports(inst.params)
@@ -575,7 +613,7 @@ def run_flow(
                     else:
                         event(type="log", node=nid, level="INFO", message="fichier lu sur place, sans copie")
                     if not ins:  # lecture : le nombre d'entités lues, comme par la voie Python
-                        total = sum(res.rows.values())
+                        total = _count(sum(res.rows.values()))
                         event(type="log", node=nid, level="INFO", message=f"{total} entités lues")
                     return
                 for port, parts in inputs.items():
@@ -611,9 +649,16 @@ def run_flow(
 
             if inst.mode == "blocking" and nid not in live:
                 # nœud qui charge tout : quelques-uns à la fois (un nœud en direct suit son amont, il n'attend pas)
-                while not heavy.acquire(timeout=0.2):
-                    if cancel.is_set():
-                        raise Cancelled
+                if not heavy.acquire(blocking=False):
+                    event(
+                        type="log",
+                        node=nid,
+                        level="INFO",
+                        message="en attente : d'autres nœuds lourds occupent la mémoire",
+                    )
+                    while not heavy.acquire(timeout=0.2):
+                        if cancel.is_set():
+                            raise Cancelled
                 holding = True
             inst.run(sources, emit)
             for sink in sinks.values():
@@ -682,7 +727,31 @@ def run_flow(
             rss_mb=r.rss_mb,
             error=r.error,
         )
+        log_outcome(nid, r)
         return nid
+
+    def log_outcome(nid: str, r: NodeResult) -> None:
+        """Bilan d'un nœud dans le journal : durée et comptes, entités rejetées, erreur en une ligne."""
+        seconds = round(r.seconds or 0, 2)
+        if r.status == "done":
+            if r.rows:
+                event(type="log", node=nid, level="INFO", message=f"terminé en {seconds} s : {_ports(r.rows)}")
+            elif r.rows_in:  # écriture : ce que le nœud a reçu
+                event(type="log", node=nid, level="INFO", message=f"terminé en {seconds} s, reçu : {_ports(r.rows_in)}")
+            else:
+                event(type="log", node=nid, level="INFO", message=f"terminé en {seconds} s")
+            if rejected := r.rows.get("Rejected"):
+                count = _count(rejected)
+                event(
+                    type="log",
+                    node=nid,
+                    level="WARNING",
+                    message=f"{count} entité(s) rejetée(s) : le motif est dans l'attribut _rejection_reason",
+                )
+        elif r.status == "error":
+            event(type="log", node=nid, level="ERROR", message=f"erreur : {r.error}")
+        elif r.status == "cancelled":
+            event(type="log", node=nid, level="WARNING", message="exécution annulée")
 
     def group(root: str) -> list[str]:
         """Le nœud et tous ceux qui sont branchés en direct sur lui (de proche en proche) : ils démarrent ensemble."""
@@ -736,6 +805,30 @@ def run_flow(
         for nid in plan.order:
             if nid not in previous_of and (kept := previous_result(nid, outside=True)):
                 adopt(nid, kept)
+
+    # en-tête du journal : ce que le run va faire, avec quelles ressources
+    cached = sum(results[n].status == "cached" for n in selected)
+    count = len(selected) - cached
+    if target is None:
+        event(type="log", level="INFO", message=f"run complet : {count} nœud(s) à exécuter, {cached} repris du cache")
+    else:
+        event(
+            type="log",
+            level="INFO",
+            message=f"run jusqu'au nœud {target} : {count} nœud(s) à exécuter, {cached} repris du cache",
+        )
+    slots = duck.heavy_slots()
+    event(
+        type="log",
+        level="INFO",
+        message=f"ressources : {share_mb} Mo de mémoire, {run_threads} cœur(s), {slots} nœud(s) lourd(s) à la fois",
+    )
+    for n in flow.nodes:
+        if not n.enabled:
+            event(type="log", node=n.id, level="INFO", message="désactivé : ignoré, avec son aval")
+    for line in after_header:
+        line()
+    launched.set()
 
     try:
         with (

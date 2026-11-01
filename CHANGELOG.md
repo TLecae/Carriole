@@ -2,6 +2,18 @@
 
 ## 0.1.3
 
+- Canvas: two nodes are connected by clicking a port, or the *Connect* button of the node bar, then the other node.
+  A free node dropped on a link is inserted into it (one undo step). The chevron of an output port lists its
+  attributes and their types. Notes can be linked to a node (node bar or note bar): they follow it when it moves, are
+  copied and deleted with it, and keep the link in the flow file (`node` field of the annotation). The overview map
+  can be folded.
+- Inspector map: always seen from above, north up (no rotation or tilt). The *Map* checkbox stays visible when the
+  map is hidden, so it can be shown again. *Export* and *Layers* (formerly *Overlay*) are drop-down menus.
+- Node colours: each built-in category has its own, clearly distinct colour; the palette and the nodes use the same
+  colour in every language.
+- Run log: a header (nodes to run, nodes taken from the cache, memory and cores), the start and end of each node
+  with its duration and its counts per port, rejected features, disabled nodes, the error of a failed node in one
+  line, and a summary at the end of the run.
 - Cache: running a flow up to a node no longer hides the results of the other branches. They stay viewable and are
   reused by the next run, including nodes that a full run always re-runs (web requests, launched flows) as long as
   nothing changed in them. Raster nodes taken from the cache keep working once the previous run is cleaned up.

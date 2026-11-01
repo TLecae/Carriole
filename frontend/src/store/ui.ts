@@ -45,6 +45,19 @@ function loadWidth(): number {
   return DEFAULT_RIGHT;
 }
 
+const MINIMAP_KEY = "etl.minimap";
+
+function loadMiniMap(): boolean {
+  try {
+    return localStorage.getItem(MINIMAP_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+/** Clic en attente sur le canevas : brancher un port de sortie à un nœud, ou lier une annotation à un nœud. */
+export type CanvasPick = { kind: "connect"; node: string; port: string; side: "in" | "out" } | { kind: "note"; note: string };
+
 interface UiState {
   view: View; // page d'accueil (liste des flux) ou éditeur
   setView: (view: View) => void;
@@ -71,6 +84,14 @@ interface UiState {
   setBottomHeight: (height: number, persist?: boolean) => void;
   setRightWidth: (width: number, persist?: boolean) => void;
   setFullscreen: (on: boolean) => void;
+  miniMap: boolean; // carte de situation du canevas, repliable
+  toggleMiniMap: () => void;
+  openPorts: Record<string, boolean>; // ports dont la liste des attributs est dépliée (clé « nœud/port »)
+  togglePort: (key: string) => void;
+  pick: CanvasPick | null;
+  setPick: (pick: CanvasPick | null) => void;
+  dropEdge: string | null; // liaison sous le nœud déplacé : le lâcher l'y intercale
+  setDropEdge: (id: string | null) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -121,4 +142,26 @@ export const useUi = create<UiState>((set) => ({
     }
   },
   setFullscreen: (fullscreen) => set({ fullscreen }),
+  miniMap: loadMiniMap(),
+  toggleMiniMap: () =>
+    set((s) => {
+      try {
+        localStorage.setItem(MINIMAP_KEY, s.miniMap ? "0" : "1");
+      } catch {
+        /* préférence non conservée */
+      }
+      return { miniMap: !s.miniMap };
+    }),
+  openPorts: {},
+  togglePort: (key) =>
+    set((s) => {
+      const openPorts = { ...s.openPorts };
+      if (openPorts[key]) delete openPorts[key];
+      else openPorts[key] = true;
+      return { openPorts };
+    }),
+  pick: null,
+  setPick: (pick) => set({ pick }),
+  dropEdge: null,
+  setDropEdge: (dropEdge) => set({ dropEdge }),
 }));

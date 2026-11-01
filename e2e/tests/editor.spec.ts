@@ -253,6 +253,23 @@ test("inspecter une connexion : table filtrée, tri, carte synchronisée", async
   // la carte reçoit le même filtre : elle rend moins d'entités qu'avant (20 sans filtre)
   await expect.poll(rendered, { message: "carte filtrée" }).toBeLessThan(20);
 
+  // Exporter et Couches : des menus déroulants, fermés par Échap ou un second clic
+  await page.getByRole("button", { name: "Exporter" }).click();
+  await expect(page.getByRole("menu", { name: "Exporter" }).getByRole("menuitem")).toHaveText(["CSV", "GeoPackage", "Parquet"]);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu", { name: "Exporter" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Couches" }).click();
+  await expect(page.getByRole("menu", { name: "Couches" })).toContainText("Aucun autre port avec des données.");
+  await page.getByRole("button", { name: "Couches" }).click();
+  await expect(page.getByRole("menu", { name: "Couches" })).toHaveCount(0);
+
+  // Carte masquée puis réaffichée : la case reste là pour la rallumer
+  const showMap = page.getByRole("checkbox", { name: "Carte" });
+  await showMap.uncheck();
+  await expect(page.getByTestId("map")).toHaveCount(0);
+  await showMap.check();
+  await expect(page.getByTestId("map")).toBeVisible();
+
   // Une clause invalide est refusée avec un message, sans casser l'écran
   await page.getByLabel("Clause WHERE").fill("1) OR (1=1");
   await page.getByLabel("Clause WHERE").press("Enter");
@@ -268,7 +285,7 @@ test("liste des runs : retrouver, ouvrir et relancer un run", async ({ page }) =
   await page.getByLabel("Séparateur", { exact: true }).fill(";");
   await page.getByRole("button", { name: /Lancer/ }).first().click();
   await expect(page.getByTestId("run-status")).toHaveText("done");
-  await expect(page.getByText("Run terminé")).toBeVisible(); // notification de fin dans l'interface
+  await expect(page.getByText("Run terminé", { exact: true })).toBeVisible(); // notification de fin dans l'interface
 
   await page.getByRole("button", { name: "Runs", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Runs" });
@@ -502,6 +519,12 @@ test("bandeau du nœud : lancer jusqu'à lui en reprenant le cache, le désactiv
   // ses données d'un clic sur le nœud (onglet Données affiché, pas de bouton dans le bandeau) ; un clic sur un autre
   // nœud, puis de nouveau sur le même : toujours les bonnes données
   await page.getByRole("tab", { name: /Journal/ }).click();
+  // le journal raconte le run : en-tête, nœuds repris du cache, bilan
+  const journal = page.getByRole("log");
+  await expect(journal).toContainText("run jusqu'au nœud ExtractByExpression_1 : 0 nœud(s) à exécuter, 2 repris du cache");
+  await expect(journal.locator(".log-line").first()).toContainText("run jusqu'au nœud"); // l'en-tête d'abord
+  await expect(journal).toContainText("CsvReader_1 repris du cache : output 20");
+  await expect(journal).toContainText("run terminé en");
   await tester.click();
   await expect(page.getByTestId("data-count")).toHaveText("10 entités");
   await reader.click();

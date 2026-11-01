@@ -67,6 +67,7 @@ export interface AnnotationDoc {
   id: string;
   text: string;
   position: [number, number];
+  node?: string | null; // nœud auquel l'annotation est liée : elle le suit quand il est déplacé
 }
 
 export interface BookmarkDoc {

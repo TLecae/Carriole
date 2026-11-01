@@ -28,7 +28,8 @@ anything: **Resume** brings the editor back as you left it.
 
 1. **Add a node**: double-click in the palette (on the left: categories are folded, a click unfolds one; the search
    at the top unfolds them all), or, on the canvas, **type a few letters**: a quick-add field opens; Enter adds the first result and **links it to the selected node**.
-2. **Link** two nodes: drag from an output to an input. The attributes available upstream are offered in the forms; a
+2. **Link** two nodes: drag from an output to an input, or click a port then the other node (Esc cancels). A free
+   node dropped on a link is inserted into it. The chevron of an output port unfolds its attributes. The attributes available upstream are offered in the forms; a
    warning appears (*Warnings* tab) when an attribute does not exist upstream or an input is not connected.
 3. **Set up** a node: click it, the form is on the right. Under each field, a sentence says **what it is for and what an
    empty field means**; an empty field shows a greyed **example**, and hovering a label shows the help. The *Help* at
@@ -44,8 +45,9 @@ Selection: click a node, or drag a frame on the canvas background; `Ctrl`+click 
 selection or removes it. Dragging one of the selected nodes moves the whole group. Clicking a node shows its data in
 the *Data* tab (or says it has none yet).
 
-**Node bar**: above the selected node, three icons (tooltip on hover): **▶|** run the flow up to this node, **⏻**
-disable or enable it, **▦** see its data.
+**Node bar**: above the selected node, icons (tooltip on hover): run the flow up to this node, disable or enable it,
+connect it to another node (then click that node), add a linked note. A linked note follows its node; the bar of a
+note links it to a modifier or unlinks it. The overview map, at the bottom right, can be folded.
 
 Shortcuts: `Ctrl+Z` / `Ctrl+Y` undo / redo, `Ctrl+C` / `Ctrl+V` copy / paste nodes, `Alt+D` enable / disable the
 selected nodes (a disabled node is skipped with everything downstream). The **Arrange** menu: notes, bookmarks
@@ -75,7 +77,9 @@ any node parameter: `${NAME}`; environment variable of the machine: `${env:NAME}
 - **Counts** are shown **next to each node port** (inputs and outputs: `output`, `Passed`, `Failed`, `Rejected`…,
   even for an unconnected port), live during the run, abbreviated (`138 k`, `1.2 M`): the exact number is in the
   tooltip. The state is on each node, the **log** at the
-  bottom (a click on a line selects the node). Cancel: *Stop* button.
+  bottom (a click on a line selects the node): what the run will do and with which resources, the start and end of
+  each node (duration, features per port), the nodes taken from the cache or disabled, rejected features, errors,
+  then the summary. Cancel: *Stop* button.
 - **Runs**: list of all runs (running, finished, failed, interrupted). You can reopen them, see the log and the data,
   **rerun** (same flow, as it was executed) or **resume** after a stop: finished nodes are not recomputed. An end-of-run
   e-mail is possible if the server offers it.
@@ -84,7 +88,8 @@ any node parameter: `${NAME}`; environment variable of the machine: `${env:NAME}
 
 **Data** tab: click a node or a connection (the tab shows up). Table (sort, per-column filter, search, free `WHERE` clause) and **map**
 synchronized: selecting a row highlights it on the map and vice versa. Everything is computed server-side, even with
-millions of features. *Export*: CSV, GeoPackage or Parquet of the filtered view.
+millions of features. The *Export* menu: CSV, GeoPackage or Parquet of the filtered view. The *Map*
+checkbox hides or shows the map again; it is always seen from above, north up.
 
 Filters and attribute operations (*Extract by expression*, *Multi-output filter*, *Create attributes*, *Manage
 attributes*, *Convert attribute types*, *Keep attributes*, *Remove attributes*, *Rename attributes*, *Rename in bulk*)
@@ -118,7 +123,7 @@ table always shows every feature. Selecting a huge feature highlights a simplifi
 
 **Colour**: colours the map by an attribute, computed on the filtered rows. A numeric attribute gives five equal-count
 classes, from light to dark; another attribute, one colour per frequent value (the ten most frequent, the others in
-grey). **Overlay** adds other ports of the run to the map. As soon as there is a colour or several layers, the
+grey). The **Layers** menu overlays other ports of the run on the map (several checkboxes, the menu stays open). As soon as there is a colour or several layers, the
 **Legend** button, under the zoom buttons, explains them. Clicking a feature on the map selects it and scrolls the
 table to its row ("Finding the feature in the table…" while it is being found).
 

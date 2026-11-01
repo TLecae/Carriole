@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 
 const MenuContext = createContext<() => void>(() => undefined);
@@ -11,7 +11,26 @@ export function Menu({ label, children, className = "" }: { label: string; child
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const id = useId();
+
+  // le menu reste dans la fenêtre (sans cela la page entière défilait) : calé à droite du bouton s'il dépasse à
+  // droite ; vers le haut s'il manque de place en dessous et qu'il y en a plus au-dessus (panneau du bas) ; au-delà, il
+  // défile
+  useLayoutEffect(() => {
+    const el = panel.current;
+    const button = trigger.current;
+    if (!open || !el || !button) return;
+    el.classList.remove("align-right", "align-up");
+    el.style.maxHeight = "";
+    const box = el.getBoundingClientRect();
+    if (box.right > document.documentElement.clientWidth - 8) el.classList.add("align-right");
+    const below = window.innerHeight - box.top - 8;
+    const above = button.getBoundingClientRect().top - 12;
+    const up = box.height > below && above > below;
+    if (up) el.classList.add("align-up");
+    el.style.maxHeight = `${Math.max(120, up ? above : below)}px`;
+  }, [open]);
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
@@ -21,7 +40,7 @@ export function Menu({ label, children, className = "" }: { label: string; child
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
 
-  const items = () => Array.from(root.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []);
+  const items = () => Array.from(root.current?.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]:not(:disabled)') ?? []);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape" && open) {
@@ -48,7 +67,7 @@ export function Menu({ label, children, className = "" }: { label: string; child
       </button>
       {open && (
         <MenuContext.Provider value={close}>
-          <div className="menu-panel" role="menu" id={id} aria-label={label}>
+          <div ref={panel} className="menu-panel" role="menu" id={id} aria-label={label}>
             {children}
           </div>
         </MenuContext.Provider>
@@ -57,7 +76,8 @@ export function Menu({ label, children, className = "" }: { label: string; child
   );
 }
 
-export function MenuItem({ onSelect, disabled, shortcut, checked, danger, title, children }: { onSelect: () => void; disabled?: boolean; shortcut?: string; checked?: boolean; danger?: boolean; title?: string; children: React.ReactNode }) {
+/** `keepOpen` : le menu reste ouvert après le choix (cases à cocher successives, comme les couches de la carte). */
+export function MenuItem({ onSelect, disabled, shortcut, checked, danger, title, keepOpen, children }: { onSelect: () => void; disabled?: boolean; shortcut?: string; checked?: boolean; danger?: boolean; title?: string; keepOpen?: boolean; children: React.ReactNode }) {
   const close = useContext(MenuContext);
   return (
     <button
@@ -68,7 +88,7 @@ export function MenuItem({ onSelect, disabled, shortcut, checked, danger, title,
       disabled={disabled}
       title={title}
       onClick={() => {
-        close();
+        if (!keepOpen) close();
         onSelect();
       }}
     >

@@ -11,11 +11,13 @@ import {
   applyCollapsed,
   fromFlowDoc,
   idPrefix,
+  inputFor,
   isBookmark,
   isEtl,
   isNote,
   layoutBookmarks,
   nextId,
+  spliceEdge,
   toFlowDoc,
   type AppEdge,
   type AppNode,
@@ -77,6 +79,10 @@ interface EditorState {
   beginDrag: () => void;
   addNode: (type: string, position: { x: number; y: number }) => string | null;
   addNote: (position: { x: number; y: number }) => void;
+  addLinkedNote: (node: string) => void;
+  linkNote: (note: string, node: string | null) => void;
+  connectTo: (from: { node: string; port: string; side: "in" | "out" }, other: string) => boolean;
+  insertOnEdge: (node: string, edge: string) => void;
   updateNodeData: (id: string, patch: Record<string, unknown>, coalesce?: string) => void;
   updateParams: (id: string, params: Record<string, unknown>) => void;
   toggleEnabled: () => void;
@@ -120,7 +126,7 @@ function freeSpot(nodes: AppNode[], wanted: { x: number; y: number }): { x: numb
   let pos = { ...wanted };
   for (let i = 0; i < 50; i++) {
     const hit = nodes.find((n) => {
-      if (n.type === "bookmark") return false;
+      if (n.type === "bookmark" || n.parentId) return false;
       const w = n.measured?.width ?? W;
       const h = n.measured?.height ?? H;
       return pos.x < n.position.x + w && n.position.x < pos.x + W && pos.y < n.position.y + h && n.position.y < pos.y + H;
@@ -375,6 +381,58 @@ export const useEditor = create<EditorState>((set, get) => {
       set((s) => ({ nodes: [...s.nodes, { id, type: "note", position, data: { kind: "note", text: "Annotation" } }] }));
       touch();
     },
+    addLinkedNote: (node) => {
+      const parent = get().nodes.find((n) => n.id === node);
+      if (!parent || !isEtl(parent)) return;
+      commit();
+      const id = nextId("note", get().nodes.map((n) => n.id));
+      const note: AppNode = { id, type: "note", parentId: node, position: { x: 0, y: -100 }, selected: true, data: { kind: "note", text: "Annotation" } };
+      set((s) => ({ nodes: [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), note] }));
+      touch();
+    },
+    linkNote: (noteId, nodeId) => {
+      const { nodes } = get();
+      const note = nodes.find((n) => n.id === noteId);
+      const parent = nodeId ? nodes.find((n) => n.id === nodeId) : undefined;
+      if (!note || !isNote(note) || (nodeId && (!parent || !isEtl(parent))) || (note.parentId ?? null) === nodeId) return;
+      commit();
+      // la position d'une annotation liée est relative à son nœud : l'annotation garde sa place à l'écran
+      const old = note.parentId ? nodes.find((n) => n.id === note.parentId) : undefined;
+      const x = note.position.x + (old?.position.x ?? 0) - (parent?.position.x ?? 0);
+      const y = note.position.y + (old?.position.y ?? 0) - (parent?.position.y ?? 0);
+      const next: AppNode = { ...note, position: { x, y } };
+      if (parent) next.parentId = parent.id;
+      else delete next.parentId;
+      set({ nodes: [...nodes.filter((n) => n.id !== noteId), next] }); // en fin de liste : React Flow veut le parent avant
+      touch();
+    },
+    connectTo: (from, other) => {
+      const { nodes, edges, analysis, paletteMap, onConnect } = get();
+      const node = nodes.find((n) => n.id === other);
+      if (!node || !isEtl(node) || other === from.node) return false;
+      const ports = analysis?.ports?.[other] ?? paletteMap.get(node.data.type);
+      if (from.side === "out") {
+        const input = inputFor(other, ports?.inputs ?? [], edges);
+        if (!input) return false;
+        onConnect({ source: from.node, sourceHandle: from.port, target: other, targetHandle: input });
+      } else {
+        const output = ports?.outputs[0]; // depuis une entrée : la sortie principale de l'autre nœud
+        if (!output) return false;
+        onConnect({ source: other, sourceHandle: output, target: from.node, targetHandle: from.port });
+      }
+      return true;
+    },
+    insertOnEdge: (nodeId, edgeId) => {
+      // appelé au lâcher du nœud : le déplacement a déjà été enregistré pour « annuler » (beginDrag)
+      const { nodes, edges, analysis, paletteMap } = get();
+      const node = nodes.find((n) => n.id === nodeId);
+      const info = node && isEtl(node) ? paletteMap.get(node.data.type) : undefined;
+      if (!info) return;
+      const next = spliceEdge(edges, edgeId, nodeId, analysis?.ports?.[nodeId] ?? info);
+      if (!next) return;
+      set({ edges: next });
+      touch();
+    },
     updateNodeData: (id, patch, coalesce) => {
       commit(coalesce ? `${id}:${coalesce}` : "");
       set((s) => ({ nodes: s.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, ...patch } } as AppNode) : n)) }));
@@ -397,6 +455,7 @@ export const useEditor = create<EditorState>((set, get) => {
     removeSelected: () => {
       const { nodes, edges } = get();
       const gone = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+      for (const n of nodes) if (n.parentId && gone.has(n.parentId)) gone.add(n.id); // annotations liées
       if (!gone.size && !edges.some((e) => e.selected)) return;
       commit();
       const kept = nodes
@@ -433,7 +492,7 @@ export const useEditor = create<EditorState>((set, get) => {
       touch();
     },
     align: (kind) => {
-      const picked = get().nodes.filter((n) => n.selected && !isBookmark(n));
+      const picked = get().nodes.filter((n) => n.selected && !isBookmark(n) && !n.parentId);
       if (picked.length < 2) return;
       commit();
       const size = (n: AppNode) => ({ w: n.measured?.width ?? 190, h: n.measured?.height ?? 80 });
@@ -502,7 +561,8 @@ export const useEditor = create<EditorState>((set, get) => {
     },
     copy: async () => {
       const { nodes, edges } = get();
-      const picked = nodes.filter((n) => n.selected && !isBookmark(n));
+      const chosen = new Set(nodes.filter((n) => n.selected && !isBookmark(n)).map((n) => n.id));
+      const picked = nodes.filter((n) => chosen.has(n.id) || (n.parentId && chosen.has(n.parentId))); // avec leurs annotations
       if (!picked.length) return;
       const ids = new Set(picked.map((n) => n.id));
       const payload = JSON.stringify({
@@ -544,6 +604,18 @@ export const useEditor = create<EditorState>((set, get) => {
         rename.set(n.id, id);
         return { ...n, id, selected: true, position: { x: n.position.x + 40, y: n.position.y + 40 } } as AppNode;
       });
+      for (const n of pasted) {
+        if (!n.parentId) continue;
+        const parent = rename.get(n.parentId);
+        if (parent) {
+          n.parentId = parent; // collée avec son nœud : même place par rapport à lui
+          n.position = { x: n.position.x - 40, y: n.position.y - 40 };
+        } else {
+          const old = get().nodes.find((p) => p.id === n.parentId);
+          delete n.parentId; // collée seule : annotation libre, à côté de l'originale
+          n.position = { x: n.position.x + (old?.position.x ?? 0), y: n.position.y + (old?.position.y ?? 0) };
+        }
+      }
       const edges: AppEdge[] = data.edges.map((e) => {
         const id = nextId("l", takenEdges);
         takenEdges.add(id);

@@ -54,7 +54,8 @@ class Link(BaseModel):
 class Annotation(BaseModel):
     id: str
     text: str
-    position: tuple[float, float] = (0.0, 0.0)
+    position: tuple[float, float] = (0.0, 0.0)  # absolue, même pour une annotation liée
+    node: str | None = None  # nœud auquel l'annotation est liée : elle le suit quand il est déplacé
 
 
 class Bookmark(BaseModel):

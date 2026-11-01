@@ -5,12 +5,33 @@ import type { EtlNode } from "../model/graph";
 import type { ModifierInfo } from "../api/types";
 import { formatCount, formatNumber, t } from "../i18n";
 import { requestRun } from "../store/run";
+import { useUi } from "../store/ui";
 import { Icon } from "./Icon";
 
+/** Couleur des catégories intégrées (clé : `category_id`, le français du code, sans accents) : des teintes éloignées
+ * deux à deux, assez foncées pour le texte blanc de l'en-tête (contraste 4,5 au moins). */
+const CATEGORY_COLORS: Record<string, string> = {
+  Lecture: "#1d5fc4", // bleu
+  Ecriture: "#6d3fb0", // violet
+  "Entrees / sorties": "#475569", // ardoise
+  Attributs: "#117a55", // vert
+  Filtres: "#c2410c", // orange
+  Geometrie: "#b5245f", // framboise
+  Jointures: "#5f7f0e", // olive
+  Calculs: "#7a4b26", // brun
+  Rasters: "#8f6700", // ocre
+  "Lots et variables": "#1f2a44", // bleu nuit
+  Composants: "#0e7490", // cyan
+};
+
+const withoutAccents = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
 export function categoryColor(category: string): string {
-  let h = 0;
+  const known = CATEGORY_COLORS[withoutAccents(category)];
+  if (known) return known;
+  let h = 0; // catégorie d'un plugin : une teinte tirée de son nom
   for (const ch of category) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return `hsl(${h} 45% 42%)`;
+  return `hsl(${h} 45% 38%)`;
 }
 
 const statusLabel = (status: string): string =>
@@ -37,6 +58,87 @@ function PortCount({ node, port, input = false }: { node: string; port: string; 
   );
 }
 
+/** Clic sur un port : le retient, ou le branche au port retenu de l'autre sens sur un autre nœud. La suite se joue
+ * dans le canevas : un clic sur un nœud y branche le port retenu (Échap annule). */
+function clickPort(e: React.MouseEvent, node: string, port: string, side: "in" | "out") {
+  e.stopPropagation(); // ni sélection du nœud, ni fin du choix par le canevas
+  const { pick, setPick } = useUi.getState();
+  if (pick?.kind === "connect" && pick.node !== node && pick.side !== side) {
+    const out = side === "out" ? { node, port } : { node: pick.node, port: pick.port };
+    const into = side === "in" ? { node, port } : { node: pick.node, port: pick.port };
+    useEditor.getState().onConnect({ source: out.node, sourceHandle: out.port, target: into.node, targetHandle: into.port });
+    setPick(null);
+    return;
+  }
+  const same = pick?.kind === "connect" && pick.node === node && pick.port === port && pick.side === side;
+  setPick(same ? null : { kind: "connect", node, port, side });
+}
+
+/** Port retenu pour un branchement par clics, sur ce nœud (« out/port » ou « in/port »). */
+const usePicked = (node: string) => useUi((s) => (s.pick?.kind === "connect" && s.pick.node === node ? `${s.pick.side}/${s.pick.port}` : null));
+
+/** Attributs d'un port de sortie, d'après l'analyse du flux : dépliés sous le port. */
+function PortFields({ node, port }: { node: string; port: string }) {
+  const schema = useEditor((s) => s.analysis?.schemas?.[`${node}/${port}`]);
+  if (!schema) return null;
+  return (
+    <ul className="port-fields nowheel" data-testid={`port-fields-${node}-${port}`}>
+      {schema.geometry && (
+        <li className="geom" title={schema.crs ?? undefined}>
+          <span>{t("géométrie")}</span>
+          <small>{schema.crs ?? ""}</small>
+        </li>
+      )}
+      {schema.fields.map((f) => (
+        <li key={f.name} title={`${f.name} : ${f.type}`}>
+          <span>{f.name}</span>
+          <small>{f.type}</small>
+        </li>
+      ))}
+      {!schema.fields.length && !schema.geometry && <li className="empty">{t("aucun attribut")}</li>}
+    </ul>
+  );
+}
+
+function OutPort({ node, port, cached, picked }: { node: string; port: string; cached: boolean; picked: boolean }) {
+  const key = `${node}/${port}`;
+  const known = useEditor((s) => !!s.analysis?.schemas?.[key]);
+  const open = useUi((s) => !!s.openPorts[key]) && known;
+  return (
+    <>
+      <div className={`port${port === "Rejected" ? " rejected" : ""}`}>
+        {known && (
+          <button
+            type="button"
+            className="port-toggle nodrag"
+            aria-expanded={open}
+            title={open ? t("Masquer les attributs") : t("Afficher les attributs")}
+            data-testid={`port-toggle-${node}-${port}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              useUi.getState().togglePort(key);
+            }}
+          >
+            <Icon name="chevron" size={12} />
+          </button>
+        )}
+        <span>{port}</span>
+        <PortCount node={node} port={port} />
+        {cached && <i className="cache-dot" title={t("Données en cache : consultables dans l'inspecteur")} />}
+        <Handle
+          type="source"
+          position={Position.Right}
+          id={port}
+          className={picked ? "picked" : undefined}
+          title={t("Glisser vers une entrée, ou cliquer puis cliquer sur le modificateur à brancher")}
+          onClick={(e) => clickPort(e, node, port, "out")}
+        />
+      </div>
+      {open && <PortFields node={node} port={port} />}
+    </>
+  );
+}
+
 /** Lecteur dont la lecture est limitée (paramètre marqué `x-etl-row-limit`, « Lignes lues au plus ») : la limite. */
 function rowLimit(info: ModifierInfo, params: Record<string, unknown>): number | string | null {
   const props = info.params_schema.properties ?? {};
@@ -52,6 +154,7 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
   const runCache = useEditor((s) => s.run.cache);
   const stale = useEditor((s) => staleOf(s).has(id));
   const livePorts = useEditor((s) => s.analysis?.ports?.[id]);
+  const picked = usePicked(id);
   const worst = useEditor((s) => {
     const issues = s.analysis?.issues.filter((i) => i.node === id) ?? [];
     return issues.some((i) => i.level === "error") ? "error" : issues.length ? "warning" : null;
@@ -86,7 +189,7 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
 
   return (
     <div className={classes} data-testid={`node-${id}`}>
-      <NodeActions id={id} enabled={data.enabled} />
+      <NodeActions id={id} enabled={data.enabled} output={outs[0]} />
       <div className="node-head" style={{ background: categoryColor(info.category_id ?? info.category) }}>
         {data.label || info.label}
         {limit !== null && (
@@ -119,7 +222,14 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
         <div className="ports in">
           {ins.map((p) => (
             <div className="port" key={p}>
-              <Handle type="target" position={Position.Left} id={p} />
+              <Handle
+                type="target"
+                position={Position.Left}
+                id={p}
+                className={picked === `in/${p}` ? "picked" : undefined}
+                title={t("Glisser vers une sortie, ou cliquer puis cliquer sur le modificateur à brancher")}
+                onClick={(e) => clickPort(e, id, p, "in")}
+              />
               <span>{p}</span>
               <PortCount node={id} port={p} input />
             </div>
@@ -127,12 +237,7 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
         </div>
         <div className="ports out">
           {outs.map((p) => (
-            <div className={`port${p === "Rejected" ? " rejected" : ""}`} key={p}>
-              <span>{p}</span>
-              <PortCount node={id} port={p} />
-              {cached && runCache && <i className="cache-dot" title={t("Données en cache : consultables dans l'inspecteur")} />}
-              <Handle type="source" position={Position.Right} id={p} />
-            </div>
+            <OutPort key={p} node={id} port={p} cached={cached && !!runCache} picked={picked === `out/${p}`} />
           ))}
         </div>
       </div>
@@ -154,8 +259,8 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
 }
 
 /** Bandeau au-dessus du nœud sélectionné (seul) : lancer jusqu'à lui, l'activer ou le désactiver (ses données
- * s'ouvrent d'un clic sur le nœud). Les mêmes actions que le menu Exécution, à portée de clic. */
-function NodeActions({ id, enabled }: { id: string; enabled: boolean }) {
+ * s'ouvrent d'un clic sur le nœud), le brancher à un autre nœud, l'annoter. */
+function NodeActions({ id, enabled, output }: { id: string; enabled: boolean; output?: string }) {
   const busy = useEditor((s) => s.run.status === "queued" || s.run.status === "running");
   const stop = (e: React.MouseEvent) => e.stopPropagation(); // le clic ne doit ni désélectionner ni déplacer le nœud
   return (
@@ -187,6 +292,34 @@ function NodeActions({ id, enabled }: { id: string; enabled: boolean }) {
         }}
       >
         <Icon name="power" />
+      </button>
+      {output && (
+        <button
+          type="button"
+          className="nodrag"
+          title={t("Brancher ce nœud : cliquez ensuite sur le modificateur qui recevra sa sortie « {{port}} »", { port: output })}
+          aria-label={t("Brancher à un autre modificateur")}
+          onMouseDown={stop}
+          onClick={(e) => {
+            stop(e);
+            useUi.getState().setPick({ kind: "connect", node: id, port: output, side: "out" });
+          }}
+        >
+          <Icon name="connect" />
+        </button>
+      )}
+      <button
+        type="button"
+        className="nodrag"
+        title={t("Ajouter une annotation liée à ce nœud : elle le suit quand il est déplacé")}
+        aria-label={t("Annoter le nœud")}
+        onMouseDown={stop}
+        onClick={(e) => {
+          stop(e);
+          useEditor.getState().addLinkedNote(id);
+        }}
+      >
+        <Icon name="note" />
       </button>
     </NodeToolbar>
   );

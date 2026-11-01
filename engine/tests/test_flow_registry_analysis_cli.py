@@ -27,6 +27,17 @@ def test_flow_json_is_stable_and_roundtrips(tmp_path):
     assert Flow.load(tmp_path / "f.json") == flow
 
 
+def test_flow_keeps_the_node_of_a_linked_annotation():
+    flow = make_flow([{"id": "a", "type": "Reader"}], [])
+    data = json.loads(flow.dumps())
+    data["annotations"] = [
+        {"id": "note_1", "text": "liée", "position": [10, -90], "node": "a"},
+        {"id": "note_2", "text": "libre", "position": [0, 0]},
+    ]
+    notes = json.loads(Flow.loads(json.dumps(data)).dumps())["annotations"]
+    assert [n["node"] for n in notes] == ["a", None]
+
+
 def test_flow_rejects_duplicate_ids_and_future_versions():
     with pytest.raises(ValueError, match="double"):
         make_flow([{"id": "a", "type": "Reader"}, {"id": "a", "type": "Writer"}], [])

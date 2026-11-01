@@ -55,12 +55,34 @@ export function nextId(prefix: string, taken: Iterable<string>): string {
   return `${prefix}_${i}`;
 }
 
+// ---- liaisons ------------------------------------------------------------------------------
+
+/** Port d'entrée où brancher une nouvelle liaison vers `node` : le premier libre, sinon le premier. */
+export function inputFor(node: string, inputs: string[], edges: AppEdge[]): string | null {
+  const used = new Set(edges.filter((e) => e.target === node).map((e) => e.targetHandle ?? "input"));
+  return inputs.find((p) => !used.has(p)) ?? inputs[0] ?? null;
+}
+
+/** Intercale `node` dans la liaison `edgeId` : source → première entrée de `node`, première sortie → cible.
+ * Null si c'est impossible (nœud sans entrée ou sans sortie, liaison inconnue ou déjà reliée à `node`). */
+export function spliceEdge(edges: AppEdge[], edgeId: string, node: string, ports: { inputs: string[]; outputs: string[] }): AppEdge[] | null {
+  const edge = edges.find((e) => e.id === edgeId);
+  if (!edge || edge.source === node || edge.target === node || !ports.inputs.length || !ports.outputs.length) return null;
+  const first = nextId("l", edges.map((e) => e.id));
+  const second = nextId("l", [...edges.map((e) => e.id), first]);
+  const data = { enabled: edge.data?.enabled ?? true };
+  const into: AppEdge = { id: first, source: edge.source, sourceHandle: edge.sourceHandle ?? "output", target: node, targetHandle: ports.inputs[0], type: "etl", data };
+  const out: AppEdge = { id: second, source: node, sourceHandle: ports.outputs[0], target: edge.target, targetHandle: edge.targetHandle ?? "input", type: "etl", data };
+  return edges.flatMap((e) => (e.id === edgeId ? [into, out] : [e])); // à la place de l'ancienne : l'ordre des liaisons est gardé
+}
+
 // ---- document de flux <-> graphe de l'éditeur ----------------------------------------------
 
 export function toFlowDoc(meta: FlowMeta, nodes: AppNode[], edges: AppEdge[]): FlowDoc {
   const annotations: AnnotationDoc[] = [];
   const bookmarks: BookmarkDoc[] = [];
   const docNodes: FlowDoc["nodes"] = [];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
   for (const n of nodes) {
     if (isEtl(n)) {
       docNodes.push({
@@ -73,7 +95,11 @@ export function toFlowDoc(meta: FlowMeta, nodes: AppNode[], edges: AppEdge[]): F
         ...(n.data.type.startsWith("component:") ? { component_version: n.data.componentVersion ?? null } : {}),
       });
     } else if (isNote(n)) {
-      annotations.push({ id: n.id, text: n.data.text, position: [round(n.position.x), round(n.position.y)] });
+      // annotation liée : position relative au nœud dans l'éditeur, absolue dans le fichier
+      const parent = n.parentId ? byId.get(n.parentId) : undefined;
+      const x = n.position.x + (parent?.position.x ?? 0);
+      const y = n.position.y + (parent?.position.y ?? 0);
+      annotations.push({ id: n.id, text: n.data.text, position: [round(x), round(y)], ...(parent ? { node: parent.id } : {}) });
     } else {
       bookmarks.push({
         id: n.id,
@@ -123,8 +149,14 @@ export function fromFlowDoc(doc: FlowDoc): { nodes: AppNode[]; edges: AppEdge[];
       data: { kind: "etl", type: n.type, label: n.label, params: n.params, enabled: n.enabled, componentVersion: n.component_version ?? null },
     });
   }
+  const docNodes = new Map(doc.nodes.map((n) => [n.id, n]));
   for (const a of doc.annotations) {
-    nodes.push({ id: a.id, type: "note", position: { x: a.position[0], y: a.position[1] }, data: { kind: "note", text: a.text } });
+    const parent = a.node ? docNodes.get(a.node) : undefined;
+    const position = parent
+      ? { x: a.position[0] - parent.position[0], y: a.position[1] - parent.position[1] }
+      : { x: a.position[0], y: a.position[1] };
+    // après les nœuds : React Flow veut le parent avant l'annotation qui le suit
+    nodes.push({ id: a.id, type: "note", position, ...(parent ? { parentId: parent.id } : {}), data: { kind: "note", text: a.text } });
   }
   const edges: AppEdge[] = doc.links.map((l) => ({
     id: l.id,
@@ -200,7 +232,8 @@ export function layoutBookmarks(nodes: AppNode[], palette?: Map<string, Modifier
 export function applyCollapsed(nodes: AppNode[]): AppNode[] {
   const hidden = new Set<string>();
   for (const n of nodes) if (isBookmark(n) && n.data.collapsed) n.data.members.forEach((id) => hidden.add(id));
-  return nodes.map((n) => (isBookmark(n) ? n : n.hidden === hidden.has(n.id) ? n : { ...n, hidden: hidden.has(n.id) }));
+  for (const n of nodes) if (n.parentId && hidden.has(n.parentId)) hidden.add(n.id); // annotation liée à un nœud replié
+  return nodes.map((n) => (isBookmark(n) ? n : !!n.hidden === hidden.has(n.id) ? n : { ...n, hidden: hidden.has(n.id) }));
 }
 
 // ---- schéma disponible en amont d'un nœud ---------------------------------------------------

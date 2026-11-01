@@ -173,7 +173,7 @@ def run(
             extra = f" - {e['error']}" if e.get("error") else ""
             say(f"[{e['node']}] {e['status']} ({e.get('seconds', 0)} s) {counts}{extra}")
         elif e["type"] == "log" and e["level"] != "INFO":
-            say(f"[{e['node']}] {e['level']} {e['message']}", err=True)
+            say(f"[{e.get('node') or 'run'}] {e['level']} {e['message']}", err=True)
         elif e["type"] == "run_finished":
             status, seconds, error = e["status"], e["seconds"], e.get("error")
             say(f"Run {status} en {seconds} s : {error}" if error else f"Run {status} en {seconds} s")

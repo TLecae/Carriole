@@ -119,6 +119,32 @@ def test_reuse_unchanged_nodes_and_recompute_downstream(registry, communes, tmp_
     assert pq.read_table(out / "out.parquet").column("pop2").to_pylist()[1] == 600  # pop de la commune 2 = 200 * 3
 
 
+def test_the_log_tells_what_the_run_does(registry, communes, tmp_path):
+    flow = basic_flow(communes, tmp_path / "o")
+    flow.node("rej").enabled = False
+    flow.node("calc").params["attributes"][0]["expression"] = 'CAST("nom" AS INTEGER)'  # chaque entité rejetée
+    events = []
+    assert run_flow(flow, registry, tmp_path / "run1", lang="fr", on_event=events.append).status == "done"
+    logs = [(e.get("node"), e["level"], e["message"]) for e in events if e["type"] == "log"]
+    assert logs[0] == (None, "INFO", "run complet : 4 nœud(s) à exécuter, 0 repris du cache")
+    assert logs[1][2].startswith("ressources : ") and " Mo de mémoire, " in logs[1][2]
+    assert ("rej", "INFO", "désactivé : ignoré, avec son aval") in logs
+    assert ("read", "INFO", "exécution démarrée") in logs
+    done = {node: message for node, _, message in logs if message.startswith("terminé en ")}
+    assert done["read"].endswith(" s : output 20") and done["test"].endswith(" s : Passed 10, Failed 10, Rejected 0")
+    assert done["write"].endswith(" s, reçu : input 0")
+    assert ("calc", "WARNING", "10 entité(s) rejetée(s) : le motif est dans l'attribut _rejection_reason") in logs
+    assert logs[-1][0] is None and logs[-1][2].startswith("run terminé en ")
+    assert logs[-1][2].endswith(" : 4 nœud(s) exécuté(s), 0 repris du cache")
+
+    # reprise du cache, journal en anglais
+    events.clear()
+    run_flow(flow, registry, tmp_path / "run2", reuse_from=tmp_path / "run1", lang="en", on_event=events.append)
+    logs = [(e.get("node"), e["message"]) for e in events if e["type"] == "log"]
+    assert ("read", "taken from the cache: output 20") in logs
+    assert (None, "full run: 1 node(s) to run, 3 taken from the cache") in logs
+
+
 def test_target_runs_only_ancestors(registry, communes, tmp_path):
     res = run_flow(basic_flow(communes, tmp_path / "o"), registry, tmp_path / "run", target="test")
     assert res.nodes["test"].status == "done" and res.nodes["read"].status == "done"

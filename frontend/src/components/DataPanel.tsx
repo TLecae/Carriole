@@ -4,6 +4,7 @@ import { staleOf, useEditor } from "../store/editor";
 import { computingNode, followsRun } from "../model/inspection";
 import { keyOf, sameTarget, useInspector } from "../store/inspector";
 import { DataTable } from "./DataTable";
+import { Menu, MenuItem, MenuLabel } from "./Menu";
 import { Loading, Spinner } from "./Spinner";
 import { formatNumber, t } from "../i18n";
 
@@ -76,7 +77,9 @@ export function DataPanel() {
   const geometry = info?.geometry;
   const hasMap = !!geometry?.map;
   // la carte a sa place dès que le port est cartographiable (en préparation ou en échec : un message à sa place)
-  const mapPlace = !!geometry && geometry.map_status !== "none" && mapVisible;
+  const mappable = !!geometry && geometry.map_status !== "none";
+  const mapPlace = mappable && mapVisible;
+  const layers = options.filter((o) => o.count > 0 && !sameTarget(o.ref, target)); // ports superposables
   const numeric = info?.columns.filter((c) => c.category !== "other") ?? [];
   const current = target ? keyOf(target) : "";
 
@@ -114,21 +117,22 @@ export function DataPanel() {
             <button type="button" aria-pressed={showStats} onClick={() => void toggleStats()}>
               {showStats && !stats && <Spinner size={11} label={t("Calcul des statistiques…")} />} {t("Statistiques")}
             </button>
-            <details className="menu">
-              <summary>{t("Exporter")}</summary>
-              <div className="menu-items">
-                {(["csv", "gpkg", "parquet"] as const).map((f) => (
-                  <button key={f} type="button" onClick={() => void exportView(f)}>
-                    {t("{{format}} (vue filtrée)", { format: { csv: "CSV", gpkg: "GeoPackage", parquet: "Parquet" }[f] })}
-                  </button>
-                ))}
-              </div>
-            </details>
+            <Menu label={t("Exporter")} className="data-menu">
+              <MenuLabel>{t("Vue filtrée")}</MenuLabel>
+              {(["csv", "gpkg", "parquet"] as const).map((f) => (
+                <MenuItem key={f} onSelect={() => void exportView(f)}>
+                  {{ csv: "CSV", gpkg: "GeoPackage", parquet: "Parquet" }[f]}
+                </MenuItem>
+              ))}
+            </Menu>
+            {mappable && (
+              // toujours là quand le port est cartographiable : décochée, elle sert à réafficher la carte
+              <label className="inline">
+                <input type="checkbox" checked={mapVisible} onChange={(e) => setMapVisible(e.target.checked)} /> {t("Carte")}
+              </label>
+            )}
             {mapPlace && hasMap && (
               <>
-                <label className="inline">
-                  <input type="checkbox" checked={mapVisible} onChange={(e) => setMapVisible(e.target.checked)} /> {t("Carte")}
-                </label>
                 <label>
                   {t("Couleur")}{" "}
                   <select aria-label={t("Colorer par")} value={colorBy ?? ""} onChange={(e) => setColorBy(e.target.value || null)}>
@@ -138,18 +142,15 @@ export function DataPanel() {
                     ))}
                   </select>
                 </label>
-                <details className="menu">
-                  <summary>{t("Superposer")}{overlays.length ? ` (${overlays.length})` : ""}</summary>
-                  <div className="menu-items overlay-list">
-                    {options
-                      .filter((o) => o.count > 0 && !sameTarget(o.ref, target))
-                      .map((o) => (
-                        <label key={keyOf(o.ref)}>
-                          <input type="checkbox" checked={overlays.some((x) => sameTarget(x, o.ref))} onChange={() => toggleOverlay(o.ref)} /> {o.ref.node} / {o.ref.port}
-                        </label>
-                      ))}
-                  </div>
-                </details>
+                <Menu label={overlays.length ? t("Couches ({{count}})", { count: overlays.length }) : t("Couches")} className="data-menu">
+                  <MenuLabel>{t("Superposer sur la carte")}</MenuLabel>
+                  {layers.map((o) => (
+                    <MenuItem key={keyOf(o.ref)} keepOpen checked={overlays.some((x) => sameTarget(x, o.ref))} onSelect={() => toggleOverlay(o.ref)}>
+                      {o.ref.node} / {o.ref.port}
+                    </MenuItem>
+                  ))}
+                  {!layers.length && <p className="menu-empty">{t("Aucun autre port avec des données.")}</p>}
+                </Menu>
               </>
             )}
           </>

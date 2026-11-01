@@ -26,7 +26,9 @@ la recherche filtre la liste. La croix **retire** un flux de la liste sans jamai
 1. **Ajouter un nœud** : double-clic dans la palette (à gauche : catégories repliées, un clic en déplie une ; la
    recherche en haut les déplie toutes), ou, sur le canvas, **taper quelques lettres** : un champ d'ajout rapide s'ouvre ; Entrée ajoute le premier résultat et le **relie au nœud
    sélectionné**.
-2. **Relier** deux nœuds : tirer d'une sortie vers une entrée. Les attributs disponibles en amont sont proposés dans
+2. **Relier** deux nœuds : tirer d'une sortie vers une entrée, ou cliquer sur un port puis sur l'autre nœud (Échap
+   annule). Un nœud libre lâché sur une liaison s'y intercale. Le chevron d'un port de sortie déplie ses attributs.
+   Les attributs disponibles en amont sont proposés dans
    les formulaires ; un avertissement apparaît (onglet *Avertissements*) quand un attribut n'existe pas en amont ou
    qu'une entrée n'est pas connectée.
 3. **Régler** un nœud : cliquer dessus, le formulaire est à droite. Sous chaque champ, une phrase dit **à quoi il
@@ -45,8 +47,10 @@ Sélection : cliquer un nœud, ou tirer un cadre sur le fond du canvas ; `Ctrl`+
 la sélection ou l'en retire. Tirer l'un des nœuds sélectionnés déplace tout le groupe. Un clic sur un nœud montre
 ses données dans l'onglet *Données* (ou dit qu'il n'en a pas encore).
 
-**Bandeau du nœud** : au-dessus du nœud sélectionné, trois icônes (une bulle d'aide au survol) : **▶|** lancer le
-flux jusqu'à ce nœud, **⏻** le désactiver ou le réactiver, **▦** voir ses données.
+**Bandeau du nœud** : au-dessus du nœud sélectionné, des icônes (une bulle d'aide au survol) : lancer le flux
+jusqu'à ce nœud, le désactiver ou le réactiver, le brancher à un autre nœud (cliquer ensuite sur celui-ci), lui
+ajouter une annotation liée. Une annotation liée suit son nœud ; le bandeau d'une annotation la lie à un modificateur
+ou l'en délie. La carte de situation, en bas à droite, se replie.
 
 Raccourcis : `Ctrl+Z` / `Ctrl+Y` annuler / rétablir, `Ctrl+C` / `Ctrl+V` copier / coller des nœuds, `Alt+D`
 activer / désactiver les nœuds sélectionnés (un nœud désactivé est ignoré avec son aval). Le menu **Organiser** :
@@ -78,7 +82,9 @@ millésime, un fichier). Dans n'importe quel paramètre de nœud : `${NOM}` ; va
 - Les **comptes** s'affichent **à côté de chaque port du nœud** (entrées et sorties : `output`, `Passed`,
   `Failed`, `Rejected`…, même pour un port non relié), en direct pendant le run, abrégés (`138 k`, `1,2 M`) : le
   nombre exact est dans l'info-bulle. L'état est sur
-  chaque nœud, le **journal** en bas (un clic sur une ligne sélectionne le nœud). Annuler : bouton *Arrêter*.
+  chaque nœud, le **journal** en bas (un clic sur une ligne sélectionne le nœud) : ce que le run va faire et avec
+  quelles ressources, le début et la fin de chaque nœud (durée, entités par port), les nœuds repris du cache ou
+  désactivés, les entités rejetées, les erreurs, puis le bilan. Annuler : bouton *Arrêter*.
 - **Runs** : liste de tous les runs (en cours, terminés, en échec, interrompus). On peut les rouvrir, voir le
   journal et les données, **relancer** (même flux, tel qu'il avait été exécuté) ou **reprendre** après un arrêt : les
   nœuds terminés ne sont pas recalculés. Un e-mail de fin de run est possible si le serveur le propose.
@@ -87,8 +93,8 @@ millésime, un fichier). Dans n'importe quel paramètre de nœud : `${NOM}` ; va
 
 Onglet **Données** : cliquer sur un nœud ou une connexion (l'onglet s'affiche). Table (tri, filtre par colonne, recherche, clause
 `WHERE` libre) et **carte** synchronisées : sélectionner une ligne la surligne sur la carte et inversement. Tout est
-calculé côté serveur, même avec des millions d'entités. *Exporter* : CSV, GeoPackage ou Parquet de la vue
-filtrée.
+calculé côté serveur, même avec des millions d'entités. Le menu *Exporter* : CSV, GeoPackage ou Parquet de la vue
+filtrée. La case *Carte* masque ou réaffiche la carte ; elle reste toujours vue de dessus, nord en haut.
 
 Les filtres et les opérations sur les attributs (*Filtrer par expression*, *Filtre à plusieurs sorties*, *Créer des
 attributs*, *Gérer des attributs*, *Convertir le type d'attributs*, *Garder des attributs*, *Retirer des attributs*,
@@ -126,7 +132,7 @@ simplifié.
 
 **Couleur** : colore la carte selon un attribut, calculé sur les lignes filtrées. Un attribut numérique donne cinq
 classes d'effectifs égaux, du clair au foncé ; un autre attribut, une couleur par valeur fréquente (les dix plus
-fréquentes, les autres en gris). **Superposer** ajoute d'autres ports du run sur la carte. Dès qu'il y a une couleur
+fréquentes, les autres en gris). Le menu **Couches** superpose d'autres ports du run sur la carte (plusieurs cases à cocher, menu ouvert). Dès qu'il y a une couleur
 ou plusieurs couches, le bouton **Légende**, sous ceux du zoom, les explique. Cliquer une entité sur la carte la
 sélectionne et fait défiler la table jusqu'à sa ligne (« Recherche de l'entité dans la table… » pendant la recherche).
 

@@ -215,8 +215,15 @@ export function MapView({ info }: { info: PortInfo }) {
       attributionControl: { compact: true },
       fadeDuration: 0, // une tuile arrivée s'affiche aussitôt, sans fondu
       refreshExpiredTiles: false, // les tuiles d'un run ne changent pas
+      // carte toujours vue de dessus, nord en haut : ni rotation ni inclinaison (souris, clavier, tactile)
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      maxPitch: 0,
     });
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false, visualizePitch: false }), "top-right");
     legendButton.current = new LegendButton(() => setLegendOpen((open) => !open));
     map.addControl(legendButton.current, "top-right");
     map.addControl(new maplibregl.ScaleControl({}), "bottom-left");

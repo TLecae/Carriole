@@ -24,7 +24,7 @@ export function Palette() {
         {groups.map(([category, items]) => (
           // repliées à l'ouverture ; dépliées pendant une recherche, pour voir les modificateurs trouvés
           <details key={category} open={query ? true : undefined} className="palette-group">
-            <summary style={{ borderLeftColor: categoryColor(category) }}>{category}</summary>
+            <summary style={{ borderLeftColor: categoryColor(items[0].category_id ?? category) }}>{category}</summary>
             {items.map((t) => (
               <div
                 key={t.name}
