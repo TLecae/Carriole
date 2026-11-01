@@ -17,7 +17,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - uses: actions/setup-node@v7
         with:
@@ -32,7 +32,7 @@ jobs:
   linux:
     runs-on: ubuntu-22.04   # glibc 2.35: the AppImage runs on 2022 and newer distributions
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - uses: actions/setup-node@v7
         with:
