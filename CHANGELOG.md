@@ -13,6 +13,9 @@
 - Inspector table: a table of more than about a million rows scrolls to its end, and a feature clicked on the map is
   found at any row. The browser caps the height of an element (around 33 million pixels, less when zoomed in), so
   beyond that cap the scrollbar position is scaled: wheel and keyboard still move row by row.
+- Inspector: a `fid` column of the data (PostgreSQL table, GeoPackage…) no longer hides the feature number. It
+  is shown as `fid_data`; before, rows far down the table stayed empty, sorting or filtering failed, and the export
+  replaced that column with the feature numbers. The export writes it back as `fid`.
 - Node colours: each built-in category has its own, clearly distinct colour; the palette and the nodes use the same
   colour in every language.
 - Run log: a header (nodes to run, nodes taken from the cache, memory and cores), the start and end of each node

@@ -375,11 +375,16 @@ class Port:
     meta: dict[str, Any] | None = None
     map_status: Literal["ready", "building", "failed", "none"] = "none"
     map_error: str | None = None  # pourquoi la carte n'est pas affichée (« failed ») : `memory` ou l'erreur
+    data_fid: str | None = None  # nom, dans l'inspecteur, d'une colonne `fid` des données (voir `src`)
 
     def src(self, geometry: bool = False) -> str:
-        """Sous-requête SQL : attributs + `fid` (+ `geometry` typée GEOMETRY si `geometry`)."""
+        """Sous-requête SQL : attributs + `fid` (+ `geometry` typée GEOMETRY si `geometry`).
+
+        `fid` est le numéro de l'entité dans le fichier : pages, tri, carte. Une colonne `fid` des données (table
+        PostgreSQL, GeoPackage…) y prend le nom `fid_data` ; sinon elle masquerait ce numéro."""
+        rename = f" RENAME (fid AS {_q(self.data_fid)})" if self.data_fid else ""
         base = (
-            f"SELECT * EXCLUDE (file_row_number), file_row_number AS fid "
+            f"SELECT * EXCLUDE (file_row_number){rename}, file_row_number AS fid "
             f"FROM read_parquet({_lit(self.data.as_posix())}, file_row_number=true)"
         )
         if geometry and self.has_geometry:
@@ -413,6 +418,10 @@ def open_port(duck: Duck, run: str, node: str, port: str, prepare: bool = True) 
     file = pq.ParquetFile(data)
     schema, total = file.schema_arrow, file.metadata.num_rows
     found = Port(duck.for_file(data), run, node, port, raw, data, get_crs(schema), GEOM in schema.names, total)
+    if "fid" in schema.names:
+        found.data_fid = next(
+            n for i in range(len(schema.names) + 1) if (n := f"fid_data{i or ''}") not in schema.names
+        )
     if prepare and found.has_geometry and found.crs:
         found.map_status, found.meta, found.map_error = _map_view(raw)
         if found.meta is not None:
@@ -836,7 +845,11 @@ def export_batches(port: Port, q: Query) -> Iterator[pa.RecordBatch]:
         cols.append(f"ST_AsWKB({GEOM}) AS {GEOM}" if geom else GEOM)
     sql = f"SELECT {', '.join(cols)} FROM {port.src(geometry=geom)}{where} ORDER BY {_order(q, types)}"
     with port.duck.con().sql(sql, params=params).to_arrow_reader(50_000) as reader:
-        yield from reader
+        if not port.data_fid:
+            yield from reader
+            return
+        for batch in reader:  # la colonne `fid` des données reprend son nom (renommée après le tri, fait sur le numéro)
+            yield batch.rename_columns(["fid" if c == port.data_fid else c for c in batch.schema.names])
 
 
 # ------------------------------------------------------------------------------------------ tuiles

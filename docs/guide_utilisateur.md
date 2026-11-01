@@ -109,7 +109,8 @@ Pendant un run, le nœud sélectionné reste affiché : « … en cours de calcu
 
 La table montre **toutes les entités** du port : les lignes arrivent au fil du défilement, et filtres, tri,
 recherche, statistiques et export portent sur tout le port. Le nombre d'entités est affiché une fois (« 11 / 20
-entités » quand un filtre en retient 11).
+entités » quand un filtre en retient 11). La colonne **fid** est le numéro de l'entité dans le port ; une colonne
+`fid` des données (table PostgreSQL, GeoPackage…) s'affiche sous le nom `fid_data`, et l'export lui rend son nom.
 
 **Colonnes** : glisser le bord droit d'un en-tête pour élargir la colonne, double-clic pour l'ajuster au contenu.
 **Copier** : clic droit sur une cellule (*Copier la valeur*, *Copier la ligne*, *Copier le nom de la colonne*) ou

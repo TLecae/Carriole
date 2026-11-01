@@ -103,6 +103,8 @@ During a run, the selected node stays displayed, with "… is being computed" un
 
 The table shows **every feature** of the port: rows arrive as you scroll, and filters, sort, search, statistics
 and export cover the whole port. The feature count is shown once ("11 / 20 features" when a filter keeps 11).
+The **fid** column is the number of the feature in the port; a `fid` column of the data (PostgreSQL table,
+GeoPackage…) is shown as `fid_data`, and the export gives it back its name.
 
 **Columns**: drag the right edge of a header to widen the column, double-click to fit it to its content. **Copy**:
 right-click a cell (*Copy value*, *Copy row*, *Copy column name*) or a header; or click a cell then `Ctrl+C`. Text can

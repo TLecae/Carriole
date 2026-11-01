@@ -384,6 +384,40 @@ def test_no_map_without_geometry(env, tmp_path):
     assert env.get(tile_url(node="plain")).status_code == 404
 
 
+def test_a_fid_column_of_the_data_does_not_hide_the_entity_number(env, tmp_path):
+    """Une table PostgreSQL ou GeoPackage a souvent sa propre colonne `fid`, parfois vide : elle masquait le numéro de
+    l'entité (pages vides loin dans la table, tri en erreur). Dans l'inspecteur, elle s'appelle `fid_data` ; l'export
+    lui rend son nom."""
+    own = env.cache / RUN / "ownfid"
+    own.mkdir()
+    n = 30
+    data_fid = [None if i % 3 == 0 else 1000 - i for i in range(n)]
+    table = pa.table({"fid": pa.array(data_fid, pa.int64()), "nom": [f"n{i}" for i in range(n)]})
+    pq.write_table(table, own / "output.parquet")
+    info = env.get(url("info", node="ownfid")).json()
+    assert [c["name"] for c in info["columns"]] == ["fid_data", "nom"]
+    page = env.post(url("rows", node="ownfid"), json={"offset": 20, "limit": 5}).json()
+    assert page["columns"] == ["fid", "fid_data", "nom"]
+    assert [r[0] for r in page["rows"]] == [20, 21, 22, 23, 24] and page["rows"][2][1:] == [978, "n22"]
+    q = {"sort": [{"column": "fid_data"}]}
+    ordered = env.post(url("rows", node="ownfid"), json={**q, "limit": n}).json()["rows"]
+    assert [r[1] for r in ordered][:3] == [971, 972, 974] and ordered[-1][1] is None
+    assert env.post(url("locate", node="ownfid"), json={"query": q, "fid": 29}).json() == {"index": 0}
+    assert env.get(url("feature/22", node="ownfid")).json()["attributes"]["fid_data"] == 978
+    exported = env.post(url("export?format=parquet", node="ownfid"), json={})
+    (tmp_path / "own.parquet").write_bytes(exported.content)
+    assert pq.read_table(tmp_path / "own.parquet").column_names == ["fid", "nom"]
+    assert pq.read_table(tmp_path / "own.parquet").column("fid").to_pylist() == data_fid
+    gpkg = env.post(url("export?format=gpkg", node="ownfid"), json={})
+    assert gpkg.status_code == 200, gpkg.text
+    (tmp_path / "own.gpkg").write_bytes(gpkg.content)
+    import sqlite3
+
+    with sqlite3.connect(tmp_path / "own.gpkg") as gp:  # comme l'écriture d'un flux : `fid` devient la clé de la couche
+        keys = [k for (k,) in gp.execute("SELECT fid FROM output")]
+    assert len(keys) == n and set(keys) >= {f for f in data_fid if f is not None}
+
+
 def test_slow_queries_are_interrupted(env, monkeypatch):
     monkeypatch.setattr(ds, "QUERY_TIMEOUT", 0.5)
     monkeypatch.setattr(ds, "TABLE_TIMEOUT", 0.5)  # page de la table : délai plus long, interrompue elle aussi
