@@ -16,7 +16,7 @@ Ouverte Etalab 2.0).
 | affine | 3.0.1 | BSD-3-Clause |
 | annotated-doc | 0.0.5 | MIT |
 | annotated-types | 0.8.0 | MIT |
-| anthropic | 1.13.0 | MIT License |
+| anthropic | 2.3.0 | Apache Software License |
 | anyio | 4.15.1 | MIT |
 | attrs | 26.1.0 | MIT |
 | certifi | 2026.7.22 | Mozilla Public License 2.0 (MPL 2.0) |
@@ -29,7 +29,7 @@ Ouverte Etalab 2.0).
 | docstring-parser | 0.18.0 | MIT License |
 | duckdb | 2.0.0 | MIT License |
 | et-xmlfile | 2.0.0 | MIT License |
-| fastapi | 0.142.2 | MIT |
+| fastapi | 0.162.0 | MIT |
 | h11 | 0.16.0 | MIT License |
 | httpcore | 1.0.9 | BSD-3-Clause |
 | httpcore2 | 2.13.1 | BSD-3-Clause |
@@ -40,31 +40,29 @@ Ouverte Etalab 2.0).
 | idna | 3.20 | BSD-3-Clause |
 | iniconfig | 2.3.1 | MIT |
 | jiter | 0.17.0 | MIT |
-| jsonschema | 4.26.0 | MIT |
-| jsonschema-specifications | 2025.9.1 | MIT |
 | markdown-it-py | 4.2.0 | MIT License |
 | mdurl | 0.1.2 | MIT License |
 | numexpr | 2.14.2 | MIT |
-| numpy | 2.5.3 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 |
-| openai | 3.29.0 | Apache-2.0 |
+| numpy | 2.5.4 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 |
+| openai | 3.41.0 | Apache-2.0 |
 | openpyxl | 3.1.5 | MIT License |
 | opentelemetry-api | 1.45.1 | Apache-2.0 |
-| oracledb | 26.0.1 | UPL-1.0 OR Apache-2.0 |
+| oracledb | 26.1.0 | UPL-1.0 OR Apache-2.0 |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause |
 | pluggy | 1.6.0 | MIT License |
 | psutil | 7.2.2 | BSD-3-Clause |
 | psycopg | 3.3.6 | LGPL-3.0-only — LGPL : bibliothèque non modifiée, source sur https://github.com/psycopg/psycopg |
 | psycopg-binary | 3.3.6 | LGPL-3.0-only — LGPL : bibliothèque non modifiée, source sur https://github.com/psycopg/psycopg |
-| pyarrow | 25.0.1 | Apache-2.0 |
+| pyarrow | 26.0.0 | Apache-2.0 |
 | pycparser | 3.0 | BSD-3-Clause |
-| pydantic | 2.13.5 | MIT |
-| pydantic-core | 2.46.5 | MIT |
+| pydantic | 2.14.1 | MIT |
+| pydantic-core | 2.50.1 | MIT |
 | pygments | 2.21.0 | BSD-2-Clause |
 | pyogrio | 0.13.0 | MIT License |
 | pyparsing | 3.3.3 | MIT |
 | pyproj | 3.8.0 | MIT |
 | pystac | 1.15.2 | Apache Software License |
-| pystac-client | 0.9.0 | Apache Software License |
+| pystac-client | 0.9.1 | Apache Software License |
 | pystac-core | 1.15.2 | Apache Software License |
 | pystac-ext-classification | 2.0.1 | Apache Software License |
 | pystac-ext-datacube | 2.2.1 | Apache Software License |
@@ -88,20 +86,18 @@ Ouverte Etalab 2.0).
 | pystac-ext-version | 1.2.1 | Apache Software License |
 | pystac-ext-view | 1.0.1 | Apache Software License |
 | pystac-ext-xarray-assets | 1.0.1 | Apache Software License |
-| pytest | 9.1.1 | MIT |
+| pytest | 9.2.0 | MIT |
 | python-dateutil | 2.9.0.post0 | BSD License, Apache Software License |
 | python-dotenv | 1.2.4 | BSD-3-Clause |
 | pyyaml | 6.0.3 | MIT License |
 | rasterio | 1.5.2 | BSD-3-Clause |
-| referencing | 0.37.0 | MIT |
 | requests | 2.34.2 | Apache Software License |
 | rich | 15.0.0 | MIT License |
-| rpds-py | 2026.9.1 | MIT |
-| shapely | 2.1.2 | BSD License |
+| shapely | 2.2.0 | BSD-3-Clause |
 | shellingham | 1.5.4 | ISC License (ISCL) |
 | six | 1.17.0 | MIT License |
 | sniffio | 1.3.1 | MIT License, Apache Software License |
-| sqlalchemy | 2.1.3 | MIT |
+| sqlalchemy | 2.1.6 | MIT |
 | starlette | 1.7.0 | BSD-3-Clause |
 | truststore | 0.10.4 | MIT |
 | typer | 0.27.3 | MIT |

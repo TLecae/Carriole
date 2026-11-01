@@ -1,16 +1,26 @@
 version: 2
 updates:
+  # actions regroupées : une seule PR (sans groupe, la limite de PR ouvertes en laissait de côté)
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+  # versions mineures et correctifs regroupés ; une version majeure arrive seule, à tester à part
   - package-ecosystem: npm
     directories: [/frontend, /desktop]
     schedule:
       interval: monthly
+    ignore:
+      # les types de Node suivent le Node embarqué par Electron, pas la dernière version de Node
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       npm:
         patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: uv
     directory: /
     schedule:
@@ -18,3 +28,4 @@ updates:
     groups:
       python:
         patterns: ["*"]
+        update-types: [minor, patch]
