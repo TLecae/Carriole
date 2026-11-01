@@ -19,7 +19,6 @@ from etl_engine.data import get_crs, with_crs
 from etl_engine.sdk import REJECTED, ConfigError, Emit, Modifier, Params, missing_attributes, reject
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
-MAX_BODY = 5_000_000  # octets de réponse conservés par appel
 
 
 class Header(Params):
@@ -56,7 +55,8 @@ class HttpRequest(Modifier):
         "L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité avec {attribut} (dans l'adresse, la "
         "valeur est encodée). Exemple : https://api-adresse.data.gouv.fr/search/?q={adresse}&limit=1. Les entités dont la "
         "réponse a un code inférieur à 400 sortent sur « output » avec le corps de la réponse (attribut `_http_body`) "
-        "et le code (`_http_status`) ; les autres sortent sur « Rejected » avec le motif (`_rejection_reason`). Les appels se font en "
+        "et le code (`_http_status`) ; les autres sortent sur « Rejected » avec le motif (`_rejection_reason`), comme "
+        "celles dont la réponse dépasse « Taille maximale de la réponse ». Les appels se font en "
         "parallèle (« Appels simultanés ») avec un débit maximal par seconde, et sont repris en cas d'erreur réseau, de "
         "code 429 ou 5xx. Le proxy du poste (HTTPS_PROXY) est utilisé. Pour lire le JSON reçu : « Extraire du JSON »."
     )
@@ -93,6 +93,13 @@ class HttpRequest(Modifier):
         )
         concurrency: int = Field(4, ge=1, le=32, title="Appels simultanés", description="Nombre d'appels en parallèle.")
         rate: float = Field(0.0, ge=0, title="Débit maximal (appels/s)", description="0 = pas de limite.")
+        max_size: float = Field(
+            50.0,
+            gt=0,
+            le=2000,
+            title="Taille maximale de la réponse (Mo)",
+            description="Au-delà, l'entité part sur « Rejected » : la réponse n'est pas gardée tronquée.",
+        )
 
     def _check(self) -> None:
         p = self.params
@@ -145,13 +152,17 @@ class HttpRequest(Modifier):
             limiter.wait()
             try:
                 with client.stream(p.method, url, headers=headers, content=body) as response:
-                    chunks, size = [], 0
+                    chunks, size, limit = [], 0, int(p.max_size * 1_000_000)
                     for chunk in response.iter_bytes():
                         chunks.append(chunk)
                         size += len(chunk)
-                        if size > MAX_BODY:
-                            break
-                    text = b"".join(chunks)[:MAX_BODY].decode(response.encoding or "utf-8", errors="replace")
+                        if size > limit:  # un JSON tronqué serait illisible : l'entité part sur « Rejected »
+                            return (
+                                response.status_code,
+                                None,
+                                f"réponse de plus de {p.max_size:g} Mo (Taille maximale de la réponse)",
+                            )
+                    text = b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
                     code = response.status_code
                 if code == 429 or code >= 500:
                     error = f"HTTP {code}"
@@ -208,7 +219,7 @@ class HttpRequest(Modifier):
                 else out.append_column(name, column)
             )
         out = with_crs(out, get_crs(batch))
-        ok = pa.array([e is None for e in errors.to_pylist()])
+        ok = pa.array([e is None for e in errors.to_pylist()], pa.bool_())  # typé : un lot vide aussi
         result: dict[str, pa.Table] = {}
         good, bad = out.filter(ok), out.filter(pc.invert(ok))
         if good.num_rows:

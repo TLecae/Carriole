@@ -9,6 +9,8 @@ from typing import Any, Literal
 
 import pyarrow as pa
 import shapely
+import shapely.geometry
+import shapely.ops
 from pydantic import BaseModel, Field
 
 from etl_engine.blocking import collect

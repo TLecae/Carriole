@@ -60,7 +60,9 @@ GDAL_OPTIONS: dict[str, Any] = {
     "VSI_CACHE": "TRUE",
     "VSI_CACHE_SIZE": 64 * 1024 * 1024,
     "GDAL_NUM_THREADS": "ALL_CPUS",
-    "GDAL_CACHEMAX": 512,
+    # en octets : rasterio passe un entier tel quel à GDALSetCacheMax64 (512 seul donnait un cache de 512 octets, et
+    # une lecture réduite décompressait chaque bloc des centaines de fois)
+    "GDAL_CACHEMAX": 512 * 2**20,
 }
 
 

@@ -16,6 +16,17 @@
 - Inspector: a `fid` column of the data (PostgreSQL table, GeoPackage…) no longer hides the feature number. It
   is shown as `fid_data`; before, rows far down the table stayed empty, sorting or filtering failed, and the export
   replaced that column with the feature numbers. The export writes it back as `fid`.
+- Example flows in `examples/flows`: municipal populations from the Insee Melodi API joined to the outlines of the
+  municipalities, and the NDVI of a municipality from a Sentinel-2 image found in a STAC catalog.
+- *HttpRequest*: a *Maximum response size* parameter (50 MB). A larger response used to be cut at 5 MB without
+  warning, which left unreadable JSON; such a feature now leaves on *Rejected* with the reason. An empty batch no
+  longer stops the run.
+- *CreateFeatures*: a feature without attributes or geometry, used to trigger a call, is no longer lost (it keeps
+  `_index`).
+- *STACSearch*: a search on the received geometries no longer fails ("module 'shapely' has no attribute 'ops'").
+- Rasters: the GDAL block cache is 512 MB, as intended, instead of 512 bytes. A reduced read decompressed each
+  block hundreds of times: the inspector preview of a 2 million pixel NDVI took 30 s, it takes 0.2 s. The raster
+  settings panel stays within the map.
 - Inspector: the *Statistics* button is removed. On large ports the computation took several minutes or stopped
   with "query too long". Errors of the inspector are shown in a banner above the table.
 - Node colours: each built-in category has its own, clearly distinct colour; the palette and the nodes use the same

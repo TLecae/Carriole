@@ -290,3 +290,28 @@ def test_http_caller_in_a_flow(server, registry, tmp_path):
     assert run_flow(flow, registry, tmp_path / "run").status == "done"
     text = (tmp_path / "o.csv").read_text(encoding="utf-8")
     assert "/c/0" in text and "/c/1" in text
+
+
+def test_a_trigger_feature_without_attributes_calls_the_api_once(server, registry, tmp_path):
+    """Une entité sans attribut ni géométrie, pour déclencher un appel : elle passait par le cache sans aucune colonne
+    et s'y perdait (0 entité), puis l'appel plantait sur le lot vide."""
+    flow = make_flow(
+        [
+            {"id": "c", "type": "CreateFeatures", "params": {"count": 1}},
+            {"id": "h", "type": "HttpRequest", "params": {"url": server + "/seul"}},
+            {"id": "w", "type": "Writer", "params": {"path": str(tmp_path / "o.csv")}},
+        ],
+        [("c", "output", "h", "input"), ("h", "output", "w", "input")],
+    )
+    assert run_flow(flow, registry, tmp_path / "run").status == "done"
+    lines = (tmp_path / "o.csv").read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 2 and "/seul" in lines[1]
+    empty = run_modifier(HttpRequest, {"url": server + "/x"}, table(id=[]))
+    assert not empty.get("output") or empty["output"].num_rows == 0
+
+
+def test_a_response_too_big_is_rejected_not_truncated(server):
+    """Une réponse coupée (JSON illisible) sortait sur « output » sans rien dire : elle part sur « Rejected »."""
+    out = run_modifier(HttpRequest, {"url": server + "/gros", "max_size": 0.00001}, table(id=[1]))
+    assert not out.get("output") or out["output"].num_rows == 0
+    assert "Mo" in out["Rejected"].column("_rejection_reason")[0].as_py()

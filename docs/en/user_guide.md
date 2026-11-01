@@ -181,6 +181,17 @@ ones with the reason; *Repair geometries* makes them valid (the others pass thro
 those that give nothing once repaired. Place it before a clip, a spatial join or a PostGIS write that refuses invalid
 geometries.
 
+**Example flows**, in the `examples/flows` folder of the repository (*File → Open*), with notes that explain them;
+they need internet access:
+
+- `insee_melodi_populations.json`: municipal populations of the census (Insee Melodi API, no key) joined to the
+  outlines of the municipalities of a département (geo.api.gouv.fr), with the density. Parameters: département,
+  year.
+- `stac_sentinel2_ndvi.json`: the least cloudy Sentinel-2 image of a period (Earth Search STAC catalog), clipped by
+  the outline of a municipality, then its NDVI. Parameters: municipality, period, Sentinel-2 tile.
+
+Their writer node is disabled: enable it and choose the file to keep the result.
+
 ## 7. Components: reuse a piece of flow
 
 1. Build a flow with **Component input** and **Component output** nodes (one per port, named).

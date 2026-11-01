@@ -423,7 +423,7 @@ Appelle une adresse web (GET, POST…) pour chaque entité et range la réponse 
 
 - **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : au fil de l'eau
 
-L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité avec {attribut} (dans l'adresse, la valeur est encodée). Exemple : https://api-adresse.data.gouv.fr/search/?q={adresse}&limit=1. Les entités dont la réponse a un code inférieur à 400 sortent sur « output » avec le corps de la réponse (attribut `_http_body`) et le code (`_http_status`) ; les autres sortent sur « Rejected » avec le motif (`_rejection_reason`). Les appels se font en parallèle (« Appels simultanés ») avec un débit maximal par seconde, et sont repris en cas d'erreur réseau, de code 429 ou 5xx. Le proxy du poste (HTTPS_PROXY) est utilisé. Pour lire le JSON reçu : « Extraire du JSON ».
+L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité avec {attribut} (dans l'adresse, la valeur est encodée). Exemple : https://api-adresse.data.gouv.fr/search/?q={adresse}&limit=1. Les entités dont la réponse a un code inférieur à 400 sortent sur « output » avec le corps de la réponse (attribut `_http_body`) et le code (`_http_status`) ; les autres sortent sur « Rejected » avec le motif (`_rejection_reason`), comme celles dont la réponse dépasse « Taille maximale de la réponse ». Les appels se font en parallèle (« Appels simultanés ») avec un débit maximal par seconde, et sont repris en cas d'erreur réseau, de code 429 ou 5xx. Le proxy du poste (HTTPS_PROXY) est utilisé. Pour lire le JSON reçu : « Extraire du JSON ».
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -437,6 +437,7 @@ L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité av
 | Reprises | Nouvelles tentatives après une erreur réseau, un code 429 ou 5xx. | `2` |
 | Appels simultanés | Nombre d'appels en parallèle. | `4` |
 | Débit maximal (appels/s) | 0 = pas de limite. | `0.0` |
+| Taille maximale de la réponse (Mo) | Au-delà, l'entité part sur « Rejected » : la réponse n'est pas gardée tronquée. | `50.0` |
 
 ### Créer des entités — `CreateFeatures` {#createfeatures}
 

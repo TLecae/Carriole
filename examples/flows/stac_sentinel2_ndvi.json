@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "name": "Exemple - NDVI Sentinel-2 d'une commune (STAC)",
+  "description": "Cherche dans un catalogue STAC l'image Sentinel-2 la moins nuageuse d'une période, la découpe par le contour d'une commune et calcule le NDVI.",
+  "published_params": [
+    {"name": "CODE_COMMUNE", "label": "Code Insee de la commune", "type": "text", "default": "31555"},
+    {"name": "PERIODE", "label": "Période (début/fin)", "type": "text", "default": "2025-06-01/2025-08-31"},
+    {"name": "TUILE", "label": "Tuile Sentinel-2 (grille MGRS)", "type": "text", "default": "MGRS-31TCJ"}
+  ],
+  "nodes": [
+    {"id": "depart", "type": "CreateFeatures", "label": "Départ", "position": [0, 0], "params": {"count": 1}},
+    {
+      "id": "contour_api",
+      "type": "HttpRequest",
+      "label": "Contour de la commune (geo.api.gouv.fr)",
+      "position": [300, 0],
+      "params": {"url": "https://geo.api.gouv.fr/communes/${CODE_COMMUNE}?format=geojson&geometry=contour", "timeout": 60}
+    },
+    {
+      "id": "contour_json",
+      "type": "ExtractJson",
+      "label": "Nom, code et contour",
+      "position": [600, 0],
+      "params": {
+        "attribute": "_http_body",
+        "fields": [
+          {"path": "properties.code", "name": "code", "type": "text"},
+          {"path": "properties.nom", "name": "nom", "type": "text"},
+          {"path": "geometry", "name": "geojson", "type": "text"}
+        ],
+        "drop_source": true
+      }
+    },
+    {
+      "id": "commune",
+      "type": "GeometryFromAttribute",
+      "label": "Contour de la commune",
+      "position": [900, 0],
+      "params": {"attribute": "geojson", "format": "geojson", "crs": "EPSG:4326", "remove_attribute": true}
+    },
+    {
+      "id": "nettoyage",
+      "type": "DropAttributes",
+      "label": "Attributs techniques retirés",
+      "position": [1200, 0],
+      "params": {"attributes": ["_index", "_http_status"], "ignore_missing": true}
+    },
+    {
+      "id": "stac",
+      "type": "STACSearch",
+      "label": "Image Sentinel-2 la moins nuageuse",
+      "position": [1500, -160],
+      "params": {
+        "api_url": "https://earth-search.aws.element84.com/v1",
+        "collections": ["sentinel-2-l2a"],
+        "from_input": true,
+        "copy_attributes": ["code", "nom"],
+        "datetime": "${PERIODE}",
+        "query": "{\"eo:cloud_cover\": {\"lt\": 10}, \"grid:code\": {\"eq\": \"${TUILE}\"}}",
+        "max_items": 1,
+        "sortby": "properties.eo:cloud_cover",
+        "assets": ["red", "nir"],
+        "properties": ["eo:cloud_cover"]
+      }
+    },
+    {
+      "id": "decoupe",
+      "type": "ClipRasterByMask",
+      "label": "Découpe par la commune",
+      "position": [1800, 0],
+      "params": {"by": "features", "mode": "union", "crop": true}
+    },
+    {
+      "id": "ndvi",
+      "type": "RasterCalculator",
+      "label": "NDVI",
+      "position": [2100, 0],
+      "params": {
+        "calculations": [{"name": "ndvi", "expression": "(nir - red) / (nir + red)"}],
+        "dtype": "float32"
+      }
+    },
+    {
+      "id": "ecriture",
+      "type": "RasterWriter",
+      "label": "Écriture (à activer)",
+      "position": [2400, 0],
+      "enabled": false,
+      "params": {"path": "D:/donnees/sentinel2/ndvi_${CODE_COMMUNE}.tif"}
+    }
+  ],
+  "links": [
+    {"id": "l1", "from": ["depart", "output"], "to": ["contour_api", "input"]},
+    {"id": "l2", "from": ["contour_api", "output"], "to": ["contour_json", "input"]},
+    {"id": "l3", "from": ["contour_json", "output"], "to": ["commune", "input"]},
+    {"id": "l4", "from": ["commune", "output"], "to": ["nettoyage", "input"]},
+    {"id": "l5", "from": ["nettoyage", "output"], "to": ["stac", "input"]},
+    {"id": "l6", "from": ["stac", "output"], "to": ["decoupe", "input"]},
+    {"id": "l7", "from": ["nettoyage", "output"], "to": ["decoupe", "mask"]},
+    {"id": "l8", "from": ["decoupe", "output"], "to": ["ndvi", "input"]},
+    {"id": "l9", "from": ["ndvi", "output"], "to": ["ecriture", "input"]}
+  ],
+  "annotations": [
+    {
+      "id": "a1",
+      "text": "Catalogue STAC Earth Search (accès libre). La recherche se fait sur l'emprise de la commune ; la tuile Sentinel-2 qui la couvre entière est fixée dans les paramètres du flux (MGRS-31TCJ pour Toulouse). Seules les bandes rouge et proche infrarouge sont lues, à la demande : rien n'est téléchargé en entier.",
+      "position": [1500, -360],
+      "node": "stac"
+    },
+    {
+      "id": "a2",
+      "text": "NDVI = (PIR − R) / (PIR + R), de −1 à 1 : végétation dense au-dessus de 0,6, sol nu et bâti vers 0,1 à 0,3, eau en dessous de 0. Les images de ce catalogue valent réflectance × 10 000 : l'échelle s'annule dans le rapport. Avec un catalogue qui laisse le décalage de 1 000 des images traitées depuis 2022, écrire (nir − red) / (nir + red − 2000).",
+      "position": [2100, 160],
+      "node": "ndvi"
+    },
+    {
+      "id": "a3",
+      "text": "Pour écrire le NDVI (GeoTIFF optimisé) : activer ce nœud et choisir le fichier.",
+      "position": [2400, 160],
+      "node": "ecriture"
+    }
+  ]
+}

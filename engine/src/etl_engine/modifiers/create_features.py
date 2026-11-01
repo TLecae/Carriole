@@ -71,7 +71,8 @@ class CreateFeatures(Modifier):
         table = index
         for a in p.attributes:
             table = table.append_column(a.name, evaluate(table, {a.name: a.expression}).column(a.name))
-        table = table.drop_columns(["_index"])
+        if p.attributes or p.geometry != "none":  # sans aucune colonne, les entités se perdraient (Parquet)
+            table = table.drop_columns(["_index"])
         if p.geometry == "point":
             xs = evaluate(index, {"v": p.x}).column("v").to_numpy(zero_copy_only=False).astype(float)
             ys = evaluate(index, {"v": p.y}).column("v").to_numpy(zero_copy_only=False).astype(float)

@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -372,6 +374,37 @@ def test_stac_search_feeds_the_calculator_through_the_virtual_raster(stac):
         RasterCalculator, {"calculations": [{"name": "ndvi", "expression": "(nir - red) / (nir + red)"}]}, out
     )["output"]
     assert calc.num_rows == 2 and core.descriptors(calc)[0]["band_names"] == ["ndvi"]
+
+
+def test_the_gdal_block_cache_is_in_megabytes_not_bytes(tmp_path):
+    """Un cache de blocs de 512 octets (unité mal lue) rendait une lecture réduite 200 fois plus lente : l'aperçu d'un
+    NDVI de 2 millions de pixels prenait 30 s dans l'inspecteur."""
+    from rasterio.env import get_gdal_config
+
+    with core.gdal_env():
+        assert int(get_gdal_config("GDAL_CACHEMAX")) >= 64 * 2**20
+
+
+def test_stac_search_from_received_geometries_in_any_crs(stac):
+    """Une recherche par géométries reçues (en Lambert 93) : reprojetées en WGS84, leurs attributs recopiés. Dans un
+    interpréteur neuf : `shapely.ops` n'y est pas déjà chargé par un autre module (l'erreur ne se voyait qu'en vrai)."""
+    script = "\n".join(
+        [
+            "import pyarrow as pa, shapely",
+            "from etl_engine.data import GEOM, with_crs",
+            "from etl_engine.modifiers.stac_search import STACSearch",
+            "from etl_engine.testing import run_modifier",
+            "box = shapely.to_wkb(shapely.box(570000, 6275000, 580000, 6285000))",
+            "zones = with_crs(pa.table({'nom': ['Toulouse'], GEOM: pa.array([box], pa.binary())}), 'EPSG:2154')",
+            f"params = {{'api_url': {stac!r}, 'assets': ['red'], 'from_input': True, 'copy_attributes': ['nom']}}",
+            "print(run_modifier(STACSearch, params, zones)['output'].column('nom').to_pylist())",
+        ]
+    )
+    done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
+    assert done.returncode == 0, done.stderr[-2000:]
+    assert "Toulouse" in done.stdout
+    west, south, east, north = shapely.geometry.shape(Catalog.searches[-1]["intersects"]).bounds
+    assert 1.2 < west < east < 1.6 and 43.4 < south < north < 43.8  # en degrés
 
 
 def test_stac_search_validates_and_explains_errors(stac):

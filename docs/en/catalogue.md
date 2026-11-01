@@ -862,7 +862,7 @@ Calls a web address (GET, POST…) for each feature and stores the response in a
 
 - **Inputs** : `input` — **Outputs** : `output`, `Rejected` — **Processing** : streaming
 
-The address, headers and body can cite attributes of the feature with {attribute} (in the address, the value is encoded). Example: https://api-adresse.data.gouv.fr/search/?q={address}&limit=1. Features whose response has a code below 400 leave on "output" with the response body (attribute `_http_body`) and the code (`_http_status`); the others leave on "Rejected" with the reason (`_rejection_reason`). Calls are made in parallel ("Simultaneous calls") with a maximum rate per second, and are retried on network error, code 429 or 5xx. The computer's proxy (HTTPS_PROXY) is used. To read the received JSON: "Extract from JSON".
+The address, headers and body can cite attributes of the feature with {attribute} (in the address, the value is encoded). Example: https://api-adresse.data.gouv.fr/search/?q={address}&limit=1. Features whose response has a code below 400 leave on "output" with the response body (attribute `_http_body`) and the code (`_http_status`); the others leave on "Rejected" with the reason (`_rejection_reason`), like those whose response exceeds "Maximum response size". Calls are made in parallel ("Simultaneous calls") with a maximum rate per second, and are retried on network error, code 429 or 5xx. The computer's proxy (HTTPS_PROXY) is used. To read the received JSON: "Extract from JSON".
 
 | Parameter | Role | Default |
 | --- | --- | --- |
@@ -876,6 +876,7 @@ The address, headers and body can cite attributes of the feature with {attribute
 | Retries | New attempts after a network error, a 429 or 5xx code. | `2` |
 | Simultaneous calls | Number of parallel calls. | `4` |
 | Maximum rate (calls/s) | 0 = no limit. | `0.0` |
+| Maximum response size (MB) | Beyond it, the feature leaves on "Rejected": the response is not kept truncated. | `50.0` |
 
 ### Create features — `CreateFeatures` {#createfeatures}
 

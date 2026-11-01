@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "name": "Exemple - Populations Insee (API Melodi)",
+  "description": "Populations municipales du recensement (API Melodi de l'Insee) jointes aux contours des communes d'un département, avec la densité de population.",
+  "published_params": [
+    {"name": "DEPARTEMENT", "label": "Code du département", "type": "text", "default": "31"},
+    {"name": "ANNEE", "label": "Année de la population de référence", "type": "text", "default": "2023"}
+  ],
+  "nodes": [
+    {"id": "depart_contours", "type": "CreateFeatures", "label": "Départ : contours", "position": [0, 0], "params": {"count": 1}},
+    {
+      "id": "contours",
+      "type": "HttpRequest",
+      "label": "Contours des communes (geo.api.gouv.fr)",
+      "position": [300, 0],
+      "params": {
+        "url": "https://geo.api.gouv.fr/departements/${DEPARTEMENT}/communes?fields=nom,code&format=geojson&geometry=contour",
+        "timeout": 120
+      }
+    },
+    {
+      "id": "communes_json",
+      "type": "ExtractJson",
+      "label": "Une entité par commune",
+      "position": [600, 0],
+      "params": {
+        "attribute": "_http_body",
+        "explode": "features",
+        "fields": [
+          {"path": "properties.code", "name": "code", "type": "text"},
+          {"path": "properties.nom", "name": "nom", "type": "text"},
+          {"path": "geometry", "name": "geojson", "type": "text"}
+        ],
+        "drop_source": true
+      }
+    },
+    {
+      "id": "communes",
+      "type": "GeometryFromAttribute",
+      "label": "Géométrie des communes",
+      "position": [900, 0],
+      "params": {"attribute": "geojson", "format": "geojson", "crs": "EPSG:4326", "remove_attribute": true}
+    },
+    {
+      "id": "nettoyage",
+      "type": "DropAttributes",
+      "label": "Attributs techniques retirés",
+      "position": [1200, 0],
+      "params": {"attributes": ["_index", "_http_status"], "ignore_missing": true}
+    },
+    {"id": "lambert93", "type": "Reproject", "label": "Lambert 93", "position": [1500, 0], "params": {"target": "EPSG:2154"}},
+    {"id": "depart_melodi", "type": "CreateFeatures", "label": "Départ : Melodi", "position": [0, 260], "params": {"count": 1}},
+    {
+      "id": "melodi",
+      "type": "HttpRequest",
+      "label": "API Melodi : populations de référence",
+      "position": [300, 260],
+      "params": {
+        "url": "https://api.insee.fr/melodi/data/DS_POPULATIONS_REFERENCE?GEO=COM&POPREF_MEASURE=PMUN&TIME_PERIOD=${ANNEE}&maxResult=100000",
+        "headers": [{"name": "Accept", "value": "application/json"}],
+        "timeout": 300
+      }
+    },
+    {
+      "id": "observations",
+      "type": "ExtractJson",
+      "label": "Une entité par commune",
+      "position": [600, 260],
+      "params": {
+        "attribute": "_http_body",
+        "explode": "observations",
+        "fields": [
+          {"path": "dimensions.GEO", "name": "geo", "type": "text"},
+          {"path": "dimensions.TIME_PERIOD", "name": "annee", "type": "text"},
+          {"path": "measures.OBS_VALUE_NIVEAU.value", "name": "population", "type": "float"}
+        ],
+        "drop_source": true
+      }
+    },
+    {
+      "id": "code_commune",
+      "type": "ExtractText",
+      "label": "Code de la commune",
+      "position": [900, 260],
+      "params": {"attribute": "geo", "mode": "regex", "pattern": "COM-(?P<code>[0-9AB]{5})$"}
+    },
+    {
+      "id": "jointure",
+      "type": "JoinByField",
+      "label": "Population de chaque commune",
+      "position": [1800, 120],
+      "params": {"base_keys": ["code"], "join_keys": ["code"], "attributes": ["annee", "population"], "geometry": "base"}
+    },
+    {
+      "id": "densite",
+      "type": "AddAttributes",
+      "label": "Densité",
+      "position": [2100, 120],
+      "params": {
+        "attributes": [
+          {"name": "surface_km2", "expression": "round(ST_Area(geometry) / 1e6, 2)", "type": "float"},
+          {"name": "densite_hab_km2", "expression": "round(\"population\" / (ST_Area(geometry) / 1e6), 1)", "type": "float"}
+        ]
+      }
+    },
+    {
+      "id": "ecriture",
+      "type": "GeoPackageWriter",
+      "label": "Écriture (à activer)",
+      "position": [2400, 120],
+      "enabled": false,
+      "params": {"path": "D:/donnees/insee/populations_${DEPARTEMENT}.gpkg"}
+    }
+  ],
+  "links": [
+    {"id": "l1", "from": ["depart_contours", "output"], "to": ["contours", "input"]},
+    {"id": "l2", "from": ["contours", "output"], "to": ["communes_json", "input"]},
+    {"id": "l3", "from": ["communes_json", "output"], "to": ["communes", "input"]},
+    {"id": "l4", "from": ["communes", "output"], "to": ["nettoyage", "input"]},
+    {"id": "l12", "from": ["nettoyage", "output"], "to": ["lambert93", "input"]},
+    {"id": "l5", "from": ["lambert93", "output"], "to": ["jointure", "base"]},
+    {"id": "l6", "from": ["depart_melodi", "output"], "to": ["melodi", "input"]},
+    {"id": "l7", "from": ["melodi", "output"], "to": ["observations", "input"]},
+    {"id": "l8", "from": ["observations", "output"], "to": ["code_commune", "input"]},
+    {"id": "l9", "from": ["code_commune", "output"], "to": ["jointure", "join"]},
+    {"id": "l10", "from": ["jointure", "Joined"], "to": ["densite", "input"]},
+    {"id": "l11", "from": ["densite", "output"], "to": ["ecriture", "input"]}
+  ],
+  "annotations": [
+    {
+      "id": "a1",
+      "text": "API Melodi de l'Insee : accès libre, sans clé, 30 appels par minute. Un seul appel rapporte la population municipale de toutes les communes (environ 35 000 observations). Autres jeux de données : catalogue-donnees.insee.fr, l'identifiant DS_… et les filtres se recopient dans l'adresse.",
+      "position": [300, 420],
+      "node": "melodi"
+    },
+    {
+      "id": "a2",
+      "text": "Les contours viennent de geo.api.gouv.fr (département choisi dans les paramètres du flux). La jointure ne garde que les communes de ce département.",
+      "position": [300, -160],
+      "node": "contours"
+    },
+    {
+      "id": "a3",
+      "text": "Pour écrire le résultat : activer ce nœud et choisir le fichier.",
+      "position": [2400, 260],
+      "node": "ecriture"
+    }
+  ]
+}

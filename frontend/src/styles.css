@@ -282,7 +282,7 @@ button.sort:disabled { cursor: default; }
 .segmented button:last-child { border-radius: 0 5px 5px 0; margin-left: -1px; }
 .segmented button[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
 .map-config-panel { position: absolute; left: 0; top: calc(100% + 6px); z-index: 5; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: grid; gap: 6px; width: 260px; }
-.map-raster { position: absolute; right: 8px; bottom: 28px; z-index: 5; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: grid; gap: 6px; width: 200px; font-size: 12px; }
+.map-raster { position: absolute; right: 8px; bottom: 28px; z-index: 5; max-height: calc(100% - 36px); overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: grid; gap: 6px; width: 200px; font-size: 12px; }
 .map-raster label { display: grid; gap: 2px; }
 .map-raster label.inline { display: flex; gap: 6px; align-items: center; }
 .map-raster .range-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
