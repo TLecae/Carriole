@@ -244,7 +244,9 @@ def test_anthropic_streams_and_marks_the_prompt_for_caching(server):
     turn = events[-1][1]
     assert turn.tool_calls[0].name == "get_flow" and turn.stop_reason == "tool_use" and turn.usage["output"] == 20
     path, body, headers = server.requests[0]
-    assert path == "/v1/messages" and body["stream"] and headers.get("x-api-key") == "sk-test"
+    # la clé : en-tête X-Api-Key jusqu'au SDK 1.x, Authorization: Bearer depuis le 2.0 (API 2026-10-21)
+    key = headers.get("x-api-key") or headers.get("authorization", "").removeprefix("Bearer ")
+    assert path == "/v1/messages" and body["stream"] and key == "sk-test"
     assert body["system"][0]["cache_control"] == {"type": "ephemeral"} and body["tools"][-1]["cache_control"] == {
         "type": "ephemeral"
     }
