@@ -141,6 +141,7 @@ code { background: #eef1f5; padding: 0 3px; border-radius: 3px; }
 .etl-node.stale .port-count, .etl-node.stale .cache-dot { opacity: .4; }
 .node-foot .stale-tag { color: var(--warn); font-weight: 600; }
 .stale-banner { margin: 6px 8px; padding: 4px 8px; border-left: 3px solid var(--warn); background: #fff7e6; font-size: 12px; }
+.banner-error { border-left-color: var(--danger); background: #fdeceb; color: var(--danger); }
 .form [hidden] { display: none !important; }
 .check-list { display: grid; gap: 4px; }
 .check-actions { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
@@ -248,7 +249,7 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 button.sort { border: 0; background: none; padding: 0; text-align: left; font-weight: 600; display: flex; gap: 4px; align-items: baseline; }
 button.sort:disabled { cursor: default; }
 .col-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.col-type, .col-stats { color: var(--muted); font-size: 10px; line-height: 1.25; }
+.col-type { color: var(--muted); font-size: 10px; line-height: 1.25; }
 .sort-mark { color: var(--primary); }
 .filter { display: flex; gap: 2px; }
 .filter select { width: 60px !important; padding: 1px; font-size: 11px; }

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { ApiError, api, exportData } from "../api/client";
-import type { ColumnFilter, DataQuery, PortInfo, PortRef, PortStats } from "../api/types";
+import type { ColumnFilter, DataQuery, PortInfo, PortRef } from "../api/types";
 import { t } from "../i18n";
 
 export const PAGE_SIZE = 100;
@@ -31,8 +31,6 @@ interface InspectorState {
   emptyNode: string | null; // nœud choisi sur le canevas, sans données dans le run affiché
   scrollTo: { index: number; nonce: number } | null;
   locating: boolean; // entité cliquée sur la carte : recherche de sa ligne, puis chargement de sa page
-  stats: PortStats | null;
-  showStats: boolean;
   overlays: PortRef[]; // ports superposés sur la carte (en plus du port actif)
   colorBy: string | null;
   mapVisible: boolean;
@@ -44,7 +42,6 @@ interface InspectorState {
   setFilter: (column: string, filter: ColumnFilter | null) => void;
   loadPage: (page: number) => Promise<void>;
   select: (fid: number | null, from: "table" | "map") => Promise<void>;
-  toggleStats: () => Promise<void>;
   toggleOverlay: (t: PortRef) => void;
   setColorBy: (column: string | null) => void;
   setMapVisible: (v: boolean) => void;
@@ -125,8 +122,6 @@ export const useInspector = create<InspectorState>((set, get) => {
     emptyNode: null,
     scrollTo: null,
     locating: false,
-    stats: null,
-    showStats: false,
     overlays: [],
     colorBy: null,
     mapVisible: true,
@@ -165,8 +160,6 @@ export const useInspector = create<InspectorState>((set, get) => {
         pages: {},
         selectedFid: null,
         locating: false,
-        stats: null,
-        showStats: false,
         colorBy: null,
         loading: false,
         preparing: false,
@@ -226,18 +219,6 @@ export const useInspector = create<InspectorState>((set, get) => {
         /* la ligne reste simplement hors de la fenêtre affichée */
       } finally {
         if (ticket === selections) set({ locating: false });
-      }
-    },
-
-    toggleStats: async () => {
-      const { showStats, target, stats } = get();
-      set({ showStats: !showStats });
-      if (!showStats && target && !stats) {
-        try {
-          set({ stats: await api.dataStats(target, true) });
-        } catch (e) {
-          set({ error: message(e) });
-        }
       }
     },
 

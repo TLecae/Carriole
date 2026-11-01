@@ -16,7 +16,6 @@ import type {
   FlowSummary,
   PortInfo,
   PortRef,
-  PortStats,
   RowsPage,
   RunDetail,
   RunEvent,
@@ -180,7 +179,6 @@ export const api = {
   dataInfo: (t: PortRef) => call<PortInfo>(`${dataPath(t)}/info`),
   dataRows: (t: PortRef, q: DataQuery, offset: number, limit: number) =>
     call<RowsPage>(`${dataPath(t)}/rows`, { method: "POST", ...json({ ...q, offset, limit }) }),
-  dataStats: (t: PortRef, geometry = false) => call<PortStats>(`${dataPath(t)}/stats?geometry=${geometry}`),
   dataValues: (t: PortRef, column: string, q: DataQuery, limit = 50) =>
     call<{ value: unknown; count: number }[]>(`${dataPath(t)}/values`, { method: "POST", ...json({ column, query: q, limit }) }),
   dataClasses: (t: PortRef, column: string, q: DataQuery, count: number) =>

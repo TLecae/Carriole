@@ -101,7 +101,7 @@ summary is used. If you switch to another port while it is being prepared, the p
 
 During a run, the selected node stays displayed, with "… is being computed" until its data is there.
 
-The table shows **every feature** of the port: rows arrive as you scroll, and filters, sort, search, statistics
+The table shows **every feature** of the port: rows arrive as you scroll, and filters, sort, search
 and export cover the whole port. The feature count is shown once ("11 / 20 features" when a filter keeps 11).
 The **fid** column is the number of the feature in the port; a `fid` column of the data (PostgreSQL table,
 GeoPackage…) is shown as `fid_data`, and the export gives it back its name.

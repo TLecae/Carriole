@@ -170,13 +170,6 @@ def test_search_where_and_combination(env):
     assert both.json()["filtered"] == 5
 
 
-def test_stats(env):
-    s = env.get(url("stats?geometry=true")).json()
-    assert s["columns"]["pop"] == {"type": "BIGINT", "min": 0, "max": 4900, "distinct": 50, "nulls": 0}
-    assert s["columns"]["nom"]["nulls"] == 5 and s["columns"]["dep"]["distinct"] == 2
-    assert s["geometry"]["types"] == ["POINT"] and s["geometry"]["invalid"] == 0 and s["geometry"]["null"] == 0
-
-
 def test_values_locate_and_feature(env):
     v = env.post(url("values"), json={"column": "dep"}).json()
     assert {x["value"]: x["count"] for x in v} == {"31": 25, "09": 25}
@@ -800,5 +793,4 @@ def test_a_port_that_kept_geoparquet_metadata_is_inspected(env):
     )
     assert ready(env, node="geo")["geometry"]["map"]
     assert [r[-1] for r in env.post(url("rows", node="geo"), json={}).json()["rows"]] == ["POINT"] * 5
-    assert env.get(url("stats", node="geo")).status_code == 200
     assert len(decode(env.get(tile_url(z=3, x=4, y=2, node="geo")))) == 5

@@ -108,7 +108,7 @@ le résumé sert. Si l'on passe à un autre port pendant la préparation, elle s
 Pendant un run, le nœud sélectionné reste affiché : « … en cours de calcul » jusqu'à ce que ses données soient là.
 
 La table montre **toutes les entités** du port : les lignes arrivent au fil du défilement, et filtres, tri,
-recherche, statistiques et export portent sur tout le port. Le nombre d'entités est affiché une fois (« 11 / 20
+recherche et export portent sur tout le port. Le nombre d'entités est affiché une fois (« 11 / 20
 entités » quand un filtre en retient 11). La colonne **fid** est le numéro de l'entité dans le port ; une colonne
 `fid` des données (table PostgreSQL, GeoPackage…) s'affiche sous le nom `fid_data`, et l'export lui rend son nom.
 

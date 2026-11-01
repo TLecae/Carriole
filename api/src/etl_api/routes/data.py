@@ -72,11 +72,6 @@ def rows(port: PortDep, query: ds.Query) -> dict[str, Any]:
     return ds.rows(port, query)
 
 
-@router.get("/data/{run}/{node}/{port}/stats")
-def stats(port: PortDep, geometry: bool = False) -> dict[str, Any]:
-    return ds.stats(port, with_validity=geometry)
-
-
 @router.post("/data/{run}/{node}/{port}/values")
 def values(port: PortDep, body: ValuesIn) -> list[dict[str, Any]]:
     return ds.values(port, body.column, body.query, min(body.limit, 500))

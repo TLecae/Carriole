@@ -615,60 +615,6 @@ def _kinds(port: Port, fids: list[int]) -> dict[int, str]:
     return {int(f): k for f, k in found}
 
 
-def stats(port: Port, with_validity: bool = False) -> dict[str, Any]:
-    types = port.types()
-    out: dict[str, Any] = {}
-    cols = [c for c in port.attributes(types) if category(types[c]) != "other"]
-    if cols:
-        # valeurs distinctes exactes tant que c'est raisonnable, approchées au-delà
-        exact = port.total <= EXACT_DISTINCT_MAX_ROWS
-        distinct = "count(DISTINCT {c})" if exact else "approx_count_distinct({c})"
-        parts = ["count(*) AS n"]
-        for i, c in enumerate(cols):
-            parts += [
-                f"min({_q(c)}) AS mn{i}",
-                f"max({_q(c)}) AS mx{i}",
-                f"{distinct.format(c=_q(c))} AS d{i}",
-                f"count({_q(c)}) AS nn{i}",
-            ]
-        _, (row,) = port.duck.run(f"SELECT {', '.join(parts)} FROM {port.src()}")
-        n = row[0]
-        for i, c in enumerate(cols):
-            mn, mx, distinct, nn = row[1 + 4 * i : 5 + 4 * i]
-            out[c] = {
-                "type": types[c],
-                "min": _json_value(mn),
-                "max": _json_value(mx),
-                "distinct": int(distinct),
-                "nulls": int(n - nn),
-            }
-    for c in port.attributes(types):
-        out.setdefault(c, {"type": types[c], "min": None, "max": None, "distinct": None, "nulls": None})
-    result: dict[str, Any] = {"columns": out}
-    if port.has_geometry:
-        if port.meta is not None:
-            kinds = port.meta.get("geometry_types", [])
-        else:
-            try:
-                _, (found,) = port.duck.run(
-                    f"SELECT list(DISTINCT {_wkb_kind(GEOM)}) FROM {port.src()} WHERE {GEOM} IS NOT NULL"
-                )
-                kinds = sorted(found[0] or [])
-            except DataError as exc:
-                if exc.status != OUT_OF_MEMORY:
-                    raise
-                kinds = []
-        g: dict[str, Any] = {"crs": port.crs, "types": kinds, "extent_3857": (port.meta or {}).get("extent_3857")}
-        if with_validity:
-            _, (r,) = port.duck.run(
-                f"SELECT count(*) FILTER (WHERE {GEOM} IS NULL), count(*) FILTER (WHERE NOT ST_IsEmpty(g) AND NOT ST_IsValid(g)), "
-                f"count(*) FILTER (WHERE ST_IsEmpty(g)) FROM (SELECT ST_GeomFromWKB({GEOM}) AS g, {GEOM} FROM {port.src()})"
-            )
-            g.update({"null": int(r[0]), "invalid": int(r[1]), "empty": int(r[2])})
-        result["geometry"] = g
-    return result
-
-
 def values(port: Port, column: str, q: Query, limit: int = 50) -> list[dict[str, Any]]:
     types = port.types()
     if column not in types or column == GEOM:

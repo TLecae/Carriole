@@ -89,7 +89,7 @@ const colOf = (e: React.MouseEvent) => Number((e.target as HTMLElement).closest<
 const isActive = (a: Cell | null, row: number, col: number) => !!a && a.row === row && a.col === col;
 
 export function DataTable({ info }: { info: PortInfo }) {
-  const { columns, pages, filtered, selectedFid, scrollTo, locating, query, stats, showStats, error } = useInspector();
+  const { columns, pages, filtered, selectedFid, scrollTo, locating, query, error } = useInspector();
   const { loadPage, select, toggleSort, setFilter } = useInspector.getState();
   const parent = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
@@ -219,7 +219,6 @@ export function DataTable({ info }: { info: PortInfo }) {
               const sortIdx = query.sort.findIndex((k) => k.column === name);
               const sortKey = query.sort[sortIdx];
               const isGeom = name === "geometry";
-              const stat = stats?.columns[name];
               return (
                 <div
                   className="cell head"
@@ -241,20 +240,6 @@ export function DataTable({ info }: { info: PortInfo }) {
                     )}
                   </button>
                   <small className="col-type">{isGeom ? t("type") : col?.type}</small>
-                  {showStats && !isGeom && stat && (
-                    <small className="col-stats">
-                      {stat.min !== null && `${fmt(stat.min)} → ${fmt(stat.max)}`}
-                      <br />
-                      {t("{{distinct}} distinctes · {{nulls}} nulles", { distinct: stat.distinct, nulls: stat.nulls })}
-                    </small>
-                  )}
-                  {showStats && isGeom && stats?.geometry && (
-                    <small className="col-stats">
-                      {stats.geometry.types.join(", ")}
-                      <br />
-                      {t("{{crs}} · {{invalid}} invalide(s)", { crs: stats.geometry.crs, invalid: stats.geometry.invalid ?? 0 })}
-                    </small>
-                  )}
                   {!isGeom && col && <FilterCell column={name} category={col.category} current={query.filters.find((f) => f.column === name)} onChange={(f) => setFilter(name, f)} />}
                   <span
                     className="col-resize"

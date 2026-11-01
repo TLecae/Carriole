@@ -292,19 +292,6 @@ export interface RowsPage {
   rows: unknown[][];
 }
 
-export interface ColumnStats {
-  type: string;
-  min: unknown;
-  max: unknown;
-  distinct: number | null;
-  nulls: number | null;
-}
-
-export interface PortStats {
-  columns: Record<string, ColumnStats>;
-  geometry?: { crs: string | null; types: string[]; extent_3857?: number[] | null; invalid?: number; empty?: number; null?: number };
-}
-
 export type GeoJsonGeometry = { type: string; coordinates?: unknown; geometries?: unknown };
 
 export interface FeatureInfo {

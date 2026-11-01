@@ -27,8 +27,8 @@ export function DataPanel() {
   const run = useEditor((s) => s.run);
   const nodes = useEditor((s) => s.nodes);
   const insp = useInspector();
-  const { target, info, error, loading, stats, filtered, query, overlays, colorBy, mapVisible, showStats } = insp;
-  const { setTarget, patchQuery, toggleStats, toggleOverlay, setColorBy, setMapVisible, exportView } = useInspector.getState();
+  const { target, info, error, loading, filtered, query, overlays, colorBy, mapVisible } = insp;
+  const { setTarget, patchQuery, toggleOverlay, setColorBy, setMapVisible, exportView } = useInspector.getState();
 
   // Les ports disponibles : ceux du run affiché, avec leur nombre d'entités.
   const options = useMemo(() => {
@@ -114,9 +114,6 @@ export function DataPanel() {
               {filtered !== info.total ? `${formatNumber(filtered)} / ` : ""}
               {formatNumber(info.total)} {t("entités")}
             </span>
-            <button type="button" aria-pressed={showStats} onClick={() => void toggleStats()}>
-              {showStats && !stats && <Spinner size={11} label={t("Calcul des statistiques…")} />} {t("Statistiques")}
-            </button>
             <Menu label={t("Exporter")} className="data-menu">
               <MenuLabel>{t("Vue filtrée")}</MenuLabel>
               {(["csv", "gpkg", "parquet"] as const).map((f) => (
@@ -135,7 +132,7 @@ export function DataPanel() {
         )}
       </div>
       {error && (
-        <p className="error-text pad" role="alert">
+        <p className="stale-banner banner-error" role="alert">
           {error}
         </p>
       )}

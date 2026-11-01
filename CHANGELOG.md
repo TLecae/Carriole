@@ -16,6 +16,8 @@
 - Inspector: a `fid` column of the data (PostgreSQL table, GeoPackage…) no longer hides the feature number. It
   is shown as `fid_data`; before, rows far down the table stayed empty, sorting or filtering failed, and the export
   replaced that column with the feature numbers. The export writes it back as `fid`.
+- Inspector: the *Statistics* button is removed. On large ports the computation took several minutes or stopped
+  with "query too long". Errors of the inspector are shown in a banner above the table.
 - Node colours: each built-in category has its own, clearly distinct colour; the palette and the nodes use the same
   colour in every language.
 - Run log: a header (nodes to run, nodes taken from the cache, memory and cores), the start and end of each node
