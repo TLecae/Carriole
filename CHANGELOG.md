@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Release: the Windows installer is ready to be signed by SignPath Foundation (free code signing for open source
+  projects), once the project is set up there; each signing request is approved by hand. Code signing policy and
+  privacy statement in the README ([ADR 0047](docs/decisions/0047-signature-installateur-windows.md)). Workflow
+  artifacts are kept one day.
+
 ## 0.1.4
 
 - Canvas: two nodes are connected by clicking a port, or the *Connect* button of the node bar, then the other node.

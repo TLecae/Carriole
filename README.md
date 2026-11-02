@@ -137,6 +137,30 @@ Main open source libraries used:
 
 Full list with licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
+[SignPath Foundation](https://signpath.org/).
+
+The Windows installer is built from this repository by the [release workflow](.github/workflows/release.yml), on
+GitHub-hosted runners, and each signing request is approved by hand.
+
+- Committers and reviewers: [Thomas Lecae](https://github.com/TLecae)
+- Approvers: [Thomas Lecae](https://github.com/TLecae)
+
+**Privacy**: this program will not transfer any information to other networked systems unless specifically requested
+by the user or the person installing or operating it. What it sends, and when:
+
+- the inspector map loads its background from the basemap chosen on the map (OpenStreetMap by default, Esri, IGN, or
+  a custom address), which receives the area shown; *None (offline)* turns it off;
+- modifiers that call a web service (web request, STAC search, geocoding…) send what the flow gives them to the
+  address set in their parameters, when the flow runs;
+- the AI assistant, once a provider is set up in its settings, sends that provider the flow and what its privacy
+  settings allow ([ADR 0027](docs/decisions/0027-assistant-ia.md));
+- databases and network shares are read and written as the flows say.
+
+Carriole collects no usage statistics and does not check for updates.
+
 ## License
 
 [MIT](LICENSE) © Thomas Lecae. Bundled third-party components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

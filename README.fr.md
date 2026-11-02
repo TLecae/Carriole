@@ -107,6 +107,30 @@ Principales bibliothèques libres utilisées :
 
 Liste complète avec les licences : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+## Signature du code (Code signing policy)
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
+[SignPath Foundation](https://signpath.org/) : signature gratuite par SignPath.io, certificat de la SignPath Foundation.
+
+L'installateur Windows est construit à partir de ce dépôt par le [workflow de release](.github/workflows/release.yml),
+sur les machines de GitHub, et chaque demande de signature est approuvée à la main.
+
+- Auteurs et relecteurs (committers and reviewers) : [Thomas Lecae](https://github.com/TLecae)
+- Approbateurs (approvers) : [Thomas Lecae](https://github.com/TLecae)
+
+**Confidentialité** : ce programme ne transmet aucune information à d'autres systèmes en réseau, sauf demande
+expresse de l'utilisateur ou de la personne qui l'installe ou l'exploite. Ce qu'il envoie, et quand :
+
+- la carte de l'inspecteur charge le fond de plan choisi sur la carte (OpenStreetMap par défaut, Esri, IGN ou une
+  adresse personnalisée), qui reçoit la zone affichée ; *Aucun (hors ligne)* le coupe ;
+- les modificateurs qui appellent un service web (requête web, recherche STAC, géocodage…) envoient ce que le flux
+  leur donne à l'adresse réglée dans leurs paramètres, pendant le run ;
+- l'assistant IA, une fois un fournisseur configuré dans ses réglages, envoie à ce fournisseur le flux et ce que ses
+  réglages de confidentialité permettent ([ADR 0027](docs/decisions/0027-assistant-ia.md)) ;
+- les bases de données et les partages réseau sont lus et écrits comme les flux l'indiquent.
+
+Carriole ne collecte aucune statistique d'usage et ne vérifie pas les mises à jour.
+
 ## Licence
 
 [MIT](LICENSE) © Thomas Lecae. Composants tiers livrés : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
