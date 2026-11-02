@@ -48,6 +48,7 @@ from pydantic import BaseModel, Field
 SAFE_ID = re.compile(r"^[A-Za-z0-9_.\-]{1,100}$")
 QUERY_TIMEOUT = 30.0
 TABLE_TIMEOUT = 120.0  # page de la table, ligne d'une entité cliquée : attendues avec un indicateur, triées en entier
+STATS_TIMEOUT = 900.0  # statistiques d'un champ, demandées une à une : le temps qu'il faut (arrêtées si plus attendues)
 TILE_CAP = 20_000  # morceaux de géométrie maximum par tuile (échantillonnage au-delà)
 MAP_LIMIT = 50_000  # entités dessinées au plus par métatuile : au-delà, les plus grandes et « zoomez »
 META = 2  # une métatuile : 4 × 4 tuiles du même zoom, qui partagent le choix de leurs entités
@@ -319,9 +320,13 @@ class Duck:
         return con
 
     def run(
-        self, sql: str, params: list[Any] | None = None, timeout: float | None = None
+        self,
+        sql: str,
+        params: list[Any] | None = None,
+        timeout: float | None = None,
+        stop: threading.Event | None = None,
     ) -> tuple[list[str], list[tuple]]:
-        with self.guarded(timeout) as con:
+        with self.guarded(timeout, stop) as con:
             cur = con.execute(sql, params or [])
             return [d[0] for d in cur.description], cur.fetchall()
 
@@ -330,15 +335,30 @@ class Duck:
             return con.sql(sql, params=params or []).to_arrow_table()
 
     @contextmanager
-    def guarded(self, timeout: float | None = None) -> Iterator[duckdb.DuckDBPyConnection]:
-        """La connexion du thread, pour des requêtes au plus `timeout` secondes (`QUERY_TIMEOUT`) ; erreurs de DuckDB
-        rendues en `DataError` (trop longue : 504, mémoire ou disque : 507)."""
+    def guarded(
+        self, timeout: float | None = None, stop: threading.Event | None = None
+    ) -> Iterator[duckdb.DuckDBPyConnection]:
+        """La connexion du thread, pour des requêtes au plus `timeout` secondes (`QUERY_TIMEOUT`), interrompues aussi
+        dès que `stop` est levé (requête que l'interface n'attend plus) ; erreurs de DuckDB rendues en `DataError`
+        (trop longue : 504, mémoire ou disque : 507)."""
         con = self.con()
         timer = threading.Timer(timeout or QUERY_TIMEOUT, con.interrupt)
         timer.start()
+        done = threading.Event()
+        if stop is not None:
+
+            def watch() -> None:
+                while not done.wait(0.2):
+                    if stop.is_set():
+                        con.interrupt()
+                        return
+
+            threading.Thread(target=watch, daemon=True).start()
         try:
             yield con
         except duckdb.InterruptException:
+            if stop is not None and stop.is_set():
+                raise DataError("calcul annulé", 499) from None
             raise DataError("requête trop longue : affinez les filtres", 504) from None
         except duckdb.OutOfMemoryException:
             raise DataError(
@@ -351,6 +371,7 @@ class Duck:
             raise DataError(f"requête invalide : {str(exc).splitlines()[0]}") from None
         finally:
             timer.cancel()
+            done.set()
 
     def scalar(self, sql: str, params: list[Any] | None = None) -> Any:
         return self.run(sql, params)[1][0][0]
@@ -613,6 +634,54 @@ def _kinds(port: Port, fids: list[int]) -> dict[int, str]:
         f"SELECT fid, kind FROM read_parquet({_lit(port.entities.as_posix())}) WHERE fid IN ({listed})"
     )
     return {int(f): k for f, k in found}
+
+
+def column_stats(port: Port, column: str, stop: threading.Event | None = None) -> dict[str, Any]:
+    """Statistiques d'un champ sur tout le port, demandées champ par champ : une seule colonne est lue, ce qui reste
+    rapide sur une grande table. Valeurs distinctes exactes jusqu'à `EXACT_DISTINCT_MAX_ROWS` lignes, approchées
+    au-delà ; minimum et maximum des champs ordonnables ; moyenne des nombres (valeurs finies). Champ géométrie : types,
+    système de coordonnées, géométries nulles, vides et invalides (chacune décodée : le plus long)."""
+    if column == GEOM and port.has_geometry:
+        return _geometry_stats(port, stop)
+    types = port.types()
+    if column not in port.attributes(types):
+        raise DataError(f"colonne inconnue : {column}")
+    c, cat = _q(column), category(types[column])
+    exact = port.total <= EXACT_DISTINCT_MAX_ROWS
+    parts = ["count(*)", f"count({c})"]
+    if cat != "other":
+        parts += [f"min({c})", f"max({c})", f"count(DISTINCT {c})" if exact else f"approx_count_distinct({c})"]
+    if cat == "numeric":
+        parts.append(f"avg({c}::DOUBLE) FILTER (WHERE isfinite({c}::DOUBLE))")
+    _, (row,) = port.duck.run(f"SELECT {', '.join(parts)} FROM {port.src()}", timeout=STATS_TIMEOUT, stop=stop)
+    n, filled, *rest = row
+    out: dict[str, Any] = {"type": types[column], "count": int(n), "nulls": int(n - filled)}
+    if rest:
+        out.update(min=_json_value(rest[0]), max=_json_value(rest[1]), distinct=int(rest[2]), approx=not exact)
+    if cat == "numeric":
+        out["mean"] = _json_value(rest[3])
+    return out
+
+
+def _geometry_stats(port: Port, stop: threading.Event | None) -> dict[str, Any]:
+    g = f"ST_GeomFromWKB({GEOM})"
+    _, ((n, kinds, nulls, empty, invalid),) = port.duck.run(
+        f"SELECT count(*), list(DISTINCT {_wkb_kind(GEOM)}) FILTER (WHERE {GEOM} IS NOT NULL), "
+        f"count(*) FILTER (WHERE {GEOM} IS NULL), count(*) FILTER (WHERE ST_IsEmpty(g)), "
+        f"count(*) FILTER (WHERE NOT ST_IsEmpty(g) AND NOT ST_IsValid(g)) "
+        f"FROM (SELECT {GEOM}, {g} AS g FROM {port.src()})",
+        timeout=STATS_TIMEOUT,
+        stop=stop,
+    )
+    return {
+        "type": "GEOMETRY",
+        "count": int(n),
+        "nulls": int(nulls),
+        "kinds": sorted(k for k in kinds or [] if k),
+        "crs": port.crs,
+        "empty": int(empty),
+        "invalid": int(invalid),
+    }
 
 
 def values(port: Port, column: str, q: Query, limit: int = 50) -> list[dict[str, Any]]:

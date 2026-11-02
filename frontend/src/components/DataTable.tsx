@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ColumnFilter, FilterOp, PortInfo } from "../api/types";
-import { PAGE_SIZE, useInspector } from "../store/inspector";
+import { type FieldStats, PAGE_SIZE, useInspector } from "../store/inspector";
 import { formatNumber, t } from "../i18n";
 import { MAX_SCROLL_HEIGHT, ScrollScale } from "../model/scrollScale";
+import { Icon } from "./Icon";
 import { Spinner } from "./Spinner";
 
 const ROW_H = 26;
@@ -52,6 +53,50 @@ const raw = (v: unknown): string => (v === null || v === undefined ? "" : String
 const MIN_W = 50;
 const MAX_W = 1200;
 
+/** Bouton d'un en-tête : calcule les statistiques du champ (sur tout le port), les masque, ou annule le calcul. */
+function StatsButton({ entry, onClick }: { entry: FieldStats | undefined; onClick: () => void }) {
+  const computing = !!entry && !entry.value && !entry.error;
+  const label = computing ? t("Annuler le calcul des statistiques") : entry ? t("Masquer les statistiques du champ") : t("Calculer les statistiques du champ");
+  return (
+    <button type="button" className="col-stats-btn" aria-pressed={!!entry} aria-label={label} title={label} onClick={onClick}>
+      {computing ? <Spinner size={10} label={t("Calcul des statistiques du champ…")} /> : <Icon name="stats" size={12} />}
+    </button>
+  );
+}
+
+/** Lignes de statistiques sous le nom du champ ; le détail complet en infobulle (colonne étroite). */
+function StatsLines({ entry }: { entry: FieldStats }) {
+  if (entry.error) {
+    return (
+      <small className="col-stats error" title={entry.error}>
+        {entry.error}
+      </small>
+    );
+  }
+  const s = entry.value;
+  if (!s) return null;
+  const lines: string[] = [];
+  if (s.kinds) {
+    lines.push(s.kinds.join(", ") || t("aucune géométrie"), s.crs ?? t("système de coordonnées inconnu"));
+    lines.push(t("{{invalid}} invalide(s) · {{empty}} vide(s) · {{nulls}} nulle(s)", { invalid: fmt(s.invalid), empty: fmt(s.empty), nulls: fmt(s.nulls) }));
+  } else {
+    if (s.min !== undefined && s.min !== null) lines.push(`${fmt(s.min)} → ${fmt(s.max)}`);
+    if (s.mean !== undefined && s.mean !== null) lines.push(t("moyenne {{mean}}", { mean: formatNumber(s.mean, 2) }));
+    lines.push(
+      s.distinct === undefined
+        ? t("{{nulls}} nulle(s)", { nulls: fmt(s.nulls) })
+        : `${s.approx ? "≈ " : ""}${t("{{distinct}} distinctes · {{nulls}} nulles", { distinct: fmt(s.distinct), nulls: fmt(s.nulls) })}`,
+    );
+  }
+  return (
+    <small className="col-stats" title={lines.join("\n")}>
+      {lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </small>
+  );
+}
+
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -89,8 +134,8 @@ const colOf = (e: React.MouseEvent) => Number((e.target as HTMLElement).closest<
 const isActive = (a: Cell | null, row: number, col: number) => !!a && a.row === row && a.col === col;
 
 export function DataTable({ info }: { info: PortInfo }) {
-  const { columns, pages, filtered, selectedFid, scrollTo, locating, query, error } = useInspector();
-  const { loadPage, select, toggleSort, setFilter } = useInspector.getState();
+  const { columns, pages, filtered, selectedFid, scrollTo, locating, query, error, stats } = useInspector();
+  const { loadPage, select, toggleSort, setFilter, toggleStats } = useInspector.getState();
   const parent = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
   const [widths, setWidths] = useState<Record<string, number>>({}); // largeurs choisies à la souris
@@ -239,7 +284,11 @@ export function DataTable({ info }: { info: PortInfo }) {
                       </span>
                     )}
                   </button>
-                  <small className="col-type">{isGeom ? t("type") : col?.type}</small>
+                  <div className="col-meta">
+                    <small className="col-type">{isGeom ? t("type") : col?.type}</small>
+                    <StatsButton entry={stats[name]} onClick={() => void toggleStats(name)} />
+                  </div>
+                  {stats[name] && <StatsLines entry={stats[name]} />}
                   {!isGeom && col && <FilterCell column={name} category={col.category} current={query.filters.find((f) => f.column === name)} onChange={(f) => setFilter(name, f)} />}
                   <span
                     className="col-resize"

@@ -106,6 +106,12 @@ and export cover the whole port. The feature count is shown once ("11 / 20 featu
 The **fid** column is the number of the feature in the port; a `fid` column of the data (PostgreSQL table,
 GeoPackage…) is shown as `fid_data`, and the export gives it back its name.
 
+**Field statistics**: the small button right of the type, in the column header, computes them over the whole port
+(filters ignored) and shows them under the name: minimum and maximum, mean of numbers, distinct values ("≈":
+approximate beyond 2 million rows) and nulls; for the geometry, types, coordinate system, invalid, empty and null
+geometries (the longest: each geometry is checked). One field at a time, so that a large dataset stays fast. A
+second click hides the statistics, or cancels the computation in progress; switching to another port stops it too.
+
 **Columns**: drag the right edge of a header to widen the column, double-click to fit it to its content. **Copy**:
 right-click a cell (*Copy value*, *Copy row*, *Copy column name*) or a header; or click a cell then `Ctrl+C`. Text can
 also be selected with the mouse.
@@ -286,7 +292,7 @@ error, understand a node, write a modifier. The assistant **reads** (catalog, op
 anything by itself**: its changes arrive as proposals (list of changes, analysis warnings) that you **apply with one click**
 or dismiss. An applied proposal can be undone with Ctrl+Z.
 
-- **Set up** (⚙): add Claude (Anthropic), OpenAI, OpenRouter or a local model (Ollama); enter the API key (encrypted on
+- **Set up** (⚙): add Claude (Anthropic), OpenAI, Gemini (Google), OpenRouter or a local model (Ollama); enter the API key (encrypted on
   this computer, never displayed), load the model list from the provider and pick one.
 - **`@` references**: type `@` to attach a node (`@Reader_1`), a run output (`@Reader_1.output`) or a file (`Choose a file…`,
   or drop it on the panel in the desktop application). The assistant receives a summary.

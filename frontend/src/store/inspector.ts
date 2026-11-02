@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { ApiError, api, exportData } from "../api/client";
-import type { ColumnFilter, DataQuery, PortInfo, PortRef } from "../api/types";
+import type { ColumnFilter, ColumnStats, DataQuery, PortInfo, PortRef } from "../api/types";
 import { t } from "../i18n";
 
 export const PAGE_SIZE = 100;
@@ -34,6 +34,7 @@ interface InspectorState {
   overlays: PortRef[]; // ports superposés sur la carte (en plus du port actif)
   colorBy: string | null;
   mapVisible: boolean;
+  stats: Record<string, FieldStats>; // champs dont les statistiques sont demandées (une par une, à la demande)
 
   setTarget: (t: PortRef | null) => Promise<void>;
   showNode: (run: RunRows, node: string) => void;
@@ -42,14 +43,20 @@ interface InspectorState {
   setFilter: (column: string, filter: ColumnFilter | null) => void;
   loadPage: (page: number) => Promise<void>;
   select: (fid: number | null, from: "table" | "map") => Promise<void>;
+  /** Calcule les statistiques d'un champ ; les masque si elles sont affichées, annule le calcul s'il est en cours. */
+  toggleStats: (column: string) => Promise<void>;
   toggleOverlay: (t: PortRef) => void;
   setColorBy: (column: string | null) => void;
   setMapVisible: (v: boolean) => void;
   exportView: (format: "csv" | "gpkg" | "parquet") => Promise<void>;
 }
 
+/** Statistiques d'un champ : en cours de calcul (ni `value` ni `error`), calculées, ou en erreur. */
+export type FieldStats = { value?: ColumnStats; error?: string };
+
 const pending = new Set<string>();
 let selections = 0; // compteur des sélections : seule la dernière fait défiler la table
+const statsCalls = new Map<string, AbortController>(); // calculs en cours, par champ : annulés avec le port affiché
 
 export const useInspector = create<InspectorState>((set, get) => {
   const message = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : t("Erreur"));
@@ -125,6 +132,7 @@ export const useInspector = create<InspectorState>((set, get) => {
     overlays: [],
     colorBy: null,
     mapVisible: true,
+    stats: {},
 
     showNode: (run, node) => {
       if (!run.id) return;
@@ -149,7 +157,10 @@ export const useInspector = create<InspectorState>((set, get) => {
       if (target) set({ emptyNode: null });
       if (sameTarget(target, get().target)) return;
       pending.clear();
+      for (const call of statsCalls.values()) call.abort();
+      statsCalls.clear();
       set((s) => ({
+        stats: {},
         target,
         info: null,
         error: null,
@@ -220,6 +231,34 @@ export const useInspector = create<InspectorState>((set, get) => {
       } finally {
         if (ticket === selections) set({ locating: false });
       }
+    },
+
+    toggleStats: async (column) => {
+      const { target, stats } = get();
+      if (!target) return;
+      const without = () => {
+        const { [column]: _, ...rest } = get().stats;
+        return rest;
+      };
+      if (stats[column]) {
+        statsCalls.get(column)?.abort();
+        statsCalls.delete(column);
+        set({ stats: without() });
+        return;
+      }
+      const call = new AbortController();
+      statsCalls.set(column, call);
+      set({ stats: { ...stats, [column]: {} } });
+      let entry: FieldStats;
+      try {
+        entry = { value: await api.dataColumnStats(target, column, call.signal) };
+      } catch (e) {
+        if (call.signal.aborted) return;
+        entry = { error: message(e) };
+      }
+      if (statsCalls.get(column) !== call) return;
+      statsCalls.delete(column);
+      set({ stats: { ...get().stats, [column]: entry } });
     },
 
     toggleOverlay: (t) =>

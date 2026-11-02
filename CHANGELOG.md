@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.3
+## 0.1.4
 
 - Canvas: two nodes are connected by clicking a port, or the *Connect* button of the node bar, then the other node.
   A free node dropped on a link is inserted into it (one undo step). The chevron of an output port lists its
@@ -27,13 +27,21 @@
 - Rasters: the GDAL block cache is 512 MB, as intended, instead of 512 bytes. A reduced read decompressed each
   block hundreds of times: the inspector preview of a 2 million pixel NDVI took 30 s, it takes 0.2 s. The raster
   settings panel stays within the map.
-- Inspector: the *Statistics* button is removed. On large ports the computation took several minutes or stopped
-  with "query too long". Errors of the inspector are shown in a banner above the table.
+- Inspector: the *Statistics* button is replaced by a button in each column header, which computes the statistics
+  of that field only (over the whole port). Computing every field at once took several minutes on large ports or
+  stopped with "query too long"; one field reads a single column. A second click hides them or cancels the
+  computation, and switching to another port stops it on the server. Errors of the inspector are shown in a banner
+  above the table.
 - Node colours: each built-in category has its own, clearly distinct colour; the palette and the nodes use the same
   colour in every language.
 - Run log: a header (nodes to run, nodes taken from the cache, memory and cores), the start and end of each node
   with its duration and its counts per port, rejected features, disabled nodes, the error of a failed node in one
   line, and a summary at the end of the run.
+- Dependencies: Electron 45, and the Python, npm and GitHub Actions dependencies updated (Dependabot updates are
+  grouped, major versions apart).
+
+## 0.1.3
+
 - Cache: running a flow up to a node no longer hides the results of the other branches. They stay viewable and are
   reused by the next run, including nodes that a full run always re-runs (web requests, launched flows) as long as
   nothing changed in them. Raster nodes taken from the cache keep working once the previous run is cleaned up.

@@ -250,6 +250,12 @@ button.sort { border: 0; background: none; padding: 0; text-align: left; font-we
 button.sort:disabled { cursor: default; }
 .col-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-type { color: var(--muted); font-size: 10px; line-height: 1.25; }
+.col-meta { display: flex; gap: 4px; align-items: center; justify-content: space-between; }
+button.col-stats-btn { border: 0; background: none; padding: 1px 2px; color: var(--muted); line-height: 0; border-radius: 3px; flex: none; }
+button.col-stats-btn:hover:not(:disabled), button.col-stats-btn[aria-pressed="true"] { color: var(--primary); background: #e3edf8; }
+.col-stats { display: flex; flex-direction: column; color: var(--muted); font-size: 10px; line-height: 1.25; }
+.col-stats span, .col-stats.error { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-stats.error { display: block; color: var(--danger); }
 .sort-mark { color: var(--primary); }
 .filter { display: flex; gap: 2px; }
 .filter select { width: 60px !important; padding: 1px; font-size: 11px; }

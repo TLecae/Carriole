@@ -205,6 +205,17 @@ test("inspecter une connexion : table filtrée, tri, carte synchronisée", async
   await page.getByLabel("Filtre nom", { exact: true }).press("Enter");
   await expect(page.getByTestId("data-count")).toHaveText("11 / 20 entités");
 
+  // Statistiques : à la demande, champ par champ, sur tout le port (pas seulement les lignes filtrées)
+  const idHead = page.locator(".table-head .cell.head").filter({ has: page.getByRole("button", { name: "Trier par id" }) });
+  await idHead.getByRole("button", { name: "Calculer les statistiques du champ" }).click();
+  await expect(idHead.locator(".col-stats")).toContainText("20 distinctes · 0 nulles");
+  const geomHead = page.locator(".table-head .cell.head").filter({ hasText: "géométrie" });
+  await geomHead.getByRole("button", { name: "Calculer les statistiques du champ" }).click();
+  await expect(geomHead.locator(".col-stats")).toContainText("POINT");
+  await expect(geomHead.locator(".col-stats")).toContainText("EPSG:2154");
+  await idHead.getByRole("button", { name: "Masquer les statistiques du champ" }).click();
+  await expect(idHead.locator(".col-stats")).toBeHidden();
+
   // Fond de plan : OpenStreetMap par défaut, puis satellite d'un clic
   await expect.poll(() => [...basemapHosts], { message: "tuiles OpenStreetMap" }).toContain("tile.openstreetmap.org");
   // les données (ici des points : pas de couche « fill ») restent AU-DESSUS du fond de plan, quel que soit le fond

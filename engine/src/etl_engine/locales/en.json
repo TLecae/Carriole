@@ -1490,6 +1490,7 @@
   "bloquant (lit toutes les données avant de produire)": "blocking (reads all the data before producing)",
   "boucle dans le flux : {join}": "loop in the flow: {join}",
   "cache non repris, recalcul : {exc}": "cache not reused, recomputing: {exc}",
+  "calcul annulé": "computation cancelled",
   "calculés à la demande : {ports}": "computed on demand: {ports}",
   "catalogue écrit dans {out}": "catalog written to {out}",
   "ce lecteur ne lit pas d'adresse web : {pattern}": "this reader does not read web addresses: {pattern}",

@@ -7,6 +7,7 @@ import base64
 import json
 import threading
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -45,6 +46,22 @@ PortDep = Annotated[ds.Port, Depends(port_of)]
 RasterPortDep = Annotated[ds.Port, Depends(raster_port_of)]
 
 
+async def _until_gone[T](request: Request, work: Callable[[threading.Event], T]) -> T:
+    """`work(gone)` dans un thread ; `gone` est levé si le navigateur abandonne la requête (autre port affiché…)."""
+    gone = threading.Event()
+
+    async def watch() -> None:
+        while not await request.is_disconnected():
+            await asyncio.sleep(0.1)
+        gone.set()
+
+    watcher = asyncio.ensure_future(watch())
+    try:
+        return await run_in_threadpool(work, gone)
+    finally:
+        watcher.cancel()
+
+
 class ValuesIn(BaseModel):
     column: str
     query: ds.Query = ds.Query()
@@ -70,6 +87,11 @@ def info(port: PortDep) -> dict[str, Any]:
 @router.post("/data/{run}/{node}/{port}/rows")
 def rows(port: PortDep, query: ds.Query) -> dict[str, Any]:
     return ds.rows(port, query)
+
+
+@router.get("/data/{run}/{node}/{port}/stats")
+async def column_stats(port: PortDep, column: str, request: Request) -> dict[str, Any]:
+    return await _until_gone(request, lambda gone: ds.column_stats(port, column, gone))
 
 
 @router.post("/data/{run}/{node}/{port}/values")
@@ -161,18 +183,7 @@ async def tile(
     query = decode_query(q)
     # La carte annule les tuiles qu'elle ne veut plus (autre port, carte fermée, zoom passé) : celles qui attendent
     # encore leur tour sont abandonnées, sans retarder celles du port affiché.
-    gone = threading.Event()
-
-    async def watch() -> None:
-        while not await request.is_disconnected():
-            await asyncio.sleep(0.1)
-        gone.set()
-
-    watcher = asyncio.ensure_future(watch())
-    try:
-        data = await run_in_threadpool(ds.tile, port, z, x, y, query, color, gone.is_set)
-    finally:
-        watcher.cancel()
+    data = await _until_gone(request, lambda gone: ds.tile(port, z, x, y, query, color, gone.is_set))
     # Le contenu d'une URL ne change pas (run figé ; filtre et couleur dans l'URL) : le navigateur le garde. Tuile
     # gardée compressée sur le disque, envoyée telle quelle.
     headers = {"Cache-Control": "public, max-age=86400, immutable", "Content-Encoding": "gzip"}

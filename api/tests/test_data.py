@@ -170,6 +170,42 @@ def test_search_where_and_combination(env):
     assert both.json()["filtered"] == 5
 
 
+def test_column_stats_one_field_at_a_time(env):
+    def stats(column):
+        return env.get(url("stats"), params={"column": column}).json()
+
+    assert stats("pop") == {
+        "type": "BIGINT",
+        "count": 50,
+        "nulls": 0,
+        "min": 0,
+        "max": 4900,
+        "distinct": 50,
+        "approx": False,
+        "mean": 2450.0,
+    }
+    assert stats("nom")["nulls"] == 5 and "mean" not in stats("nom") and stats("dep")["distinct"] == 2
+    assert stats("geometry") == {
+        "type": "GEOMETRY",
+        "count": 50,
+        "nulls": 0,
+        "kinds": ["POINT"],
+        "crs": "EPSG:2154",
+        "empty": 0,
+        "invalid": 0,
+    }
+    assert env.get(url("stats"), params={"column": "fid"}).status_code == 422
+
+
+def test_a_query_no_longer_awaited_is_stopped(tmp_path):
+    stop = threading.Event()
+    threading.Timer(0.3, stop.set).start()
+    start = time.monotonic()
+    with pytest.raises(ds.DataError) as err:
+        ds.Duck(tmp_path).run("SELECT sum(hash(i)) FROM range(1000000000000) t(i)", timeout=60, stop=stop)
+    assert err.value.status == 499 and time.monotonic() - start < 10
+
+
 def test_values_locate_and_feature(env):
     v = env.post(url("values"), json={"column": "dep"}).json()
     assert {x["value"]: x["count"] for x in v} == {"31": 25, "09": 25}

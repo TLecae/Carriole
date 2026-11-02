@@ -112,6 +112,12 @@ recherche et export portent sur tout le port. Le nombre d'entités est affiché 
 entités » quand un filtre en retient 11). La colonne **fid** est le numéro de l'entité dans le port ; une colonne
 `fid` des données (table PostgreSQL, GeoPackage…) s'affiche sous le nom `fid_data`, et l'export lui rend son nom.
 
+**Statistiques d'un champ** : le petit bouton à droite du type, dans l'en-tête, les calcule sur tout le port (filtres
+ignorés) et les affiche sous le nom : minimum et maximum, moyenne des nombres, valeurs distinctes (« ≈ » : approchées
+au-delà de 2 millions de lignes) et nulles ; pour la géométrie, types, système de coordonnées, géométries invalides,
+vides et nulles (le plus long : chaque géométrie est vérifiée). Un champ à la fois, pour qu'un grand jeu de données
+reste rapide. Un second clic masque les statistiques, ou annule le calcul en cours ; changer de port l'arrête aussi.
+
 **Colonnes** : glisser le bord droit d'un en-tête pour élargir la colonne, double-clic pour l'ajuster au contenu.
 **Copier** : clic droit sur une cellule (*Copier la valeur*, *Copier la ligne*, *Copier le nom de la colonne*) ou
 sur un en-tête ; ou cliquer une cellule puis `Ctrl+C`. On peut aussi sélectionner du texte à la souris.
@@ -294,7 +300,7 @@ une erreur, comprendre un nœud, écrire un modificateur. L'assistant **lit** (c
 **change rien tout seul** : ses modifications arrivent sous forme de propositions (liste des changements, avertissements de
 l'analyse) que l'on **applique d'un clic**, ou que l'on ignore. Une proposition appliquée s'annule avec Ctrl+Z.
 
-- **Configurer** (⚙) : ajouter Claude (Anthropic), OpenAI, OpenRouter ou un modèle local (Ollama) ; saisir la clé d'API
+- **Configurer** (⚙) : ajouter Claude (Anthropic), OpenAI, Gemini (Google), OpenRouter ou un modèle local (Ollama) ; saisir la clé d'API
   (chiffrée sur le poste, jamais affichée), lire la liste des modèles chez le fournisseur et en choisir un.
 - **Références `@`** : taper `@` pour joindre un nœud (`@Reader_1`), la sortie d'un run (`@Reader_1.output`) ou un fichier
   (`Choisir un fichier…`, ou le glisser dans le panneau avec l'application de bureau). L'assistant en reçoit un résumé.

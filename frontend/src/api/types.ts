@@ -292,7 +292,23 @@ export interface RowsPage {
   rows: unknown[][];
 }
 
-export type GeoJsonGeometry = { type: string; coordinates?: unknown; geometries?: unknown };
+/** Statistiques d'un champ sur tout le port (calculées à la demande) ; géométrie : kinds, crs, empty, invalid. */
+export interface ColumnStats {
+  type: string;
+  count: number;
+  nulls: number;
+  min?: unknown;
+  max?: unknown;
+  distinct?: number;
+  approx?: boolean;
+  mean?: number | null;
+  kinds?: string[];
+  crs?: string | null;
+  empty?: number;
+  invalid?: number;
+}
+
+export type GeoJsonGeometry ={ type: string; coordinates?: unknown; geometries?: unknown };
 
 export interface FeatureInfo {
   fid: number;

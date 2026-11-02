@@ -18,6 +18,7 @@ const PATHS = {
   unlink: "m18.8 12.3 1.7-1.7a5 5 0 0 0-7-7l-1.7 1.7M5.2 11.7l-1.7 1.7a5 5 0 0 0 7 7l1.7-1.7M8 2v3M2 8h3M16 22v-3M22 16h-3",
   note: "M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8zM15 3v4a2 2 0 0 0 2 2h4",
   map: "M9 4 3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14",
+  stats: "M5 20v-6M10 20V4M15 20v-9M20 20v-4",
 } as const;
 
 export type IconName = keyof typeof PATHS;
