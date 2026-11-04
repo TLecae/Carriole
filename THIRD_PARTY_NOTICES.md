@@ -89,6 +89,7 @@ Ouverte Etalab 2.0).
 | pytest | 9.2.0 | MIT |
 | python-dateutil | 2.9.0.post0 | BSD License, Apache Software License |
 | python-dotenv | 1.2.4 | BSD-3-Clause |
+| pytz | 2026.6 | MIT License |
 | pyyaml | 6.0.3 | MIT License |
 | rasterio | 1.5.2 | BSD-3-Clause |
 | requests | 2.34.2 | Apache Software License |

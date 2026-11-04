@@ -137,6 +137,13 @@ def test_rows_paging_and_sorting(env):
     assert [r[0] for r in first] == [0, 1, 2]
 
 
+def test_a_timestamp_with_time_zone_is_shown(tmp_path):
+    """DuckDB a besoin de pytz pour rendre en Python un TIMESTAMP WITH TIME ZONE (GeoParquet lu en https) : sans
+    lui, la table de l'inspecteur tombe en « requête invalide »."""
+    _, rows = ds.Duck(tmp_path).run("SELECT TIMESTAMPTZ '2024-05-01 12:30:00+00' AS t")
+    assert ds._json_value(rows[0][0]).startswith("2024-05-01")
+
+
 @pytest.mark.parametrize(
     ("flt", "expected"),
     [

@@ -8,6 +8,7 @@ dependencies = [
     "typer>=0.12",
     "pyarrow>=17",
     "duckdb>=2.0",
+    "pytz>=2024.1",  # DuckDB l'importe pour rendre en Python les TIMESTAMP WITH TIME ZONE
     "shapely>=2.0",
     "pyogrio>=0.10",
     "pyproj>=3.7",

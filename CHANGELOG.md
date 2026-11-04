@@ -3,6 +3,8 @@
 ## Unreleased
 
 - README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).
+- Inspector: the table of a dataset with a date-and-time-with-time-zone field (such as a GeoParquet read over https)
+  is shown again; it failed with "invalid query" because DuckDB needs `pytz` for these values, now a dependency.
 
 ## 0.1.5
 
