@@ -442,7 +442,8 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
     box.current?.setAttribute("data-color", colorBy ?? "");
   }, [colorBy]);
 
-  // --- entité sélectionnée : surlignée, et la carte la rejoint si elle est hors champ
+  // --- entité sélectionnée : surlignée ; choisie dans la table, la carte la rejoint si elle est hors champ (cliquée sur
+  // la carte, celle-ci ne bouge pas)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -457,7 +458,7 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
       if (!alive) return;
       const properties = { edges: f.outline === "edges" };
       selection?.setData(f.geometry ? ({ type: "Feature", properties, geometry: f.geometry } as unknown as GeoData) : (EMPTY as unknown as GeoData));
-      if (!f.bbox) return;
+      if (!f.bbox || useInspector.getState().selectedFrom === "map") return;
       const [w, s, e, n] = f.bbox;
       const center: [number, number] = [(w + e) / 2, (s + n) / 2];
       if (w === e && s === n) {

@@ -28,6 +28,7 @@ interface InspectorState {
   columns: string[];
   pages: Record<number, unknown[][]>;
   selectedFid: number | null;
+  selectedFrom: "table" | "map"; // un clic sur la carte ne la déplace pas ; un clic dans la table la cadre sur l'entité
   emptyNode: string | null; // nœud choisi sur le canevas, sans données dans le run affiché
   scrollTo: { index: number; nonce: number } | null;
   locating: boolean; // entité cliquée sur la carte : recherche de sa ligne, puis chargement de sa page
@@ -126,6 +127,7 @@ export const useInspector = create<InspectorState>((set, get) => {
     columns: [],
     pages: {},
     selectedFid: null,
+    selectedFrom: "table",
     emptyNode: null,
     scrollTo: null,
     locating: false,
@@ -216,7 +218,7 @@ export const useInspector = create<InspectorState>((set, get) => {
 
     select: async (fid, from) => {
       const ticket = ++selections; // un autre clic rend celui-ci caduc
-      set({ selectedFid: fid, locating: false });
+      set({ selectedFid: fid, selectedFrom: from, locating: false });
       const { target, query, version } = get();
       if (from !== "map" || fid === null || !target) return;
       const current = () => ticket === selections && get().version === version;
