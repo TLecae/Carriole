@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).
+
 ## 0.1.5
 
 - Runs: a long computation is no longer declared *interrupted* while its worker is still running. A computation that

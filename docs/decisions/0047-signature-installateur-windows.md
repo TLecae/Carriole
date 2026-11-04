@@ -1,6 +1,6 @@
 # ADR 0047 — Signature de l'installateur Windows par SignPath Foundation
 
-- **Statut** : accepté ; demande à SignPath reportée (la fondation demande un logiciel déjà utilisé)
+- **Statut** : accepté ; demande à SignPath en cours (2026-11-04)
 - **Date** : 2026-11-02
 
 ## Contexte
