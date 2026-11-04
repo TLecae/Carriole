@@ -13,12 +13,22 @@ export function RightPanel() {
   const nodes = useEditor((s) => s.nodes);
   const selected = nodes.filter((n) => n.selected);
   const one = selected.length === 1 ? selected[0] : null;
+  const flowPanel = useUi((s) => s.flowPanel);
   // la fenêtre redimensionnée ne doit pas laisser le panneau plus large que ce qu'elle permet
   useEffect(() => {
     const onResize = () => useUi.getState().setRightWidth(useUi.getState().rightWidth, false);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+  // rien de sélectionné : un bandeau étroit à la place des propriétés du flux, pour laisser la place au canevas
+  if (!selected.length && !flowPanel)
+    return (
+      <aside className="right-panel collapsed" aria-label={t("Propriétés")}>
+        <button type="button" className="right-reveal" onClick={() => useUi.getState().setFlowPanel(true)} title={t("Description, paramètres publiés et variables du flux")}>
+          {t("Propriétés du flux")}
+        </button>
+      </aside>
+    );
   return (
     <aside className="right-panel" aria-label={t("Propriétés")}>
       <ResizeHandle edge="left" size={() => useUi.getState().rightWidth} set={useUi.getState().setRightWidth} label={t("Redimensionner le panneau (glisser, ou flèches gauche et droite)")} />
@@ -147,7 +157,12 @@ function FlowPanel() {
   const edit = (i: number, patch: Partial<PublishedParam>) => setMeta({ publishedParams: meta.publishedParams.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
   return (
     <div className="node-panel">
-      <h2>{t("Flux")}</h2>
+      <div className="panel-head">
+        <h2>{t("Flux")}</h2>
+        <button type="button" className="ghost icon-only" onClick={() => useUi.getState().setFlowPanel(false)} aria-label={t("Replier les propriétés du flux")} title={t("Replier les propriétés du flux")}>
+          ×
+        </button>
+      </div>
       <label className="field">
         <span className="field-label">{t("Description")}</span>
         <textarea rows={3} value={meta.description} onChange={(e) => setMeta({ description: e.target.value })} />

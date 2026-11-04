@@ -86,6 +86,8 @@ interface UiState {
   setFullscreen: (on: boolean) => void;
   miniMap: boolean; // carte de situation du canevas, repliable
   toggleMiniMap: () => void;
+  flowPanel: boolean; // propriétés du flux affichées sans sélection (sinon le panneau de droite se replie)
+  setFlowPanel: (open: boolean) => void;
   openPorts: Record<string, boolean>; // ports dont la liste des attributs est dépliée (clé « nœud/port »)
   togglePort: (key: string) => void;
   pick: CanvasPick | null;
@@ -152,6 +154,8 @@ export const useUi = create<UiState>((set) => ({
       }
       return { miniMap: !s.miniMap };
     }),
+  flowPanel: false,
+  setFlowPanel: (flowPanel) => set({ flowPanel }),
   openPorts: {},
   togglePort: (key) =>
     set((s) => {

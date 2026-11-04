@@ -45,7 +45,8 @@ test("enregistrer un flux dans un fichier, le retrouver dans les récents et le 
   await expect(page.getByTestId("flow-unsaved")).toHaveCount(0);
 
   // Enregistrements suivants : directement dans le même fichier, sans question
-  await page.locator(".react-flow__pane").click({ position: { x: 600, y: 400 } }); // panneau du flux
+  await page.locator(".react-flow__pane").click({ position: { x: 600, y: 400 } });
+  await page.getByRole("button", { name: "Propriétés du flux" }).click(); // sans sélection, le panneau est replié
   await page.getByLabel("Description").fill("communes lues dans un CSV");
   await page.getByRole("button", { name: "Enregistrer", exact: false }).first().click();
   // le toast du premier enregistrement peut encore être affiché : on attend le contenu du fichier

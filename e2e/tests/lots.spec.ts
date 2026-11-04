@@ -50,6 +50,7 @@ test("variables : paramètres, variables du flux et valeur résolue affichée so
   await page.getByTestId("node-CsvReader_1").click();
   // panneau du flux : une variable composée
   await page.locator(".react-flow__pane").click({ position: { x: 600, y: 400 } });
+  await page.getByRole("button", { name: "Propriétés du flux" }).click(); // sans sélection, le panneau est replié
   await page.getByRole("button", { name: "+ Ajouter une variable" }).click();
   await page.getByLabel("Nom de la variable 1").fill("RACINE");
   await page.getByLabel("Valeur de la variable 1").fill(IN);

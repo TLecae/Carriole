@@ -47,6 +47,15 @@ export function TopBar() {
           </MenuItem>
         )}
         <MenuSeparator />
+        <MenuItem
+          onSelect={() => {
+            useEditor.setState((st) => ({ nodes: st.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)) })); // le panneau montre le flux
+            useUi.getState().setFlowPanel(true);
+          }}
+          title={t("Description, paramètres publiés et variables du flux")}>
+          {t("Propriétés du flux")}
+        </MenuItem>
+        <MenuSeparator />
         <MenuItem onSelect={goHome}>{t("Retour à la liste des flux")}</MenuItem>
       </Menu>
       <Menu label={t("Édition")}>

@@ -639,5 +639,8 @@
  "Apparence": "Appearance",
  "« Système » suit le thème clair ou sombre de l'ordinateur.": "“System” follows the computer's light or dark theme.",
  "Clair": "Light",
- "Sombre": "Dark"
+ "Sombre": "Dark",
+ "Propriétés du flux": "Flow properties",
+ "Description, paramètres publiés et variables du flux": "Description, published parameters and variables of the flow",
+ "Replier les propriétés du flux": "Fold the flow properties"
 }

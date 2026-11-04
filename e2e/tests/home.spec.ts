@@ -102,6 +102,8 @@ test("explorateur de fichiers : choisir un fichier, puis un emplacement d'écrit
 test("panneau des propriétés : redimensionner à la souris, largeur conservée", async ({ page }) => {
   await page.goto("/#new");
   const panel = page.getByRole("complementary", { name: "Propriétés" });
+  await expect(panel.getByRole("button", { name: "Propriétés du flux" })).toBeVisible(); // replié sans sélection
+  await panel.getByRole("button", { name: "Propriétés du flux" }).click();
   const before = (await panel.boundingBox())!;
   const grip = (await panel.getByRole("separator", { name: /Redimensionner le panneau/ }).boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + 200);
@@ -110,6 +112,7 @@ test("panneau des propriétés : redimensionner à la souris, largeur conservée
   await page.mouse.up();
   expect((await panel.boundingBox())!.width).toBeGreaterThan(before.width + 120);
   await page.reload();
+  await panel.getByRole("button", { name: "Propriétés du flux" }).click();
   expect((await panel.boundingBox())!.width).toBeGreaterThan(before.width + 120);
 });
 

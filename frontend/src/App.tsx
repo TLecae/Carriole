@@ -110,6 +110,9 @@ export function App() {
   const lang = useLanguage();
   const bottomHeight = useUi((s) => s.bottomHeight);
   const rightWidth = useUi((s) => s.rightWidth);
+  const nothingSelected = useEditor((s) => !s.nodes.some((n) => n.selected));
+  const flowPanel = useUi((s) => s.flowPanel);
+  const rightFolded = nothingSelected && !flowPanel; // RightPanel n'affiche alors qu'un bandeau
   const assistantOpen = useAssistant((s) => s.open);
   useEffect(() => {
     // La palette d'abord : ouvrir un flux en a besoin pour décrire ses nœuds. Ensuite l'adresse décide de la vue.
@@ -142,7 +145,7 @@ export function App() {
           <Toast />
         </>
       ) : (
-        <div className="app" style={{ ["--bottom" as string]: `${bottomHeight}px`, ["--right" as string]: `${rightWidth}px` }}>
+        <div className="app" style={{ ["--bottom" as string]: `${bottomHeight}px`, ["--right" as string]: rightFolded ? "30px" : `${rightWidth}px` }}>
           <TopBar />
           <div className={`main${assistantOpen ? " with-assistant" : ""}`}>
             <Palette />

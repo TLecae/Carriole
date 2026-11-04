@@ -211,6 +211,12 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 
 .right-panel { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-left: 1px solid var(--line); }
 .right-body { flex: 1; min-height: 0; overflow: auto; padding: 10px; }
+/* replié (rien de sélectionné) : un bandeau vertical qui rouvre les propriétés du flux */
+.right-panel.collapsed { align-items: stretch; }
+.right-reveal { flex: 1; border: 0; border-radius: 0; padding: 10px 0; background: transparent; color: var(--muted); writing-mode: vertical-rl; text-align: start; font-size: 12px; }
+.right-reveal:hover:not(:disabled) { background: var(--hover); color: var(--primary); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.panel-head h2 { margin: 0; }
 /* résultats d'un nœud modifié depuis le run (ou en aval d'un nœud modifié) : à relancer */
 .etl-node.stale { outline: 2px dashed var(--warn); outline-offset: 2px; }
 .etl-node.stale .port-count, .etl-node.stale .cache-dot { opacity: .4; }
