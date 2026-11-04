@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.5
 
 - Runs: a long computation is no longer declared *interrupted* while its worker is still running. A computation that
   holds Python's GIL (such as polygonizing a large batch) stopped the worker's heartbeat for more than 30 s; another
