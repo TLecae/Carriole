@@ -92,8 +92,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           draft: true
-          body: |
-            Free code signing provided by SignPath.io, certificate by SignPath Foundation.
-            [Code signing policy](https://github.com/TLecae/Carriole#code-signing-policy).
+          body: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && 'Free code signing provided by SignPath.io, certificate by SignPath Foundation.' || '' }}
           generate_release_notes: true
           files: dist/*

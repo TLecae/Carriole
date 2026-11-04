@@ -137,19 +137,10 @@ Main open source libraries used:
 
 Full list with licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## Code signing policy
+## Privacy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
-[SignPath Foundation](https://signpath.org/).
-
-The Windows installer is built from this repository by the [release workflow](.github/workflows/release.yml), on
-GitHub-hosted runners, and each signing request is approved by hand.
-
-- Committers and reviewers: [Thomas Lecae](https://github.com/TLecae)
-- Approvers: [Thomas Lecae](https://github.com/TLecae)
-
-**Privacy**: this program will not transfer any information to other networked systems unless specifically requested
-by the user or the person installing or operating it. What it sends, and when:
+Carriole will not transfer any information to other networked systems unless specifically requested by the user or
+the person installing or operating it. What it sends, and when:
 
 - the inspector map loads its background from the basemap chosen on the map (OpenStreetMap by default, Esri, IGN, or
   a custom address), which receives the area shown; *None (offline)* turns it off;

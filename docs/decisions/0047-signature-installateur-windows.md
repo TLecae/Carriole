@@ -1,6 +1,6 @@
 # ADR 0047 — Signature de l'installateur Windows par SignPath Foundation
 
-- **Statut** : accepté
+- **Statut** : accepté ; demande à SignPath reportée (la fondation demande un logiciel déjà utilisé)
 - **Date** : 2026-11-02
 
 ## Contexte
@@ -24,8 +24,9 @@ Options étudiées :
      sans eux, la release reste non signée.
    - La configuration d'artefact (`.signpath/artifact-configuration.xml`, copie de celle gardée par SignPath) n'accepte
      que ce fichier, avec le nom de produit « Carriole » et la version lue dans `desktop/package.json`.
-3. **Politique publiée** : section « Code signing policy » des README (phrase exigée, rôles, confidentialité), lien
-   sur la page de téléchargement du site et dans les notes de release.
+3. **Politique publiée** au moment de la demande : section « Code signing policy » des README (phrase exigée, rôles),
+   lien sur la page de téléchargement du site ; les notes de release la portent dès que la variable existe. La
+   déclaration de confidentialité exigée est déjà dans les README (section « Privacy »).
 4. Les artefacts des workflows ne servent qu'à passer les fichiers au job de release : gardés un jour.
 
 ## Conséquences

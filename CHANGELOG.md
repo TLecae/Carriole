@@ -10,10 +10,10 @@
   the other batches keep working in parallel meanwhile.
 - Editor: when a run ends without a recorded result (worker stopped), its nodes still shown as running are marked
   cancelled instead of spinning forever.
-- Release: the Windows installer is ready to be signed by SignPath Foundation (free code signing for open source
-  projects), once the project is set up there; each signing request is approved by hand. Code signing policy and
-  privacy statement in the README ([ADR 0047](docs/decisions/0047-signature-installateur-windows.md)). Workflow
-  artifacts are kept one day.
+- Release: the Windows installer can be signed by SignPath Foundation (free code signing for open source projects)
+  once the project is accepted there; each signing request is approved by hand
+  ([ADR 0047](docs/decisions/0047-signature-installateur-windows.md)). Workflow artifacts are kept one day.
+- README: a privacy section lists what Carriole sends over the network, and when.
 
 ## 0.1.4
 
