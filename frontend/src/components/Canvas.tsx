@@ -19,6 +19,7 @@ import { Icon } from "./Icon";
 import { BookmarkView, EtlEdgeView, NoteNodeView } from "./OtherNodes";
 import { QuickAdd } from "./QuickAdd";
 import { t } from "../i18n";
+import { useTheme } from "../theme";
 
 export const DRAG_TYPE = "application/x-etl-modifier";
 
@@ -122,6 +123,7 @@ export function Canvas() {
     [],
   );
 
+  const theme = useTheme();
   const miniColor = useMemo(() => (n: Node) => (n.type === "bookmark" ? "#cfe3ff" : n.type === "note" ? "#fff3bf" : "#7a869a"), []);
 
   /** Un nœud seul, sans liaison, avec une entrée et une sortie, peut être lâché sur une liaison pour s'y intercaler. */
@@ -162,6 +164,7 @@ export function Canvas() {
       }}
     >
       <ReactFlow<AppNode, AppEdge>
+        colorMode={theme}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}

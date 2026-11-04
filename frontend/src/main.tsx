@@ -2,6 +2,9 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { t } from "./i18n";
+import { initTheme } from "./theme";
+
+initTheme(); // avant le premier affichage : pas d'éclair blanc en thème sombre
 
 /** Une erreur d'affichage ne doit pas laisser un écran blanc : on l'explique et on propose de recharger. */
 class Boundary extends Component<{ children: ReactNode }, { error: Error | null }> {

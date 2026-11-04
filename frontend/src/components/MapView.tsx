@@ -10,10 +10,12 @@ import type { DataQuery, PortInfo, PortRef, RasterInfo, RasterStyle } from "../a
 import { keyOf, sameTarget, useInspector } from "../store/inspector";
 import { t } from "../i18n";
 import { CATEGORY_COLORS, type Coloring, RAMP, categoriesColoring, classesColoring, shapeOf } from "../model/legend";
+import { useTheme } from "../theme";
 import { Spinner } from "./Spinner";
 
 maplibregl.setWorkerUrl(workerUrl);
 
+const mapBackground = () => getComputedStyle(document.documentElement).getPropertyValue("--map-bg").trim() || "#eef1f5";
 const PALETTE = ["#1d6fb8", "#d9480f", "#2b8a3e", "#862e9c", "#c2255c", "#e67700"];
 
 /** Fonds de plan raster proposés. Leurs hôtes sont autorisés dans la CSP du backend (`etl_api/security.py`). */
@@ -164,6 +166,7 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
   const mapRef = useRef<MlMap | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
   const [ready, setReady] = useState(false);
+  const theme = useTheme();
   const [tilesLoading, setTilesLoading] = useState(true); // tuiles des données en cours de chargement
   const [tileError, setTileError] = useState<string | null>(null); // une tuile du port n'a pas pu être calculée
   const [basemap, setBasemap] = useState<Basemap>(loadBasemap);
@@ -209,7 +212,7 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
     if (!box.current) return;
     const map = new maplibregl.Map({
       container: box.current,
-      style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#eef1f5" } }] },
+      style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": mapBackground() } }] },
       center: [2.4, 46.6],
       zoom: 5,
       attributionControl: { compact: true },
@@ -247,6 +250,12 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
       setReady(false);
     };
   }, []);
+
+  // --- fond sans fond de plan : suit le thème clair ou sombre
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && ready && map.getLayer("bg")) map.setPaintProperty("bg", "background-color", mapBackground());
+  }, [theme, ready]);
 
   // --- fond de plan
   useEffect(() => {

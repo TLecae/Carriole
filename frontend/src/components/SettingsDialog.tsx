@@ -5,6 +5,7 @@ import { language, setLanguage, t } from "../i18n";
 import { pickFolder } from "../platform";
 import { useAssistant } from "../store/assistant";
 import { useEditor } from "../store/editor";
+import { setThemeChoice, themeChoice, type ThemeChoice } from "../theme";
 import { AssistantSettings } from "./AssistantSettings";
 import { Modal } from "./Dialogs";
 import { Loading } from "./Spinner";
@@ -108,6 +109,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 function General({ data, fail }: { data: AppSettings | null; fail: (err: unknown) => void }) {
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   const [current, setCurrent] = useState(language());
+  const [theme, setTheme] = useState(themeChoice());
   const [user, setUser] = useState(currentUser());
   const [email, setEmail] = useState(currentEmail());
   const [autoStart, setAutoStart] = useState<boolean | null>(null);
@@ -144,6 +146,21 @@ function General({ data, fail }: { data: AppSettings | null; fail: (err: unknown
               {l.name}
             </option>
           ))}
+        </select>
+      </Field>
+      <Field label={t("Apparence")} hint={t("« Système » suit le thème clair ou sombre de l'ordinateur.")}>
+        <select
+          value={theme}
+          aria-label={t("Apparence")}
+          onChange={(e) => {
+            const choice = e.target.value as ThemeChoice;
+            setTheme(choice);
+            setThemeChoice(choice);
+          }}
+        >
+          <option value="system">{t("Système")}</option>
+          <option value="light">{t("Clair")}</option>
+          <option value="dark">{t("Sombre")}</option>
         </select>
       </Field>
       <Field label={t("Utilisateur")} hint={t("Signe vos flux et filtre « Mes runs ».")}>

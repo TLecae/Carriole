@@ -635,5 +635,9 @@
  "•••••• (inchangé)": "•••••• (unchanged)",
  "≈ {{count}} lignes": "≈ {{count}} rows",
  "✕ Fermer le plein écran": "✕ Close full screen",
- "⤢ Pleine page": "⤢ Full page"
+ "⤢ Pleine page": "⤢ Full page",
+ "Apparence": "Appearance",
+ "« Système » suit le thème clair ou sombre de l'ordinateur.": "“System” follows the computer's light or dark theme.",
+ "Clair": "Light",
+ "Sombre": "Dark"
 }

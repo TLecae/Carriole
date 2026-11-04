@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, Notification, Tray, app, dialog, ipcMain, nativeImage, shell } from "electron";
+import { BrowserWindow, Menu, Notification, Tray, app, dialog, ipcMain, nativeImage, nativeTheme, shell } from "electron";
 import type { IpcMainInvokeEvent, OpenDialogOptions, SaveDialogOptions } from "electron";
 import fs from "node:fs";
 import path from "node:path";
@@ -61,7 +61,7 @@ function createWindow(): BrowserWindow {
     show: false,
     title: "Carriole",
     icon: iconPath(),
-    backgroundColor: "#ffffff",
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#0f1419" : "#ffffff", // fond du thème, avant l'interface
     autoHideMenuBar: true, // l'interface a ses propres menus ; la barre native (Alt) garde zoom, rechargement et aide
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
