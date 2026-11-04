@@ -212,3 +212,37 @@ def test_overlay_ignores_holes_and_rejects_non_polygons():
     total = sum(g.area for g in geoms_of(out["output"]))
     assert round(total) == round(ring.area + hole_filler.area)  # le trou n'est comblé que par le petit polygone
     assert out["output"].column("_overlap_count").to_pylist().count(1) == out["output"].num_rows
+
+
+def test_overlay_faces_match_shapely_and_leave_the_gil_free():
+    """Les faces viennent de DuckDB : celles de `shapely.polygonize`, dans le même ordre, sans garder le GIL (shapely le
+    gardait des dizaines de secondes sur un grand paquet : le heartbeat du worker s'arrêtait, le run était déclaré
+    interrompu)."""
+    import threading
+    import time
+
+    from etl_engine.modifiers.overlay_polygons import _faces
+
+    rng = np.random.default_rng(0)
+    centers = shapely.points(rng.uniform(0, 300, (4000, 2)))
+    lines = shapely.boundary(shapely.buffer(centers, rng.uniform(1, 8, len(centers)), quad_segs=4))
+    expected = shapely.get_parts(shapely.polygonize([shapely.union_all(lines)]))
+    gaps, done = [], threading.Event()
+
+    def witness():
+        last = time.perf_counter()
+        while not done.is_set():
+            time.sleep(0.005)
+            now = time.perf_counter()
+            gaps.append(now - last)
+            last = now
+
+    thread = threading.Thread(target=witness)
+    thread.start()
+    start = time.perf_counter()
+    faces = _faces(lines)
+    elapsed = time.perf_counter() - start
+    done.set()
+    thread.join()
+    assert len(faces) == len(expected) and shapely.equals(faces, expected).all()
+    assert max(gaps) < max(0.5 * elapsed, 0.2)  # le témoin a tourné pendant le calcul

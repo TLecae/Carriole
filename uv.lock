@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 
 [manifest]
@@ -594,6 +594,7 @@ source = { editable = "store" }
 dependencies = [
     { name = "cryptography" },
     { name = "etl-engine" },
+    { name = "psutil" },
     { name = "sqlalchemy" },
 ]
 
@@ -606,6 +607,7 @@ pg = [
 requires-dist = [
     { name = "cryptography", specifier = ">=43" },
     { name = "etl-engine", editable = "engine" },
+    { name = "psutil", specifier = ">=6" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'pg'", specifier = ">=3.2" },
     { name = "sqlalchemy", specifier = ">=2.0" },
 ]

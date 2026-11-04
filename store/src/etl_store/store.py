@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from etl_engine import renames
@@ -14,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from etl_store.models import Base, ComponentVersionRow, EventRow, FlowRow, MetaRow, RunRow, ScheduleRow
+from etl_store.workers import alive_here
 
 SCHEMA_VERSION = 7
 FINAL_STATUSES = ("done", "error", "cancelled", "interrupted")
@@ -454,15 +456,23 @@ class Store:
                 )
             )
 
-    def interrupt_stale_runs(self, ttl: float) -> list[str]:
-        """Les runs « running » sans heartbeat depuis `ttl` secondes (worker mort) passent en « interrompu »."""
+    def interrupt_stale_runs(
+        self, ttl: float, alive: Callable[[str | None, float | None], bool] = alive_here
+    ) -> list[str]:
+        """Les runs « running » sans heartbeat depuis `ttl` secondes (worker mort) passent en « interrompu ».
+
+        Sauf ceux dont le worker tourne encore (`alive(worker, début du run)`, vérifiable sur le même poste) : ils sont
+        seulement occupés. Un calcul qui garde le GIL (`shapely.polygonize`…) peut bloquer le fil du heartbeat plus de
+        `ttl`.
+        """
         limit = time.time() - ttl
         with self._session.begin() as s:
-            ids = list(
-                s.scalars(
-                    select(RunRow.id).where(RunRow.status == "running", func.coalesce(RunRow.heartbeat_at, 0) < limit)
+            stale = s.execute(
+                select(RunRow.id, RunRow.worker, RunRow.started_at).where(
+                    RunRow.status == "running", func.coalesce(RunRow.heartbeat_at, 0) < limit
                 )
-            )
+            ).all()
+            ids = [rid for rid, worker, started in stale if not alive(worker, started)]
             if ids:
                 s.execute(
                     update(RunRow)

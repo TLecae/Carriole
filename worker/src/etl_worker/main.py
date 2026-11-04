@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import os
 import signal
-import socket
 import sys
 import threading
 import time
@@ -17,6 +16,7 @@ from etl_engine import connections as engine_connections
 from etl_engine.registry import Registry
 from etl_store import ConnectionStore, Settings, Store, open_store
 from etl_store.purge import purge_cache
+from etl_store.workers import worker_name
 
 from etl_worker import scheduler
 from etl_worker.runner import execute_run
@@ -118,7 +118,7 @@ def main() -> None:
         signal.signal(signal.SIGBREAK, _stop)
     if os.environ.get("ETL_WORKER_STDIN"):
         threading.Thread(target=watch_stdin, args=(shutdown,), name="etl-stdin", daemon=True).start()
-    worker_id = f"{socket.gethostname()}-{os.getpid()}"
+    worker_id = worker_name()
     log.info("worker %s démarré", worker_id)
     serve(store, registry, settings, shutdown, worker_id)
     log.info("worker %s arrêté", worker_id)

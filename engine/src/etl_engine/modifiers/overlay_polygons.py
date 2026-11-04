@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Mapping
 from typing import Any
 
+import duckdb
 import numpy as np
 import pyarrow as pa
 import shapely
 from pydantic import Field
 
+from etl_engine import duck
 from etl_engine.blocking import collect
 from etl_engine.data import GEOM, geometries, get_crs, set_geometries
 from etl_engine.sdk import (
@@ -34,6 +37,39 @@ def _polygonal(geometry):
         return geometry
     parts = [g for g in getattr(geometry, "geoms", []) if g.geom_type in POLYGONS]
     return shapely.union_all(parts) if parts else None
+
+
+_local = threading.local()
+
+
+def _spatial() -> duckdb.DuckDBPyConnection | None:
+    """Connexion DuckDB du thread, extension spatiale chargée ; None sans l'extension."""
+    if not hasattr(_local, "con"):
+        _local.con = None
+        if duck.spatial_available():
+            con = duck.connect("expr")  # un thread, une petite part du budget : le parallélisme vient des paquets
+            duck.load_spatial(con)
+            _local.con = con
+    return _local.con
+
+
+def _faces(lines: np.ndarray) -> np.ndarray:
+    """Faces formées par des contours (`polygonize` de GEOS), après leur union, qui les découpe à chaque croisement.
+
+    `shapely.polygonize` garde le GIL pendant tout son calcul : des dizaines de secondes pour un grand paquet, pendant
+    lesquelles les autres paquets et le heartbeat du worker attendent. Celui de DuckDB le libère, avec les mêmes faces
+    dans le même ordre. Repli sur shapely sans l'extension spatiale, ou si la connexion manque de mémoire."""
+    merged = shapely.union_all(lines)  # libère le GIL
+    con = _spatial()
+    if con is not None:
+        try:
+            ((wkb,),) = con.execute(
+                "SELECT ST_AsWKB(ST_Polygonize([ST_GeomFromWKB(?)]))", [shapely.to_wkb(merged)]
+            ).fetchall()
+            return np.asarray(shapely.get_parts(shapely.from_wkb(bytes(wkb))), dtype=object)
+        except duckdb.OutOfMemoryException:
+            pass
+    return np.asarray(shapely.get_parts(shapely.polygonize([merged])), dtype=object)
 
 
 class OverlayPolygons(Modifier):
@@ -161,7 +197,7 @@ class _Overlay:
             x0, y0, x1, y1 = shapely.total_bounds(self.valid[members])
             pad = max(x1 - x0, y1 - y0) * 0.01 + 1.0
             lines[big] = shapely.intersection(lines[big], shapely.box(x0 - pad, y0 - pad, x1 + pad, y1 + pad))
-        pieces = np.asarray(shapely.get_parts(shapely.polygonize([shapely.union_all(lines)])), dtype=object)
+        pieces = _faces(lines)
         if not len(pieces):
             return pieces, np.zeros(1, dtype=np.int64), np.array([], dtype=np.int64)
         piece_idx, source = self.index.pairs(shapely.point_on_surface(pieces), "within")  # triées par morceau

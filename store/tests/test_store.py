@@ -1,3 +1,4 @@
+import socket
 import threading
 import time
 
@@ -95,6 +96,20 @@ def test_stale_running_runs_are_interrupted(store):
     time.sleep(0.05)
     assert store.interrupt_stale_runs(ttl=0.01) == [rid]
     assert store.get_run(rid)["status"] == "interrupted"
+
+
+def test_a_run_whose_worker_still_runs_here_is_not_interrupted(store):
+    """Un calcul qui garde le GIL (shapely.polygonize) bloque le heartbeat ; le worker, vivant, n'a pas abandonné son
+    run. Celui d'un worker disparu est bien interrompu."""
+    from etl_store.workers import worker_name
+
+    busy = store.create_run(FLOW, None, {}, {}, "a")["id"]
+    store.claim_next_run(worker_name())  # ce processus : vivant, sur ce poste
+    gone = store.create_run(FLOW, None, {}, {}, "a")["id"]
+    store.claim_next_run(f"{socket.gethostname()}-{2**31 - 1}")  # aucun processus de ce numéro
+    time.sleep(0.05)
+    assert store.interrupt_stale_runs(ttl=0.01) == [gone]
+    assert store.get_run(busy)["status"] == "running"
 
 
 def test_try_acquire_survives_a_worker_creating_the_lock_just_before(tmp_path, monkeypatch):

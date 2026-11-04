@@ -51,6 +51,15 @@ function reduceRaw(run: RunState, e: RunEvent): RunState {
   }
 }
 
+/** Run fini sans résultat enregistré (worker arrêté pendant le run) : ses nœuds « en attente » ou « en cours » passent
+ * « annulés », au lieu de tourner sans fin dans l'éditeur. */
+export function settle(run: RunState): RunState {
+  if (run.status === "idle" || run.status === "queued" || run.status === "running") return run;
+  const open = Object.entries(run.nodes).filter(([, n]) => n.status === "pending" || n.status === "running");
+  if (!open.length) return run;
+  return { ...run, nodes: rollupComponents({ ...run.nodes, ...Object.fromEntries(open.map(([id, n]) => [id, { ...n, status: "cancelled" as const }])) }) };
+}
+
 /** Le résultat enregistré d'un run fini fait foi : l'état de chaque nœud, ses comptes et son erreur, même si des
  * événements manquent (flux coupé, run relu longtemps après). Un nœud « pas exécuté » n'efface pas un état connu,
  * sauf un « en attente » ou « en cours » resté sans suite. */

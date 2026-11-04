@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Runs: a long computation is no longer declared *interrupted* while its worker is still running. A computation that
+  holds Python's GIL (such as polygonizing a large batch) stopped the worker's heartbeat for more than 30 s; another
+  worker then marked the run interrupted, and the editor kept showing the node as running although the run went on
+  and finished. A run without heartbeat is now interrupted only if its worker process is gone (same computer).
+- *OverlayPolygons*: the faces of each batch are built by DuckDB, which releases the GIL (same faces, same order):
+  the other batches keep working in parallel meanwhile.
+- Editor: when a run ends without a recorded result (worker stopped), its nodes still shown as running are marked
+  cancelled instead of spinning forever.
 - Release: the Windows installer is ready to be signed by SignPath Foundation (free code signing for open source
   projects), once the project is set up there; each signing request is approved by hand. Code signing policy and
   privacy statement in the README ([ADR 0047](docs/decisions/0047-signature-installateur-windows.md)). Workflow

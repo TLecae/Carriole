@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { ApiError, api, currentEmail, subscribeRun } from "../api/client";
 import { onConnection } from "../api/connection";
 import type { Analysis, FlowDoc, FlowRecord, FlowSummary, RunEvent, RunStatus, ModifierInfo } from "../api/types";
-import { applyResult, IDLE_RUN, reduceEvent, type RunState } from "../model/runState";
+import { applyResult, IDLE_RUN, reduceEvent, type RunState, settle } from "../model/runState";
 import { signatures, staleNodes } from "../model/staleness";
 import { pickPath } from "../platform";
 import { useUi } from "./ui";
@@ -700,7 +700,7 @@ export const useEditor = create<EditorState>((set, get) => {
         if (!page.length || (page[page.length - 1].id ?? lastId) <= lastId) break;
         lastId = page[page.length - 1].id ?? lastId;
       }
-      state = { ...applyResult(state, detail.result), status: detail.status, error: detail.error };
+      state = settle({ ...applyResult(state, detail.result), status: detail.status, error: detail.error });
       set({ run: state });
       if (!FINAL.includes(detail.status)) {
         unsubscribe = subscribeRun(id, lastId, pushEvent, (status) => {
@@ -708,7 +708,7 @@ export const useEditor = create<EditorState>((set, get) => {
           set((s) => ({ run: { ...s.run, status: status as RunStatus } }));
           // l'état enregistré du run fait foi pour ses nœuds (un événement perdu ne laisse pas un nœud « en cours »)
           void api.run(id).then(
-            (done) => set((s) => (s.run.id === id ? { run: { ...applyResult(s.run, done.result), status: done.status, error: done.error } } : {})),
+            (done) => set((s) => (s.run.id === id ? { run: settle({ ...applyResult(s.run, done.result), status: done.status, error: done.error }) } : {})),
             () => undefined,
           );
         });

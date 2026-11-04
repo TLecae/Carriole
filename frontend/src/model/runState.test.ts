@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NodeResult, RunDetail } from "../api/types";
-import { applyResult, IDLE_RUN, reduceEvent } from "./runState";
+import { applyResult, IDLE_RUN, reduceEvent, settle } from "./runState";
 
 const result = (nodes: Record<string, Partial<NodeResult>>): RunDetail["result"] => ({ status: "done", seconds: 1, error: null, nodes: nodes as Record<string, NodeResult> });
 
@@ -34,5 +34,21 @@ describe("applyResult", () => {
 
   it("sans résultat (run en cours), rien ne change", () => {
     expect(applyResult(IDLE_RUN, null)).toBe(IDLE_RUN);
+  });
+});
+
+describe("settle", () => {
+  it("un run fini sans résultat (worker arrêté) ne laisse aucun nœud tourner sans fin", () => {
+    let run = reduceEvent(IDLE_RUN, { type: "run_started", nodes: ["a", "b"] });
+    run = reduceEvent(run, { type: "node", node: "a", status: "done", rows: { output: 1 } });
+    run = reduceEvent(run, { type: "node", node: "b", status: "running" });
+    run = settle({ ...applyResult(run, null), status: "interrupted" });
+    expect(run.nodes.a.status).toBe("done");
+    expect(run.nodes.b.status).toBe("cancelled");
+  });
+
+  it("un run en cours garde ses nœuds en cours", () => {
+    const run = reduceEvent(reduceEvent(IDLE_RUN, { type: "run_started", nodes: ["b"] }), { type: "node", node: "b", status: "running" });
+    expect(settle(run)).toBe(run);
   });
 });
