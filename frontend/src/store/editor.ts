@@ -635,7 +635,7 @@ export const useEditor = create<EditorState>((set, get) => {
         const created = await api.createRun({
           flow: doc,
           flow_id: flowId,
-          params: params ?? defaultParams(meta),
+          params: params ?? { ...defaultParams(meta), ...pick(run.params, meta) }, // sans boîte (assistant) : comme elle
           cache: caching,
           target,
           reuse_from: reuse,
@@ -691,7 +691,7 @@ export const useEditor = create<EditorState>((set, get) => {
       unsubscribe?.();
       eventBuffer = [];
       const detail = await api.run(id);
-      let state: RunState = { ...IDLE_RUN, id, status: detail.status, error: detail.error, cache: detail.options.cache ?? true, signatures: signatures(detail.flow) };
+      let state: RunState = { ...IDLE_RUN, id, status: detail.status, error: detail.error, cache: detail.options.cache ?? true, signatures: signatures(detail.flow), params: detail.params };
       let lastId = 0;
       for (;;) {
         // par pages : un long run compte bien plus d'événements qu'une seule réponse n'en rend
@@ -748,6 +748,12 @@ async function askDesktopNotifications(): Promise<void> {
 
 export function defaultParams(meta: FlowMeta): Record<string, string> {
   return Object.fromEntries(meta.publishedParams.map((p) => [p.name, p.default]));
+}
+
+/** Valeurs d'un run précédent pour les paramètres que le flux publie encore. */
+function pick(values: Record<string, string> | undefined, meta: FlowMeta): Record<string, string> {
+  const names = new Set(meta.publishedParams.map((p) => p.name));
+  return Object.fromEntries(Object.entries(values ?? {}).filter(([name]) => names.has(name)));
 }
 
 export { isNote };

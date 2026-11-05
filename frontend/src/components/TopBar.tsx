@@ -174,6 +174,7 @@ export function TopBar() {
       {runDialog && (
         <RunDialog
           params={s.meta.publishedParams}
+          last={s.run.params}
           onCancel={() => setRunDialog(null)}
           onRun={(params) => {
             void s.startRun({ target: runDialog.target, fresh: runDialog.fresh, params });

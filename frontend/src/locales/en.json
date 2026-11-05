@@ -696,5 +696,6 @@
  "Cette base ne permet pas de vérifier une requête sans l'exécuter.": "This database cannot check a query without running it.",
  "Exemples": "Examples",
  "Des flux prêts à lancer sur des données publiques lues par https (API, catalogues) : ils s'ouvrent comme des flux neufs, à modifier et à enregistrer.": "Flows ready to run on public data read over https (APIs, catalogues): they open as new flows, to modify and save.",
- "Ouvrir l'exemple {{name}}": "Open the example {{name}}"
+ "Ouvrir l'exemple {{name}}": "Open the example {{name}}",
+ "Valeurs du dernier run : inchangées, les nœuds qui s'en servent sont repris du cache.": "Values of the last run: unchanged, the nodes that use them are taken from the cache."
 }

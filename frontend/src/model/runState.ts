@@ -10,6 +10,7 @@ export interface RunState {
   logs: RunEvent[];
   cache: boolean;
   signatures?: Record<string, string>; // nœuds du flux exécuté (`staleness.signatures`)
+  params?: Record<string, string>; // valeurs des paramètres publiés de ce run : celles proposées au lancement suivant
 }
 
 export const IDLE_RUN: RunState = { id: null, status: "idle", error: null, nodes: {}, counts: {}, logs: [], cache: true };

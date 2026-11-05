@@ -66,11 +66,18 @@ export function OpenDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function RunDialog({ params, onRun, onCancel }: { params: PublishedParam[]; onRun: (p: Record<string, string>) => void; onCancel: () => void }) {
-  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(params.map((p) => [p.name, p.default])));
+/**
+ * Valeurs des paramètres publiés avant un lancement. Proposées : celles du dernier run (`last`), sinon les valeurs
+ * par défaut. Revenir aux valeurs par défaut à chaque fois changeait l'empreinte des nœuds qui s'en servent, et le run
+ * recalculait ce que le cache aurait repris.
+ */
+export function RunDialog({ params, last, onRun, onCancel }: { params: PublishedParam[]; last?: Record<string, string>; onRun: (p: Record<string, string>) => void; onCancel: () => void }) {
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(params.map((p) => [p.name, last?.[p.name] ?? p.default])));
   const missing = params.filter((p) => p.required && !values[p.name]);
+  const fromLast = params.some((p) => last?.[p.name] !== undefined && last[p.name] !== p.default);
   return (
     <Modal title={t("Paramètres du run")} onClose={onCancel}>
+      {fromLast && <p className="muted">{t("Valeurs du dernier run : inchangées, les nœuds qui s'en servent sont repris du cache.")}</p>}
       {params.map((p) => (
         <label className="field" key={p.name}>
           <span className="field-label">{p.label || p.name}{p.required ? " *" : ""}</span>

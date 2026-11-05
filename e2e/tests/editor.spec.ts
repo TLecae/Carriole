@@ -502,6 +502,32 @@ test("planification : créer, prévisualiser, lancer et supprimer", async ({ pag
   await expect(dialog.getByTestId("schedule-row").filter({ hasText: "Chaque nuit" })).toHaveCount(0);
 });
 
+test("paramètre demandé au lancement : la boîte reprend la valeur du dernier run, et le cache avec", async ({ page }) => {
+  const flow = {
+    name: "Flux paramétré",
+    published_params: [{ name: "DEP", label: "Département", required: true }],
+    nodes: [
+      { id: "lire", type: "CsvReader", position: [0, 0], params: { path: `${IN}/communes.csv`, delimiter: ";" } },
+      { id: "filtre", type: "ExtractByExpression", position: [320, 0], params: { conditions: ["\"dep\" = '${DEP}'"] } },
+    ],
+    links: [{ id: "l", from: ["lire", "output"], to: ["filtre", "input"] }],
+  };
+  const created = await (await page.request.post("/api/flows", { data: { flow } })).json();
+  await page.goto(`/#flow=${created.id}`);
+  const dialog = page.getByRole("dialog", { name: "Paramètres du run" });
+  await page.getByRole("button", { name: /Lancer/ }).first().click();
+  await dialog.getByLabel("Département").fill("31");
+  await dialog.getByRole("button", { name: "Lancer" }).click();
+  await expect(page.getByTestId("run-status")).toHaveText("done");
+
+  await page.getByRole("button", { name: /Lancer/ }).first().click();
+  await expect(dialog.getByLabel("Département")).toHaveValue("31"); // pas à ressaisir
+  await dialog.getByRole("button", { name: "Lancer" }).click();
+  await expect(page.getByTestId("run-status")).toHaveText("done");
+  await expect(page.getByTestId("node-filtre")).toHaveClass(/st-cached/); // même valeur : repris du cache
+  await page.request.delete(`/api/flows/${created.id}`);
+});
+
 test("bandeau du nœud : lancer jusqu'à lui en reprenant le cache, le désactiver ; ses données d'un clic", async ({ page }) => {
   await page.goto("/#new");
   await page.getByLabel("Nom du flux").fill("Flux bandeau");
