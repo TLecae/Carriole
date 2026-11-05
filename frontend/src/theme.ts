@@ -50,7 +50,7 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
-/** Thème affiché, pour les composants qui dessinent eux-mêmes (carte, canevas, éditeur de code). */
+/** Thème affiché (celui posé sur la page), pour les composants qui dessinent eux-mêmes (carte, canevas). */
 export function useTheme(): Theme {
-  return useSyncExternalStore(subscribe, currentTheme);
+  return useSyncExternalStore(subscribe, () => (document.documentElement.dataset.theme === "dark" ? "dark" : "light"));
 }
