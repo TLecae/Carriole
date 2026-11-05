@@ -623,7 +623,13 @@ button.icon-only { padding: 4px 6px; }
 .helper-row input[type="checkbox"] { flex: none; margin: 0 2px; }
 .helper-column.unread .helper-name { color: var(--muted); }
 .helper-select { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 11px; }
-.read-columns { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); }
+.read-query { display: grid; gap: 3px; width: 100%; text-align: left; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); color: inherit; font-size: 12px; cursor: pointer; }
+.read-query:hover { border-color: var(--primary); }
+.rq-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.rq-line .rq-key { flex: none; width: 52px; }
+.rq-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; }
+.rq-val.none { font-family: inherit; color: var(--muted); }
+.rq-edit { justify-self: end; color: var(--primary); font-size: 11px; }
 .reader-query { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 8px; min-height: 0; min-width: 0; }
 .rq-part { display: grid; gap: 4px; min-width: 0; }
 .rq-where { grid-template-rows: auto minmax(0, 1fr); min-height: 0; }

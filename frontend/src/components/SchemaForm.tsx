@@ -12,7 +12,7 @@ import type { Rule } from "../model/attributeManager";
 import { AttributeManager } from "./AttributeManager";
 import { InfoTip } from "./InfoTip";
 import type { HelperField, HelperInput, HelperSource } from "../model/fieldHelper";
-import { ReadColumns, ReaderQuery } from "./ReaderQuery";
+import { ReadQueryField, ReaderQuery } from "./ReaderQuery";
 import { EditorButton, QueryEditor, SqlField } from "./SqlEditor";
 import { Spinner } from "./Spinner";
 
@@ -79,6 +79,23 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
         const connection = widgetOf(s) === "pg-table" ? String(props.value[String(s["x-etl-connection"] ?? "connection")] ?? "") : null;
         // SQL : celui de la base de la connexion voisine, ou de DuckDB
         const sqlBase = widgetOf(s) === "sql" ? String(s["x-etl-connection"] ? (props.value[String(s["x-etl-connection"])] ?? "") : "") : null;
+        if (readerQuery && key === "where") return null; // édité avec le SELECT, dans la requête de lecture
+        if (widgetOf(s) === "read-columns") {
+          const where = String(props.value.where ?? "");
+          return (
+            <Field
+              key={key}
+              hidden={!shown.has(key) && !shown.has("where")}
+              label={t("Requête de lecture")}
+              hint={t("Attributs lus (SELECT) et filtre (WHERE), appliqués à la lecture : DuckDB ne lit du fichier que les colonnes et les parties utiles.")}
+              doc={props.ctx.doc?.(key)}
+              simple={false}
+            >
+              <ReadQueryField columns={Array.isArray(value) ? (value as string[]) : []} where={where} onOpen={() => setReading(true)} />
+              <VariablePreview value={where} ctx={props.ctx} />
+            </Field>
+          );
+        }
         return (
           <Field
             key={key}
@@ -90,9 +107,7 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
             // un champ avec un bouton (éditeur de code, SQL) n'est pas un <label> : un clic y activerait le bouton
             simple={typeOf(s) !== "array" && !["expression", "code"].includes(widgetOf(s) ?? "") && connection === null && sqlBase === null}
           >
-            {widgetOf(s) === "read-columns" ? (
-              <ReadColumns label={labelOf(key, s)} value={Array.isArray(value) ? (value as string[]) : []} onOpen={() => setReading(true)} />
-            ) : connection !== null ? (
+            {connection !== null ? (
               <PgTableSelect label={labelOf(key, s)} connection={connection} value={String(value ?? "")} write={s["x-etl-access"] === "write"} onChange={set} />
             ) : sqlBase !== null ? (
               <SqlField
@@ -105,7 +120,6 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
                 where={key === "where"}
                 placeholder={s.examples?.[0] !== undefined ? String(s.examples[0]) : undefined}
                 preview={<VariablePreview value={String(value ?? "")} ctx={props.ctx} />}
-                onOpen={readerQuery && key === "where" ? () => setReading(true) : undefined}
               />
             ) : (
               <Editor label={labelOf(key, s)} schema={raw} value={value} ctx={props.ctx} onChange={set} />

@@ -20,14 +20,13 @@ export type QueryMode = "sql" | "where" | "expression";
  * complétion selon la base, erreurs soulignées par le serveur, attributs et valeurs à insérer (`helper`).
  * `connection` : la base où le SQL s'exécute ; sans elle, c'est du SQL DuckDB.
  */
-export function SqlField({ label, value, onChange, connection, where = false, helper, placeholder, preview, onOpen }: { label: string; value: string; onChange: (v: string) => void; connection?: string; where?: boolean; helper?: HelperSource; placeholder?: string; preview?: ReactNode; onOpen?: () => void }) {
+export function SqlField({ label, value, onChange, connection, where = false, helper, placeholder, preview }: { label: string; value: string; onChange: (v: string) => void; connection?: string; where?: boolean; helper?: HelperSource; placeholder?: string; preview?: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="sql-field">
       <div className="sql-line">
         <textarea className="sql-text" aria-label={label} rows={where ? 1 : 3} value={value} placeholder={placeholder} spellCheck={false} onChange={(e) => onChange(e.target.value)} />
-        {/* `onOpen` : une autre surcouche (requête de lecture d'un lecteur, qui montre aussi son SELECT) */}
-        <EditorButton onClick={() => (onOpen ? onOpen() : setOpen(true))} />
+        <EditorButton onClick={() => setOpen(true)} />
       </div>
       {preview}
       {open && <QueryEditor label={label} value={value} onChange={onChange} connection={connection} mode={where ? "where" : "sql"} helper={helper ?? (connection ? { kind: "connection", connection } : undefined)} onClose={() => setOpen(false)} />}

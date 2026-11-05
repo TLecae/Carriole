@@ -32,8 +32,9 @@
 - SQL editor of a database: tables are listed under their schema, folded when there are several; opening a table
   shows its columns with their types.
 - CSV and (Geo)Parquet readers: *Attributes read (SELECT)*, the columns kept when reading (DuckDB reads only them
-  and those of the filter); with the filter, it is edited in a *Read query* overlay showing SELECT, FROM, WHERE and
-  LIMIT, with the file's columns to check, their values, and a count of the features the filter keeps.
+  and those of the filter); with the filter, it is shown as a single *Read query* field, which opens an overlay
+  showing SELECT, FROM, WHERE and LIMIT, with the file's columns to check, their values, and a count of the
+  features the filter keeps.
 - Run parameters: the launch dialog proposes the values of the last run; going back to the defaults changed the
   fingerprint of the nodes using a parameter, so the cache was not used.
 - Inspector map: the selection of a huge entity is read at the level of the tiles of the current zoom, within the

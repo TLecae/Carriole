@@ -41,18 +41,25 @@ function useFileColumns(node: string): { fields: HelperField[] | null; error: st
   return { fields, error };
 }
 
-/** Champ « Attributs lus (SELECT) » d'un lecteur : ceux qu'il garde, et le bouton de la requête de lecture. */
-export function ReadColumns({ label, value, onOpen }: { label: string; value: string[]; onOpen: () => void }) {
-  const text = value.length ? value.join(", ") : t("Tous les attributs");
+/** Champ « Requête de lecture » d'un lecteur : son SELECT et son WHERE résumés ; un clic ouvre la surcouche. */
+export function ReadQueryField({ columns, where, onOpen }: { columns: string[]; where: string; onOpen: () => void }) {
+  const select = columns.length ? columns.join(", ") : "";
   return (
-    <div className="sql-line">
-      <span className="read-columns" role="note" aria-label={label} title={text}>
-        {value.length ? t("{{n}} : {{names}}", { n: value.length, names: text }) : text}
+    <button type="button" className="read-query" onClick={onOpen} aria-label={t("Requête de lecture")} title={t("Choisir les attributs lus et le filtre : colonnes du fichier, valeurs, comptage")}>
+      <span className="rq-line">
+        <code className="rq-key">SELECT</code>
+        <span className={select ? "rq-val" : "rq-val none"} title={select || undefined} data-testid="read-select">
+          {select || t("tous les attributs")}
+        </span>
       </span>
-      <button type="button" className="sql-open" onClick={onOpen} title={t("Choisir les attributs lus et le filtre, dans la requête de lecture du fichier")}>
-        {t("Requête de lecture")}
-      </button>
-    </div>
+      <span className="rq-line">
+        <code className="rq-key">WHERE</code>
+        <span className={where.trim() ? "rq-val" : "rq-val none"} title={where.trim() || undefined} data-testid="read-where">
+          {where.trim() || t("toutes les entités")}
+        </span>
+      </span>
+      <span className="rq-edit">{t("Modifier…")}</span>
+    </button>
   );
 }
 

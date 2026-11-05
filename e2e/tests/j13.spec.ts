@@ -17,7 +17,8 @@ test("éditeur : attributs et valeurs à insérer, depuis le fichier lu ou le de
   // requête de lecture du lecteur : SELECT (attributs cochés), WHERE avec les colonnes du fichier et leurs valeurs,
   // lues dans le fichier (sans run), et le nombre d'entités gardées
   await page.getByTestId("node-lire").click();
-  await page.getByRole("group", { name: "Filtre (WHERE)" }).getByRole("button", { name: "Éditeur SQL" }).click();
+  await expect(page.getByRole("textbox", { name: "Filtre (WHERE)" })).toHaveCount(0); // un seul champ : la requête
+  await page.getByRole("button", { name: "Requête de lecture" }).click();
   const reading = page.getByRole("dialog", { name: "Requête de lecture" });
   const file = reading.getByRole("complementary", { name: "Attributs et valeurs" });
   await expect(reading.locator(".cm-content")).toBeVisible(); // éditeur chargé (à la demande)
@@ -35,12 +36,12 @@ test("éditeur : attributs et valeurs à insérer, depuis le fichier lu ou le de
   await reading.getByRole("button", { name: "Compter les entités" }).click();
   await expect(reading.locator(".sql-result")).toHaveText("10 entités gardées sur 20");
   await reading.getByRole("button", { name: "Fermer" }).click();
-  await expect(page.getByRole("textbox", { name: "Filtre (WHERE)" })).toHaveValue(`"dep" = '31'`);
-  await expect(page.getByRole("note", { name: "Attributs lus (SELECT)" })).toHaveText("3 : nom, pop, dep");
-  await page.getByRole("button", { name: "Requête de lecture" }).click(); // le champ du SELECT l'ouvre aussi
+  await expect(page.getByTestId("read-where")).toHaveText(`"dep" = '31'`);
+  await expect(page.getByTestId("read-select")).toHaveText("nom, pop, dep");
+  await page.getByRole("button", { name: "Requête de lecture" }).click();
   await file.getByRole("button", { name: "Tous", exact: true }).click();
   await reading.getByRole("button", { name: "Fermer" }).click();
-  await expect(page.getByRole("note", { name: "Attributs lus (SELECT)" })).toHaveText("Tous les attributs");
+  await expect(page.getByTestId("read-select")).toHaveText("tous les attributs");
   const editor = page.getByRole("dialog", { name: /Éditeur SQL/ });
   const helper = editor.getByRole("complementary", { name: "Attributs et valeurs" });
 

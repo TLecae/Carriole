@@ -172,13 +172,12 @@ chargées depuis internet ; voir l'[installation](installation.md#fonds-de-plan-
 - **(Geo)Parquet sur le web** : *Lecture (Geo)Parquet* accepte une adresse `https://…/fichier.parquet`. Le fichier est lu
   par plages : seules les parties utiles sont téléchargées (avec *Lignes lues au plus*, à peine plus que ces lignes).
   Le proxy des *Paramètres* est utilisé ; un fichier modifié sur le serveur (ETag, date) est relu au run suivant.
-- **Requête de lecture** (*Lecture CSV*, *Lecture (Geo)Parquet*) : *Attributs lus (SELECT)* et *Filtre (WHERE)*
-  s'éditent ensemble dans une surcouche (bouton *Requête de lecture*, ou *Éditeur SQL* du filtre) : SELECT, FROM
-  (le fichier), WHERE et LIMIT. On coche les attributs à lire dans la liste des colonnes du fichier ; un clic sur un
-  nom l'insère dans le filtre, ▾ montre ses valeurs les plus fréquentes, lues dans le fichier sans lancer le flux.
-  *Compter les entités* dit combien le filtre en garde. DuckDB ne lit que les colonnes choisies et celles du filtre :
-  sur le web, il en télécharge moins. Pour calculer de nouveaux attributs, enchaîner *Créer des attributs* : la
-  chaîne reste dans DuckDB.
+- **Requête de lecture** (*Lecture CSV*, *Lecture (Geo)Parquet*) : un seul champ résume les attributs lus (SELECT) et le
+  filtre (WHERE) ; un clic ouvre la requête en surcouche : SELECT, FROM (le fichier), WHERE et LIMIT. On coche les
+  attributs à lire dans la liste des colonnes du fichier ; un clic sur un nom l'insère dans le filtre, ▾ montre ses
+  valeurs les plus fréquentes, lues dans le fichier sans lancer le flux. *Compter les entités* dit combien le filtre en
+  garde. DuckDB ne lit que les colonnes choisies et celles du filtre : sur le web, il en télécharge moins. Pour calculer
+  de nouveaux attributs, enchaîner *Créer des attributs* : la chaîne reste dans DuckDB.
 - **Écrire sur le partage** : un écrivain peut viser le partage de l'équipe. Deux flux qui modifient en même
   temps le même GeoPackage s'écrasent : éviter. Pour une tâche planifiée, préférer un chemin réseau (`//serveur/partage/…`)
   à une lettre de lecteur, que la session de la tâche ne voit pas toujours.

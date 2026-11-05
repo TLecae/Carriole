@@ -164,12 +164,12 @@ basemap (offline) or a custom tile address. Tiles are loaded from the internet; 
 - **(Geo)Parquet on the web**: *(Geo)Parquet reader* accepts an `https://…/file.parquet` address. The file is read by
   ranges: only the useful parts are downloaded (with *Maximum rows read*, barely more than those rows). The proxy from
   *Settings* is used; a file changed on the server (ETag, date) is read again on the next run.
-- **Read query** (*CSV reader*, *(Geo)Parquet reader*): *Attributes read (SELECT)* and *Filter (WHERE)* are edited
-  together in an overlay (*Read query* button, or the filter's *SQL editor*): SELECT, FROM (the file), WHERE and
-  LIMIT. Check the attributes to read in the list of the file's columns; a click on a name inserts it into the
-  filter, ▾ shows its most frequent values, read from the file without running the flow. *Count the features* tells
-  how many the filter keeps. DuckDB reads only the chosen columns and those of the filter: on the web, it downloads
-  less. To compute new attributes, chain *Create attributes*: the chain stays in DuckDB.
+- **Read query** (*CSV reader*, *(Geo)Parquet reader*): a single field sums up the attributes read (SELECT) and the
+  filter (WHERE); a click opens the query in an overlay: SELECT, FROM (the file), WHERE and LIMIT. Check the attributes
+  to read in the list of the file's columns; a click on a name inserts it into the filter, ▾ shows its most frequent
+  values, read from the file without running the flow. *Count the features* tells how many the filter keeps. DuckDB
+  reads only the chosen columns and those of the filter: on the web, it downloads less. To compute new attributes, chain
+  *Create attributes*: the chain stays in DuckDB.
 - **Writing to the share**: a writer can target the team share. Two flows modifying the same GeoPackage at the
   same time overwrite each other: avoid it. For a scheduled task, prefer a network path (`//server/share/…`) to a
   drive letter, which the task's session does not always see.

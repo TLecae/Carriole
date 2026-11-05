@@ -733,9 +733,6 @@
  "Lire {{name}}": "Read {{name}}",
  "Un lecteur lit au moins un attribut": "A reader reads at least one attribute",
  "Attribut lu (SELECT)": "Attribute read (SELECT)",
- "Tous les attributs": "All attributes",
- "{{n}} : {{names}}": "{{n}}: {{names}}",
- "Choisir les attributs lus et le filtre, dans la requête de lecture du fichier": "Choose the attributes read and the filter, in the read query of the file",
  "Requête de lecture": "Read query",
  "{{kept}} entités gardées sur {{total}}": "{{kept}} features kept out of {{total}}",
  "{{total}} entités dans le fichier": "{{total}} features in the file",
@@ -747,5 +744,10 @@
  "Filtre (WHERE)": "Filter (WHERE)",
  "(paramètre « Lignes lues au plus »)": "(parameter “Maximum rows read”)",
  "Compte les entités du fichier et celles que le filtre garde, sans lancer le flux": "Counts the features of the file and those the filter keeps, without running the flow",
- "Compter les entités": "Count the features"
+ "Compter les entités": "Count the features",
+ "Attributs lus (SELECT) et filtre (WHERE), appliqués à la lecture : DuckDB ne lit du fichier que les colonnes et les parties utiles.": "Attributes read (SELECT) and filter (WHERE), applied when reading: DuckDB reads only the useful columns and parts of the file.",
+ "Choisir les attributs lus et le filtre : colonnes du fichier, valeurs, comptage": "Choose the attributes read and the filter: columns of the file, values, count",
+ "tous les attributs": "all attributes",
+ "toutes les entités": "all features",
+ "Modifier…": "Edit…"
 }
