@@ -81,3 +81,8 @@ puis la tuile, dessinaient des rectangles pleins loin des données. Les deux pas
 couvre toute la case alors que le centre ou un coin de la case est hors du polygone est faux ; ce polygone seul est
 réparé (`make_valid`), puis recoupé. Réparer chaque niveau simplifié aurait coûté 45 s de plus sur un réseau de
 1,1 million de sommets (16 s → 62 s) ; le contrôle, 1 s (16 s → 17 s). Vue de version 6.
+
+## Complément (2026-11-05) : sélection d'une entité énorme
+La sélection n'est plus généralisée sur toute l'emprise de l'entité (grossière en zoomant, sous des tuiles fines) :
+la carte envoie son zoom et son emprise, le serveur lit les pièces de la vue au niveau des tuiles de ce zoom, sur
+l'emprise affichée (et une marge), et la carte la redemande après chaque déplacement.

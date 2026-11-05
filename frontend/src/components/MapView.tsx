@@ -463,22 +463,33 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
       return;
     }
     let alive = true;
-    void api.dataFeature(target, selectedFid).then((f) => {
-      if (!alive) return;
-      const properties = { edges: f.outline === "edges" };
-      selection?.setData(f.geometry ? ({ type: "Feature", properties, geometry: f.geometry } as unknown as GeoData) : (EMPTY as unknown as GeoData));
-      if (!f.bbox || useInspector.getState().selectedFrom === "map") return;
-      const [w, s, e, n] = f.bbox;
-      const center: [number, number] = [(w + e) / 2, (s + n) / 2];
-      if (w === e && s === n) {
-        if (!map.getBounds().contains(center)) map.easeTo({ center, zoom: Math.max(map.getZoom(), 12) });
-      } else {
-        const b = map.getBounds();
-        if (!(b.contains([w, s]) && b.contains([e, n]))) map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 16 });
-      }
-    });
+    let asked = 0; // demandes successives (la carte bouge) : seule la dernière réponse compte
+    let generalized = false; // entité énorme : lue au zoom et sur l'emprise de la carte, redemandée quand elle bouge
+    const load = (frame: boolean) => {
+      const ticket = ++asked;
+      const b = map.getBounds();
+      void api.dataFeature(target, selectedFid, { zoom: map.getZoom(), bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] }).then((f) => {
+        if (!alive || ticket !== asked) return;
+        generalized = !!f.generalized;
+        const properties = { edges: f.outline === "edges" };
+        selection?.setData(f.geometry ? ({ type: "Feature", properties, geometry: f.geometry } as unknown as GeoData) : (EMPTY as unknown as GeoData));
+        if (!frame || !f.bbox || useInspector.getState().selectedFrom === "map") return;
+        const [w, s, e, n] = f.bbox;
+        const center: [number, number] = [(w + e) / 2, (s + n) / 2];
+        if (w === e && s === n) {
+          if (!map.getBounds().contains(center)) map.easeTo({ center, zoom: Math.max(map.getZoom(), 12) });
+        } else {
+          const view = map.getBounds();
+          if (!(view.contains([w, s]) && view.contains([e, n]))) map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 16 });
+        }
+      });
+    };
+    load(true);
+    const moved = () => generalized && load(false);
+    map.on("moveend", moved);
     return () => {
       alive = false;
+      map.off("moveend", moved);
     };
   }, [selectedFid, target, ready]);
 

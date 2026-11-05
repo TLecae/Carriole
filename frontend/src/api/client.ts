@@ -203,7 +203,9 @@ export const api = {
   dataLocate: (t: PortRef, q: DataQuery, fid: number) =>
     call<{ index: number | null }>(`${dataPath(t)}/locate`, { method: "POST", ...json({ query: q, fid }) }),
   holdCache: (page: string, runs: string[]) => call<{ policy: string }>("/cache/hold", { method: "POST", ...json({ page, runs }) }),
-  dataFeature: (t: PortRef, fid: number) => call<FeatureInfo>(`${dataPath(t)}/feature/${fid}`),
+  // `view` : zoom et emprise (WGS84) de la carte ; une entité énorme y est lue à la finesse des tuiles de ce zoom
+  dataFeature: (t: PortRef, fid: number, view?: { zoom: number; bbox: [number, number, number, number] }) =>
+    call<FeatureInfo>(`${dataPath(t)}/feature/${fid}${view ? `?${new URLSearchParams({ zoom: String(view.zoom), bbox: view.bbox.map((v) => v.toFixed(6)).join(",") })}` : ""}`),
   rasterInfo: (t: PortRef, fid: number) => call<RasterInfo>(`${dataPath(t)}/raster/${fid}`),
   rasterPixel: (t: PortRef, fid: number, lon: number, lat: number) =>
     call<RasterPixel>(`${dataPath(t)}/raster/${fid}/pixel?lon=${lon}&lat=${lat}`),

@@ -325,6 +325,7 @@ export interface FeatureInfo {
   bbox?: [number, number, number, number]; // WGS84 : ouest, sud, est, nord
   geometry?: GeoJsonGeometry; // WGS84 : sert à surligner l'entité choisie
   outline?: "edges"; // polygone découpé (énorme) : son contour est dans les lignes de `geometry`, pas le bord des pièces
+  generalized?: boolean; // entité énorme : géométrie de la vue de la carte demandée, à redemander quand elle bouge
 }
 
 /** Type de base d'une connexion. */

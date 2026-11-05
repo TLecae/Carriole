@@ -755,7 +755,10 @@ def _wgs84(port: Port, geometry: str = GEOM) -> str:
     return f"ST_Transform({geometry}, {_lit(port.crs)}, {_lit(WGS84)}, true)"
 
 
-def feature(port: Port, fid: int) -> dict[str, Any]:
+def feature(port: Port, fid: int, view: tuple[float, float, float, float, float] | None = None) -> dict[str, Any]:
+    """Attributs et géométrie (WGS84) d'une entité, pour la sélection. `view` : (zoom, ouest, sud, est, nord) de la
+    carte ; une entité énorme y est alors lue au niveau des tuiles de ce zoom, sur l'emprise affichée (`generalized` :
+    la carte la redemande quand elle bouge)."""
     types = port.types()
     attrs = port.attributes(types)
     names, data = port.duck.run(
@@ -768,7 +771,8 @@ def feature(port: Port, fid: int) -> dict[str, Any]:
         "attributes": {n: _json_value(v) for n, v in zip(names, data[0], strict=True)},
     }
     if port.has_geometry and port.crs:
-        found = _generalized_geometry(port, fid)
+        found = _generalized_geometry(port, fid, view)
+        result["generalized"] = found is not None
         if found is None:
             _, rows = port.duck.run(
                 f"SELECT ST_AsGeoJSON(w), ST_XMin(w), ST_YMin(w), ST_XMax(w), ST_YMax(w) FROM "
@@ -793,10 +797,23 @@ def _to_wgs84(xy: np.ndarray) -> np.ndarray:
     return np.round(np.c_[lon, lat], 6)
 
 
-def _generalized_geometry(port: Port, fid: int) -> tuple[dict[str, Any], list[float], bool] | None:
-    """Géométrie d'une entité énorme (parcelles fusionnées…) pour la sélection : lue dans un niveau généralisé de la
-    vue, à la finesse de `FEATURE_PIXELS` pixels sur son emprise ; son emprise ; vrai si elle porte son contour à part
-    (polygone découpé). None : entité ordinaire (lue telle quelle) ou pas de vue."""
+def _from_wgs84(lonlat: np.ndarray) -> np.ndarray:
+    """Longitude, latitude → EPSG:3857 (sphère de Web Mercator), l'inverse de `_to_wgs84`."""
+    r = WORLD / math.pi
+    lat = np.clip(lonlat[:, 1], -85.05, 85.05)
+    return np.c_[r * np.radians(lonlat[:, 0]), r * np.log(np.tan(math.pi / 4 + np.radians(lat) / 2))]
+
+
+def _generalized_geometry(
+    port: Port, fid: int, view: tuple[float, float, float, float, float] | None = None
+) -> tuple[dict[str, Any], list[float], bool] | None:
+    """Géométrie d'une entité énorme (réseau, parcelles fusionnées…) pour la sélection, lue dans la vue ; son emprise ;
+    vrai si elle porte son contour à part (polygone découpé). None : entité ordinaire (lue telle quelle) ou pas de vue.
+
+    Sans `view` : niveau généralisé à la finesse de `FEATURE_PIXELS` pixels sur toute son emprise. Avec `view` (zoom
+    et emprise de la carte) : le niveau que lisent les tuiles de ce zoom, pièces de l'emprise affichée seulement. La
+    sélection a alors la finesse de ce qui est dessiné dessous ; à l'emprise entière, elle devenait grossière en
+    zoomant (un réseau routier de département)."""
     if port.view is None or port.entities is None:
         return None
     _, found = port.duck.run(
@@ -808,14 +825,30 @@ def _generalized_geometry(port: Port, fid: int) -> tuple[dict[str, Any], list[fl
         return None
     _, *box = found[0]
     extent = max(box[2] - box[0], box[3] - box[1])
-    finest = [lv for lv in views.LEVELS if extent / views.pixel(lv + 1) <= FEATURE_PIXELS]
-    level = max(finest) if finest else min(views.LEVELS)
+    corners = _to_wgs84(np.array([[box[0], box[1]], [box[2], box[3]]]))
+    area, args = "", []
+    if view is None:
+        finest = [lv for lv in views.LEVELS if extent / views.pixel(lv + 1) <= FEATURE_PIXELS]
+        level = max(finest) if finest else min(views.LEVELS)
+        cell = extent / FEATURE_PIXELS
+    else:
+        zoom, *lonlat = view
+        level = views.level_for(int(max(0, min(zoom, 22))))
+        cell = views.pixel(level + 1) if level != views.FULL else 0.0
+        (x0, y0), (x1, y1) = _from_wgs84(np.array([lonlat[:2], lonlat[2:]], dtype=float))
+        mx, my = (x1 - x0) / 4, (y1 - y0) / 4  # une marge : un petit déplacement reste couvert
+        area = " AND bbox.xmax >= ? AND bbox.xmin <= ? AND bbox.ymax >= ? AND bbox.ymin <= ?"
+        args = [x0 - mx, x1 + mx, y0 - my, y1 + my]
     found = port.duck.arrow(
-        f"SELECT geom_3857, bbox, role FROM read_parquet({_lit(port.view.as_posix())}) WHERE lvl = ? AND fid = ?",
-        [level, fid],
+        f"SELECT geom_3857, bbox, role FROM read_parquet({_lit(port.view.as_posix())}) WHERE lvl = ? AND fid = ?{area}",
+        [level, fid, *args],
     )
-    if found.num_rows == 0:
-        return None
+    if found.num_rows == 0:  # hors de l'emprise affichée : rien à surligner, l'emprise sert à la rejoindre
+        return (
+            None
+            if view is None
+            else ({"type": "GeometryCollection", "geometries": []}, [*corners[0], *corners[1]], False)
+        )
     wkb = found.column("geom_3857").to_numpy(zero_copy_only=False)
     drawn = np.array([w is not None for w in wkb], bool)
     role = found.column("role").to_numpy()
@@ -824,13 +857,12 @@ def _generalized_geometry(port: Port, fid: int) -> tuple[dict[str, Any], list[fl
     if not drawn.all():  # morceaux de moins d'un pixel : des cellules, regroupées en surfaces
         cells = found.column("bbox").combine_chunks().filter(pa.array(~drawn))
         cx, cy = ((cells.field(f"{a}min").to_numpy() + cells.field(f"{a}max").to_numpy()) / 2 for a in "xy")
-        shapes = np.concatenate([shapes, _cells(cx, cy, extent / FEATURE_PIXELS)])
+        shapes = np.concatenate([shapes, _cells(cx, cy, cell)])
     if edges.any():  # polygone découpé : ses pièces (sans contour) et son contour à part, sans les coupes
         shapes = np.concatenate([shapes, [shapely.multilinestrings(shapely.get_parts(shapely.from_wkb(wkb[edges])))]])
     shapes = shapely.transform(shapes, _to_wgs84)
     polygons = shapes[shapely.get_type_id(shapes) == 3]
     geometry = shapely.multipolygons(polygons) if len(polygons) == len(shapes) else shapely.geometrycollections(shapes)
-    corners = _to_wgs84(np.array([[box[0], box[1]], [box[2], box[3]]]))
     return json.loads(shapely.to_geojson(geometry)), [*corners[0], *corners[1]], bool(edges.any())
 
 

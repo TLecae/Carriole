@@ -14,7 +14,7 @@ from typing import Annotated, Any, Literal
 import pyarrow as pa
 from etl_engine import formats
 from etl_engine.data import with_crs
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, ValidationError
 from starlette.background import BackgroundTask
@@ -110,8 +110,16 @@ def locate(port: PortDep, body: LocateIn) -> dict[str, int | None]:
 
 
 @router.get("/data/{run}/{node}/{port}/feature/{fid}")
-def feature(port: PortDep, fid: int) -> dict[str, Any]:
-    return ds.feature(port, fid)
+def feature(port: PortDep, fid: int, zoom: float | None = None, bbox: str | None = None) -> dict[str, Any]:
+    """`zoom` et `bbox` (ouest,sud,est,nord en WGS84) : la vue de la carte, pour la sélection d'une entité énorme."""
+    view = None
+    if zoom is not None and bbox:
+        try:
+            w, s, e, n = (float(v) for v in bbox.split(","))
+        except ValueError:
+            raise HTTPException(400, "emprise invalide (ouest,sud,est,nord)") from None
+        view = (zoom, w, s, e, n)
+    return ds.feature(port, fid, view)
 
 
 @router.get("/data/{run}/{node}/{port}/raster/{fid}")

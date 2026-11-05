@@ -605,6 +605,23 @@ def test_huge_entity_tiles_and_selection_stay_light(env, monkeypatch):
     # de petites parcelles éparses : une cellule par pixel occupé (fusionnées si voisines), pas leurs 15 000 sommets
     assert sum(len(ring) for poly in light["geometry"]["coordinates"] for ring in poly) < 3000 * 5
     assert light["bbox"] == pytest.approx(full["bbox"], abs=1e-6)
+    assert light["generalized"] and not full["generalized"]
+
+    # avec la vue de la carte : le niveau des tuiles de ce zoom, sur l'emprise affichée (pas l'entité grossière)
+    w, s, e, n = full["bbox"]
+    corner = f"{w},{s},{w + (e - w) / 8},{s + (n - s) / 8}"  # un huitième de l'emprise, en bas à gauche
+
+    def selection(zoom, bbox):
+        return env.get(url("feature/0", node="big"), params={"zoom": zoom, "bbox": bbox}).json()
+
+    zoomed = selection(13, corner)  # zoom 13 : les parcelles elles-mêmes (niveau complet)
+    polys = zoomed["geometry"]["coordinates"]
+    assert zoomed["generalized"] and zoomed["bbox"] == pytest.approx(full["bbox"], abs=1e-6)
+    assert 0 < len(polys) < 3000 and all(len(p[0]) == 5 for p in polys)  # parcelles exactes, de la vue seulement
+    xs = [x for p in polys for x, _ in p[0]]
+    assert max(xs) < w + (e - w) / 8 * 1.5  # la vue et sa marge
+    assert selection(13, "0,0,0.1,0.1")["geometry"] == {"type": "GeometryCollection", "geometries": []}  # hors vue
+    assert env.get(url("feature/0", node="big"), params={"zoom": 13, "bbox": "a,b"}).status_code == 400
 
 
 def test_fused_polygon_tiles_draw_cut_pieces_and_their_outline_apart(env, monkeypatch):
