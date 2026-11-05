@@ -422,7 +422,6 @@
  "Proxy": "Proxy",
  "Préparation des données…": "Preparing data…",
  "Publier une version": "Publish a version",
- "Recalcule tous les nœuds, sans reprendre ceux du dernier run": "Recomputes every node, without reusing those of the last run",
  "Recharger la page": "Reload the page",
  "Recherche globale": "Global search",
  "Rechercher un flux": "Search for a flow",
@@ -722,5 +721,7 @@
  "Ouvrir l'éditeur : toute la requête, attributs et valeurs à insérer, vérification": "Open the editor: the whole query, attributes and values to insert, checking",
  "Expression valide": "Valid expression",
  "Expression": "Expression",
- "Valeur de {{name}}": "Value of {{name}}"
+ "Valeur de {{name}}": "Value of {{name}}",
+ "Recalcule tous les nœuds sans rien reprendre du dernier run : relit aussi les bases, API web et STAC": "Recomputes every node, reusing nothing from the last run: databases, web APIs and STAC are read again too",
+ "Source externe reprise du dernier run, ses réglages n'ayant pas changé. « Tout relancer » (menu Exécution) la relit.": "External source reused from the last run, as its settings did not change. “Run everything again” (Run menu) reads it again."
 }

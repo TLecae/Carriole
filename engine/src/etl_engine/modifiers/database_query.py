@@ -15,7 +15,7 @@ from etl_engine.sdk import ConfigError, DbConnection, DbSql, Emit, Modifier, Par
 
 class DatabaseQuery(Modifier):
     name = "DatabaseQuery"
-    reusable = "partial"  # relu à chaque run, repris dans un run « jusqu'au nœud » (Modifier.reusable)
+    reusable = "source"  # source externe : reprise si ses réglages n'ont pas changé (Modifier.reusable)
     label = "SQL (créateur)"
     category = "Entrées / sorties"
     description = "Exécute un ordre SQL sur une base (PostgreSQL, Oracle) et envoie les lignes qu'il renvoie."
@@ -43,6 +43,10 @@ class DatabaseQuery(Modifier):
             description="Décoché : lecture seule (SELECT). Coché : UPDATE, CREATE TABLE… autorisés, validés à la fin.",
         )
         crs: str = Field("", title="Système de coordonnées", description="Si le résultat contient « geometry ».")
+
+    def reusability(self) -> bool | str:
+        """Une lecture est reprise du run précédent si rien n'a changé ; un SQL qui écrit est toujours relancé."""
+        return False if self.params.allow_write else "source"
 
     def _check(self) -> None:
         if not self.params.connection:

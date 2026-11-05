@@ -33,6 +33,9 @@
   fingerprint of the nodes using a parameter, so the cache was not used.
 - Inspector map: the selection of a huge entity is read at the level of the tiles of the current zoom, within the
   displayed extent; it was generalized over the whole entity, coarse once zoomed.
+- Cache: database, STAC and web API (GET) reads are reused while their settings and upstream do not change, so a
+  flow run again with the same parameters reads nothing again; *Run everything again* reads them
+  ([ADR 0048](docs/decisions/0048-sources-externes-reprises-du-cache.md)).
 
 ## 0.1.5
 

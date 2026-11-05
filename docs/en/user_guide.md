@@ -60,15 +60,15 @@ any node parameter: `${NAME}`; environment variable of the machine: `${env:NAME}
 ## 3. Running and following
 
 - **Run** executes the flow; **Up to node** (*Run* menu or node bar) stops at the selected node, reusing the cache
-  of everything unchanged, **database reads included**; nodes of the other branches stay
+  of everything unchanged; nodes of the other branches stay
   inspectable.
 - **Caching** (*Cache* button next to *Run*, or *Run* menu): one setting for the whole flow, remembered
   between sessions:
   - **on** (default): the data of every node is kept, for the inspector; on the next run, **only the changed nodes
-    (and their downstream) run**, the others are reused from the previous run (*cache* state). Writers, database,
-    web API and STAC readers, SQL and launched flows **always run again** with *Run* (their source can change
-    without the flow changing), with all their downstream; *Up to node* reuses the reads (not the writes). *Run
-    everything again* (*Run* menu) recomputes everything;
+    (and their downstream) run**, the others are reused from the previous run (*cache* state). Database, web API
+    (GET) and STAC reads are reused too while their settings do not change: if the database or the API changed, *Run
+    everything again* (*Run* menu) reads them again and recomputes everything. Writers, SQL that writes, web calls
+    other than GET and launched flows **always run again**;
   - **off**: everything is recomputed and nothing is kept: faster and less disk, but no inspector (except for the
     last nodes of the flow). An unconnected output (`Failed` of a filter…) is only counted.
 - **Disk space** (desktop application): only the data of the **last run of each open flow** is kept, plus that of the

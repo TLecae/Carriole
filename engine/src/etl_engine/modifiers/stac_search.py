@@ -32,7 +32,7 @@ def sign_href(href: str) -> str:
 
 class STACSearch(Modifier):
     name = "STACSearch"
-    reusable = "partial"  # relu à chaque run, repris dans un run « jusqu'au nœud » (Modifier.reusable)
+    reusable = "source"  # source externe : reprise si ses réglages n'ont pas changé (Modifier.reusable)
     label = "Recherche STAC"
     category = "Rasters"
     description = (

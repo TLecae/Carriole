@@ -89,7 +89,7 @@ export function TopBar() {
         <MenuItem onSelect={() => one && launch(one.id, false)} disabled={active || !one} title={t("Lance le flux jusqu'au nœud sélectionné")}>
           {t("Jusqu'au nœud sélectionné")}
         </MenuItem>
-        <MenuItem onSelect={() => launch(null, true)} disabled={active || empty || !s.caching} title={t("Recalcule tous les nœuds, sans reprendre ceux du dernier run")}>
+        <MenuItem onSelect={() => launch(null, true)} disabled={active || empty || !s.caching} title={t("Recalcule tous les nœuds sans rien reprendre du dernier run : relit aussi les bases, API web et STAC")}>
           {t("Tout relancer")}
         </MenuItem>
         <MenuItem onSelect={() => setBatchOpen(true)} disabled={active || empty || noParams} title={noParams ? t("Un lot a besoin d'un paramètre publié (panneau du flux)") : t("Un run par fichier d'un dossier ou par valeur")}>

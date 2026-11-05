@@ -64,15 +64,15 @@ millésime, un fichier). Dans n'importe quel paramètre de nœud : `${NOM}` ; va
 ## 3. Lancer et suivre
 
 - **Lancer** exécute le flux ; **Jusqu'au nœud** (menu *Exécution* ou bandeau du nœud) s'arrête au nœud
-  sélectionné, en reprenant le cache de tout ce qui n'a pas changé, **y compris les lectures de base de données** ;
+  sélectionné, en reprenant le cache de tout ce qui n'a pas changé ;
   les nœuds des autres branches restent consultables.
 - **Mise en cache** (bouton *Cache* à côté de *Lancer*, ou menu *Exécution*) : un réglage pour tout
   le flux, retenu d'une session à l'autre :
   - **activée** (par défaut) : les données de chaque nœud sont gardées, pour l'inspecteur ; au run suivant, **seuls
     les nœuds modifiés (et leur aval) tournent**, les autres sont repris du run précédent (état *cache*). Les
-    écritures, les lectures de base de données, d'API web ou de STAC, le SQL et les flux lancés sont **toujours
-    relancés** par *Lancer* (leur source peut changer sans que le flux change), avec tout leur aval ; *Jusqu'au
-    nœud* reprend les lectures (pas les écritures). *Tout relancer* (menu *Exécution*) recalcule tout ;
+    lectures de base de données, d'API web (GET) ou de STAC sont reprises elles aussi tant que leurs réglages ne
+    changent pas : si la base ou l'API a changé, *Tout relancer* (menu *Exécution*) les relit et recalcule tout. Les
+    écritures, le SQL qui écrit, les appels web autres que GET et les flux lancés sont **toujours relancés** ;
   - **désactivée** : tout est recalculé et rien n'est gardé : plus rapide et moins de disque, mais pas d'inspecteur
     (sauf pour les derniers nœuds du flux). Une sortie non reliée (`Failed` d'un filtre…) est seulement comptée.
 - **Place sur le disque** (application de bureau) : seules les données du **dernier run de chaque flux ouvert** sont

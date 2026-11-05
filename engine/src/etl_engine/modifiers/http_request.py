@@ -47,7 +47,7 @@ class RateLimiter:
 
 class HttpRequest(Modifier):
     name = "HttpRequest"
-    reusable = False  # toujours relancé (voir Modifier.reusable)
+    reusable = "source"  # un GET : repris si ses réglages et son amont n'ont pas changé (Modifier.reusable)
     label = "Appeler une API web"
     category = "Entrées / sorties"
     description = "Appelle une adresse web (GET, POST…) pour chaque entité et range la réponse dans un attribut."
@@ -109,6 +109,11 @@ class HttpRequest(Modifier):
             raise ConfigError("l'adresse doit commencer par http:// ou https://")
         if p.body_attribute == p.status_attribute:
             raise ConfigError("les attributs de la réponse et du code doivent différer")
+
+    def reusability(self) -> bool | str:
+        """Un GET lit sans rien changer : repris du run précédent si rien n'a changé. Les autres méthodes agissent sur
+        le serveur : toujours relancées."""
+        return "source" if self.params.method == "GET" else False
 
     def used_attributes(self) -> list[str]:
         p = self.params

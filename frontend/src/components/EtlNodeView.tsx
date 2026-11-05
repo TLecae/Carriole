@@ -242,7 +242,10 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
         </div>
       </div>
       {status && statusLabel(status) && (
-        <div className="node-foot">
+        <div
+          className="node-foot"
+          title={status === "cached" && info.source ? t("Source externe reprise du dernier run, ses réglages n'ayant pas changé. « Tout relancer » (menu Exécution) la relit.") : undefined}
+        >
           <span className={`dot ${status}`} />
           {statusLabel(status)}
           {result?.seconds != null && status !== "running" && status !== "pending" && ` · ${formatNumber(result.seconds)} s`}

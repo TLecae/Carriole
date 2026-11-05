@@ -183,9 +183,11 @@ class Modifier:
     stateful: ClassVar[bool] = False  # vrai : les lots doivent être traités dans l'ordre, un par un
     hidden: ClassVar[bool] = False  # vrai : hors de la palette et du catalogue (ancien modificateur, encore exécuté)
     # faux : toujours relancé, jamais repris d'un run précédent (effet hors du flux : écriture, flux lancé, SQL qui
-    # modifie la base). « partial » : source qui change sans que le flux change (base, API…) : relue à chaque run,
-    # mais reprise dans un run « jusqu'au nœud ». Un modificateur sans sortie (écriture) n'est jamais repris.
-    reusable: ClassVar[bool | Literal["partial"]] = True
+    # modifie la base). « source » : source externe qui peut changer sans que le flux change (base, API web, STAC) :
+    # reprise comme les autres nœuds si ses réglages n'ont pas changé, relue par « Tout relancer » ; l'éditeur le
+    # rappelle sur le nœud repris (ADR 0048). « partial » : ancien nom de « source ». Un modificateur sans sortie
+    # (écriture) n'est jamais repris. Selon les réglages : `reusability`.
+    reusable: ClassVar[bool | Literal["source", "partial"]] = True
     # calcul géométrique : lots coupés en tranches de cette taille (mémoire bornée par tâche, cœurs mieux occupés)
     slice_rows: ClassVar[int | None] = None
     # voie SQL d'une lecture : si DuckDB échoue (type qu'il ne sait pas écrire…), le moteur repasse par `run` au lieu
@@ -273,6 +275,11 @@ class Modifier:
         return used_attributes(self.params, self.inputs[0] if self.inputs else None)
 
     # --- description pour l'API et l'éditeur ----------------------------------------------
+    def reusability(self) -> bool | str:
+        """`reusable` selon les réglages du nœud : un appel web qui n'est pas un GET, un SQL qui écrit, sont toujours
+        relancés."""
+        return type(self).reusable
+
     @classmethod
     def describe(cls, lang: str | None = None) -> dict[str, Any]:
         """Description pour l'éditeur ; `lang` : langue des textes (le code est en français, le catalogue traduit)."""
@@ -296,6 +303,7 @@ class Modifier:
             "outputs": list(outputs),
             "params_schema": cls.Params.model_json_schema(),
             "hidden": cls.hidden,
+            "source": cls.reusable in ("source", "partial"),  # source externe : reprise du cache signalée (ADR 0048)
             # décrit dans docs/catalogue.md (modificateurs livrés, hors plugins) : l'éditeur y renvoie
             "documented": not cls.hidden and cls.__module__.startswith("etl_engine.modifiers."),
         }

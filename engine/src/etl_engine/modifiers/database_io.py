@@ -34,7 +34,7 @@ OracleConnection = Annotated[str, db_connection("oracle")]
 class DatabaseReader(Modifier):
     """Lecteur d'une base (classe de base : sans nom, elle n'est pas dans la palette)."""
 
-    reusable = "partial"  # relu à chaque run, repris dans un run « jusqu'au nœud » (Modifier.reusable)
+    reusable = "source"  # source externe : reprise si ses réglages n'ont pas changé (Modifier.reusable)
     category = "Lecture"
     inputs = ()
     outputs = ("output",)

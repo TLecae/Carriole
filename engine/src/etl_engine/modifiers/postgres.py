@@ -29,7 +29,7 @@ PgConnection = Annotated[str, db_connection("postgres")]
 
 class PostgresReader(Modifier):
     name = "PostgresReader"
-    reusable = "partial"  # relu à chaque run, repris dans un run « jusqu'au nœud » (Modifier.reusable)
+    reusable = "source"  # source externe : reprise si ses réglages n'ont pas changé (Modifier.reusable)
     label = "Lecture PostgreSQL / PostGIS"
     category = "Lecture"
     description = (

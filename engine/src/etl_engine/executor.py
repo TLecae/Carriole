@@ -175,12 +175,13 @@ def fingerprint(node_type: str, inst: Any, upstream: list[tuple[str, str, str]],
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:32]
 
 
-def reusable_kind(inst: Any, partial: bool = False) -> bool:
-    """Un nœud peut-il être repris d'un run précédent ? Jamais une écriture (sans sortie). Une source externe
-    (`reusable = "partial"` : base, API…) seulement dans un run « jusqu'au nœud » (`partial`)."""
-    cls = type(inst)
-    kind = getattr(cls, "reusable", True)
-    return bool(cls.outputs) and (kind is True or (partial and kind == "partial"))
+def reusable_kind(inst: Any) -> bool:
+    """Un nœud peut-il être repris d'un run précédent ? Jamais une écriture (sans sortie) ni un nœud toujours relancé
+    (`reusable` faux selon ses réglages). Une source externe (base, API web, STAC) l'est comme les autres nœuds, si
+    ses réglages n'ont pas changé : « Tout relancer » la relit (ADR 0048)."""
+    how = getattr(inst, "reusability", None)
+    kind = how() if how is not None else getattr(type(inst), "reusable", True)
+    return bool(type(inst).outputs) and kind is not False
 
 
 def _describe_params(exc: ValidationError) -> str:
@@ -352,12 +353,7 @@ def run_flow(
         statics[nid] = fingerprint(
             flow.node(nid).type, inst, [(ln.to[1], statics[ln.from_[0]], ln.from_[1]) for ln in links], extra
         )
-        if reusable_kind(inst):
-            continue
-        before = read_meta(Path(reuse_from) / nid) if (reuse_from and cache) else None
-        if reusable_kind(inst, partial) and before and str(before.get("fingerprint", ""))[:16] == prints[nid][:16]:
-            prints[nid] = before["fingerprint"]  # source inchangée, reprise : son aval garde aussi ses empreintes
-        else:
+        if not reusable_kind(inst):
             prints[nid] = f"{prints[nid][:16]}{fresh[:16]}"
 
     deps = {nid: {link.from_[0] for link in plan.inbound.get(nid, [])} & set(selected) for nid in selected}

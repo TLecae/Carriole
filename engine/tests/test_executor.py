@@ -335,10 +335,13 @@ def test_a_geometry_rebuilt_without_its_metadata_keeps_the_crs_of_its_input(regi
 
 
 class Database(Clock):
-    """Lecture d'une base : relue à chaque run, reprise dans un run « jusqu'au nœud »."""
+    """Lecture d'une base : reprise du cache tant que ses réglages ne changent pas, relue par « Tout relancer »."""
 
     name = "TestDatabase"
-    reusable = "partial"
+    reusable = "source"
+
+    class Params(Params):
+        table: str = "communes"
 
 
 def test_run_to_a_node_reuses_the_cache_even_of_a_database(registry, tmp_path):
@@ -363,8 +366,8 @@ def test_run_to_a_node_reuses_the_cache_even_of_a_database(registry, tmp_path):
     to_b = run_flow(flow, registry, tmp_path / "run3", reuse_from=tmp_path / "run2", target="b")
     assert to_b.nodes["b"].status == "cached" and Clock.calls == 1
 
-    # un run complet relit la base, et recalcule son aval
-    again = run_flow(flow, registry, tmp_path / "run4", reuse_from=tmp_path / "run3")
+    # « Tout relancer » (aucun run repris) relit la base, et recalcule son aval
+    again = run_flow(flow, registry, tmp_path / "run4")
     assert again.nodes["db"].status == "done" and again.nodes["a"].status == "done" and Clock.calls == 2
 
     # un réglage changé dans la branche visée : seul ce nœud tourne, la base reste en cache
@@ -374,6 +377,41 @@ def test_run_to_a_node_reuses_the_cache_even_of_a_database(registry, tmp_path):
     )
     edited = run_flow(changed, registry, tmp_path / "run5", reuse_from=tmp_path / "run4", target="a")
     assert edited.nodes["db"].status == "cached" and edited.nodes["a"].status == "done" and Clock.calls == 2
+
+
+def test_an_unchanged_external_source_is_reused_by_a_full_run(registry, tmp_path):
+    """Un flux à paramètres qui part d'une base ou d'une API : relancé avec les mêmes valeurs, rien n'est relu ni
+    recalculé ; une valeur changée relit la source et recalcule son aval (ADR 0048)."""
+    registry.register(Database)
+    Clock.calls = 0
+    nodes = [
+        {"id": "db", "type": "TestDatabase", "params": {"table": "communes"}},
+        {"id": "a", "type": "ExtractByExpression", "params": {"conditions": ['"n" > 0']}},
+    ]
+    flow = make_flow(nodes, [("db", "output", "a", "input")])
+    run_flow(flow, registry, tmp_path / "run1")
+    same = run_flow(flow, registry, tmp_path / "run2", reuse_from=tmp_path / "run1")
+    assert {k: v.status for k, v in same.nodes.items()} == {"db": "cached", "a": "cached"} and Clock.calls == 1
+
+    other = make_flow([{**nodes[0], "params": {"table": "departements"}}, nodes[1]], [("db", "output", "a", "input")])
+    changed = run_flow(other, registry, tmp_path / "run3", reuse_from=tmp_path / "run2")
+    assert {k: v.status for k, v in changed.nodes.items()} == {"db": "done", "a": "done"} and Clock.calls == 2
+
+
+def test_only_reading_calls_are_reused():
+    """Un appel web autre que GET, un SQL qui écrit agissent sur le serveur : toujours relancés."""
+    from etl_engine.modifiers.database_query import DatabaseQuery
+    from etl_engine.modifiers.http_request import HttpRequest
+
+    def http(method: str) -> HttpRequest:
+        return HttpRequest(HttpRequest.Params(url="https://exemple.fr/api", method=method), None)  # type: ignore[arg-type]
+
+    def query(write: bool) -> DatabaseQuery:
+        params = DatabaseQuery.Params(connection="ma_base", sql="SELECT 1", allow_write=write)
+        return DatabaseQuery(params, None)  # type: ignore[arg-type]
+
+    assert executor.reusable_kind(http("GET")) and not executor.reusable_kind(http("POST"))
+    assert executor.reusable_kind(query(False)) and not executor.reusable_kind(query(True))
 
 
 def test_run_to_a_node_keeps_the_results_of_the_other_branches(registry, communes, tmp_path):

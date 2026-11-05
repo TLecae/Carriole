@@ -24,6 +24,7 @@ export interface ModifierInfo {
   label: string;
   category: string;
   hidden?: boolean; // ancien modificateur : hors de la palette, encore exécuté dans les flux existants
+  source?: boolean; // source externe (base, API web, STAC) : reprise du cache rappelée sur le nœud (ADR 0048)
   documented?: boolean; // décrit dans le catalogue publié (docs/catalogue.md) : l'éditeur y renvoie
   category_id?: string; // catégorie dans la langue source : clé stable (couleurs), quelle que soit la langue affichée
   description: string;
