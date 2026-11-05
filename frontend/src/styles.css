@@ -620,6 +620,17 @@ button.icon-only { padding: 4px 6px; }
 .helper-name.schema { font-weight: 600; font-family: inherit; }
 .helper-name.table { font-weight: 500; font-family: inherit; }
 .helper-tables { padding-left: 12px; }
+.helper-row input[type="checkbox"] { flex: none; margin: 0 2px; }
+.helper-column.unread .helper-name { color: var(--muted); }
+.helper-select { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.read-columns { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); }
+.reader-query { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 8px; min-height: 0; min-width: 0; }
+.rq-part { display: grid; gap: 4px; min-width: 0; }
+.rq-where { grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.rq-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; min-width: 0; font-size: 12px; }
+.rq-key { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--cm-keyword); }
+.rq-text { font-family: ui-monospace, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); max-height: 90px; overflow: auto; }
+.rq-file { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .helper-type { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
 .helper-columns { padding-left: 14px; }
 .helper-values { margin: 2px 0 6px 20px; padding-left: 6px; border-left: 2px solid var(--line); display: grid; gap: 3px; }

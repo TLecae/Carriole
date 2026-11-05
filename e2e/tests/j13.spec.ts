@@ -14,21 +14,35 @@ test("éditeur : attributs et valeurs à insérer, depuis le fichier lu ou le de
   const created = await (await page.request.post("/api/flows", { data: { flow } })).json();
   await page.goto(`/#flow=${created.id}`);
 
-  // filtre du lecteur : les colonnes du fichier et leurs valeurs, lues dans le fichier (sans run)
+  // requête de lecture du lecteur : SELECT (attributs cochés), WHERE avec les colonnes du fichier et leurs valeurs,
+  // lues dans le fichier (sans run), et le nombre d'entités gardées
   await page.getByTestId("node-lire").click();
   await page.getByRole("group", { name: "Filtre (WHERE)" }).getByRole("button", { name: "Éditeur SQL" }).click();
+  const reading = page.getByRole("dialog", { name: "Requête de lecture" });
+  const file = reading.getByRole("complementary", { name: "Attributs et valeurs" });
+  await expect(reading.locator(".cm-content")).toBeVisible(); // éditeur chargé (à la demande)
+  await file.getByRole("button", { name: "dep", exact: true }).click(); // insère "dep"
+  await reading.locator(".cm-content").press("End");
+  await page.keyboard.type(" = ");
+  await file.getByRole("button", { name: "Valeurs de dep" }).click();
+  await file.getByRole("button", { name: /^31/ }).click(); // insère '31'
+  await expect(reading.locator(".cm-content")).toHaveText(`"dep" = '31'`);
+  await expect(file).toContainText("Valeurs lues dans le fichier.");
+  await expect(reading.getByTestId("rq-select")).toHaveText("* (tous les attributs)");
+  await file.getByRole("checkbox", { name: "Lire id" }).uncheck();
+  await expect(reading.getByTestId("rq-select")).toHaveText(`"nom", "pop", "dep"`);
+  await expect(file).toContainText("3 attributs lus sur 4");
+  await reading.getByRole("button", { name: "Compter les entités" }).click();
+  await expect(reading.locator(".sql-result")).toHaveText("10 entités gardées sur 20");
+  await reading.getByRole("button", { name: "Fermer" }).click();
+  await expect(page.getByRole("textbox", { name: "Filtre (WHERE)" })).toHaveValue(`"dep" = '31'`);
+  await expect(page.getByRole("note", { name: "Attributs lus (SELECT)" })).toHaveText("3 : nom, pop, dep");
+  await page.getByRole("button", { name: "Requête de lecture" }).click(); // le champ du SELECT l'ouvre aussi
+  await file.getByRole("button", { name: "Tous", exact: true }).click();
+  await reading.getByRole("button", { name: "Fermer" }).click();
+  await expect(page.getByRole("note", { name: "Attributs lus (SELECT)" })).toHaveText("Tous les attributs");
   const editor = page.getByRole("dialog", { name: /Éditeur SQL/ });
   const helper = editor.getByRole("complementary", { name: "Attributs et valeurs" });
-  await expect(editor.locator(".cm-content")).toBeVisible(); // éditeur chargé (à la demande)
-  await helper.getByRole("button", { name: "dep", exact: true }).click(); // insère "dep"
-  await editor.locator(".cm-content").press("End");
-  await page.keyboard.type(" = ");
-  await helper.getByRole("button", { name: "Valeurs de dep" }).click();
-  await helper.getByRole("button", { name: /^31/ }).click(); // insère '31'
-  await expect(editor.locator(".cm-content")).toHaveText(`"dep" = '31'`);
-  await expect(helper).toContainText("Valeurs lues dans le fichier.");
-  await editor.getByRole("button", { name: "Fermer" }).click();
-  await expect(page.getByRole("textbox", { name: "Filtre (WHERE)" })).toHaveValue(`"dep" = '31'`);
 
   // condition d'un filtre : les attributs de l'entrée, leurs valeurs après un run
   await page.getByTestId("node-filtre").click();

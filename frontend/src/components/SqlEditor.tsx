@@ -20,13 +20,14 @@ export type QueryMode = "sql" | "where" | "expression";
  * complétion selon la base, erreurs soulignées par le serveur, attributs et valeurs à insérer (`helper`).
  * `connection` : la base où le SQL s'exécute ; sans elle, c'est du SQL DuckDB.
  */
-export function SqlField({ label, value, onChange, connection, where = false, helper, placeholder, preview }: { label: string; value: string; onChange: (v: string) => void; connection?: string; where?: boolean; helper?: HelperSource; placeholder?: string; preview?: ReactNode }) {
+export function SqlField({ label, value, onChange, connection, where = false, helper, placeholder, preview, onOpen }: { label: string; value: string; onChange: (v: string) => void; connection?: string; where?: boolean; helper?: HelperSource; placeholder?: string; preview?: ReactNode; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="sql-field">
       <div className="sql-line">
         <textarea className="sql-text" aria-label={label} rows={where ? 1 : 3} value={value} placeholder={placeholder} spellCheck={false} onChange={(e) => onChange(e.target.value)} />
-        <EditorButton onClick={() => setOpen(true)} />
+        {/* `onOpen` : une autre surcouche (requête de lecture d'un lecteur, qui montre aussi son SELECT) */}
+        <EditorButton onClick={() => (onOpen ? onOpen() : setOpen(true))} />
       </div>
       {preview}
       {open && <QueryEditor label={label} value={value} onChange={onChange} connection={connection} mode={where ? "where" : "sql"} helper={helper ?? (connection ? { kind: "connection", connection } : undefined)} onClose={() => setOpen(false)} />}
@@ -70,13 +71,7 @@ export function QueryEditor({ label, value, onChange, connection, mode, helper, 
     };
   }, [connection]);
 
-  // un filtre WHERE ou une expression se vérifient dans une requête complète
-  const prefix = mode === "where" ? "SELECT * FROM t WHERE " : mode === "expression" ? "SELECT " : "";
-  const check = async (sql: string): Promise<SqlCheckResult> => {
-    const r = await api.checkSql(prefix && sql.trim() ? `${prefix}${sql}${mode === "expression" ? " FROM t" : ""}` : sql, connection ?? "");
-    if (!prefix || !r.line) return r;
-    return { ...r, column: r.line === 1 && r.column ? Math.max(1, r.column - prefix.length) : r.column };
-  };
+  const check = queryCheck(mode, connection);
   const verify = async () => {
     setChecking(true);
     try {
@@ -131,6 +126,17 @@ export function QueryEditor({ label, value, onChange, connection, mode, helper, 
       </div>
     </Modal>
   );
+}
+
+/** Vérification par le serveur. Un filtre WHERE ou une expression se vérifient dans une requête complète ; l'erreur
+ * revient à sa colonne dans le texte saisi. */
+export function queryCheck(mode: QueryMode, connection = ""): (sql: string) => Promise<SqlCheckResult> {
+  const prefix = mode === "where" ? "SELECT * FROM t WHERE " : mode === "expression" ? "SELECT " : "";
+  return async (sql) => {
+    const r = await api.checkSql(prefix && sql.trim() ? `${prefix}${sql}${mode === "expression" ? " FROM t" : ""}` : sql, connection);
+    if (!prefix || !r.line) return r;
+    return { ...r, column: r.line === 1 && r.column ? Math.max(1, r.column - prefix.length) : r.column };
+  };
 }
 
 function skippedText(reason: NonNullable<SqlCheckResult["skipped"]>): string {

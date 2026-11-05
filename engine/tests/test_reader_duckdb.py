@@ -123,6 +123,39 @@ def test_csv_filter_at_read(registry, tmp_path):
     same(duck, python)
 
 
+def test_chosen_attributes_same_on_both_routes(registry, tmp_path):
+    """Attributs lus (SELECT) : dans cet ordre, SCR gardé ; le filtre peut se servir d'un attribut non gardé. Un seul
+    fichier local : le port n'est plus le fichier lui-même (ADR 0043)."""
+    t = pa.table(
+        {
+            "k": [1, 2, 3],
+            "nom": ["a", "b", "c"],
+            "v": [10, 20, 30],
+            GEOM: [shapely.to_wkb(shapely.Point(i, i)) for i in range(3)],
+        }
+    )
+    pq.write_table(with_crs(t, "EPSG:2154"), tmp_path / "t.parquet")
+    for where in ("", "v > 10 AND ST_X(geometry) < 2"):
+        params = {"path": str(tmp_path / "t.parquet"), "columns": ["nom", GEOM], "where": where}
+        duck, python, logs = read_both(registry, tmp_path / ("filtre" if where else "tout"), "GeoParquetReader", params)
+        assert by_duckdb(logs) and duck.schema.names == ["nom", GEOM] and get_crs(duck) == "EPSG:2154"
+        assert duck.column("nom").to_pylist() == (["b"] if where else ["a", "b", "c"])
+        same(duck, python)
+    (tmp_path / "c.csv").write_bytes(b"code;nom;pop\n31;Toulouse;500\n09;Foix;10\n")
+    params = {"path": str(tmp_path / "c.csv"), "delimiter": ";", "columns": ["nom", "code"], "where": "pop = '10'"}
+    duck, python, _ = read_both(registry, tmp_path / "csv", "CsvReader", params)
+    assert duck.to_pylist() == [{"nom": "Foix", "code": "09"}]
+    same(duck, python)
+
+
+def test_an_attribute_missing_from_the_file_stops_the_run_before_reading(registry, tmp_path):
+    (tmp_path / "c.csv").write_bytes(b"code\n31\n")
+    params = {"path": str(tmp_path / "c.csv"), "columns": ["code", "absent"]}
+    flow = Flow.model_validate({"nodes": [{"id": "r", "type": "CsvReader", "params": params}]})
+    res = run_flow(flow, registry, tmp_path / "run")
+    assert res.status == "error" and "absent" in (res.nodes["r"].error or res.error or "")
+
+
 def test_a_filter_that_is_not_a_condition_stops_the_run_before_reading(registry, tmp_path):
     (tmp_path / "c.csv").write_bytes(b"code\n31\n")
     for where, message in (("code || 'x'", "condition"), ("inconnue = 1", "inconnue")):

@@ -1047,6 +1047,7 @@ Les colonnes sont lues comme du texte (les codes à zéro initial sont conservé
 | <a id="csvreader-crs"></a>Système de coordonnées | Celui de la colonne WKT ou des X/Y. |  |
 | <a id="csvreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
 | <a id="csvreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="csvreader-columns"></a>Attributs lus (SELECT) | Attributs gardés à la lecture ; vide = tous. DuckDB ne lit du fichier que ces colonnes et celles du filtre : une adresse web en télécharge moins. |  |
 | <a id="csvreader-where"></a>Filtre (WHERE) | Condition SQL (DuckDB) appliquée à la lecture : seules les entités qui la vérifient sont lues, et DuckDB ne lit du fichier que les parties utiles ; vide = toutes les entités. |  |
 | <a id="csvreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
@@ -1140,6 +1141,7 @@ Un Parquet sans géométrie est lu tel quel. Pour un GeoParquet, la géométrie 
 | <a id="geoparquetreader-path"></a>Fichier | Chemin du fichier, motif (*.ext, dossier/**/*.ext : tous les fichiers trouvés) ou adresse web https://. |  |
 | <a id="geoparquetreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
 | <a id="geoparquetreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="geoparquetreader-columns"></a>Attributs lus (SELECT) | Attributs gardés à la lecture ; vide = tous. DuckDB ne lit du fichier que ces colonnes et celles du filtre : une adresse web en télécharge moins. |  |
 | <a id="geoparquetreader-where"></a>Filtre (WHERE) | Condition SQL (DuckDB) appliquée à la lecture : seules les entités qui la vérifient sont lues, et DuckDB ne lit du fichier que les parties utiles ; vide = toutes les entités. |  |
 | <a id="geoparquetreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 

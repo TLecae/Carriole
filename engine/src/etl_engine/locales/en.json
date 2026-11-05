@@ -1372,7 +1372,11 @@
   "CsvReader.params.where.title": "Filter (WHERE)",
   "CsvReader.params.where.description": "SQL condition (DuckDB) applied while reading: only the features that meet it are read, and DuckDB reads only the useful parts of the file; empty = all features.",
   "GeoParquetReader.params.where.title": "Filter (WHERE)",
-  "GeoParquetReader.params.where.description": "SQL condition (DuckDB) applied while reading: only the features that meet it are read, and DuckDB reads only the useful parts of the file; empty = all features."
+  "GeoParquetReader.params.where.description": "SQL condition (DuckDB) applied while reading: only the features that meet it are read, and DuckDB reads only the useful parts of the file; empty = all features.",
+  "CsvReader.params.columns.title": "Attributes read (SELECT)",
+  "CsvReader.params.columns.description": "Attributes kept when reading; empty = all. DuckDB reads only these columns and those of the filter from the file: a web address downloads less.",
+  "GeoParquetReader.params.columns.title": "Attributes read (SELECT)",
+  "GeoParquetReader.params.columns.description": "Attributes kept when reading; empty = all. DuckDB reads only these columns and those of the filter from the file: a web address downloads less."
  },
  "messages": {
   "  entités : {info}": "  features: {info}",
@@ -1872,8 +1876,11 @@
   "valeurs de « {column} » : {first_line}": "values of “{column}”: {first_line}",
   "valeurs de « {column} » : {v}": "values of “{column}”: {v}",
   "valeurs de « {column} » trop longues à lire (plus de {TIMEOUT} s)": "values of “{column}” too long to read (more than {TIMEOUT} s)",
-  "valeurs indisponibles : ce nœud ne lit pas un fichier CSV ou Parquet": "values unavailable: this node does not read a CSV or Parquet file",
-  "valeurs indisponibles : fichier introuvable ou illisible par DuckDB": "values unavailable: file not found or unreadable by DuckDB",
-  "emprise invalide (ouest,sud,est,nord)": "invalid extent (west,south,east,north)"
+  "emprise invalide (ouest,sud,est,nord)": "invalid extent (west,south,east,north)",
+  "ce nœud ne lit pas un fichier CSV ou Parquet": "this node does not read a CSV or Parquet file",
+  "fichier introuvable ou illisible": "file not found or unreadable",
+  "fichier introuvable ou illisible par DuckDB": "file not found or unreadable by DuckDB",
+  "comptage trop long (plus de {TIMEOUT} s)": "count too long (more than {TIMEOUT} s)",
+  "comptage impossible : {v}": "count impossible: {v}"
  }
 }

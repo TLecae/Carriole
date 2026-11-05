@@ -3,7 +3,7 @@ import { ApiError, api } from "../api/client";
 import type { TableColumns as Described, ValueCount } from "../api/types";
 import { formatCount, t } from "../i18n";
 import { toFlowDoc } from "../model/graph";
-import { bySchema, containsWhere, literal, quoteName, tableName, type HelperField, type HelperSource } from "../model/fieldHelper";
+import { bySchema, containsWhere, literal, quoteName, tableName, toggled, type HelperField, type HelperSource } from "../model/fieldHelper";
 import { useEditor } from "../store/editor";
 import { Spinner } from "./Spinner";
 
@@ -15,7 +15,13 @@ type Picked = { column: string; table?: string; input?: number };
  * entrées, colonnes d'un fichier) et, à la demande, leurs valeurs les plus fréquentes. Un clic insère le nom ou la
  * valeur au curseur, écrits comme SQL les attend : on construit sa requête sans deviner une orthographe.
  */
-export function FieldHelper({ source: given, tables, onInsert }: { source: HelperSource; tables?: Record<string, string[]>; onInsert: (text: string) => void }) {
+/** Attributs lus par un lecteur (le SELECT de sa requête de lecture) : vide = tous. */
+export interface Selection {
+  chosen: string[];
+  onChange: (names: string[]) => void;
+}
+
+export function FieldHelper({ source: given, tables, onInsert, selection }: { source: HelperSource; tables?: Record<string, string[]>; onInsert: (text: string) => void; selection?: Selection }) {
   // une requête en cours de saisie est souvent invalide, et l'analyse perd alors le schéma du nœud : les derniers
   // attributs connus restent affichés
   const known = useRef(given);
@@ -33,12 +39,32 @@ export function FieldHelper({ source: given, tables, onInsert }: { source: Helpe
 
   // `all` : toutes les colonnes, même hors de la recherche (elle désigne la table, pas une colonne)
   const columns = (fields: HelperField[], at: Omit<Picked, "column">, all = false) =>
-    fields.filter((f) => all || match(f.name)).map((f) => <Column key={f.name} field={f} at={at} picked={picked} setPicked={setPicked} source={source} onInsert={onInsert} />);
+    fields.filter((f) => all || match(f.name)).map((f) => <Column key={f.name} field={f} at={at} picked={picked} setPicked={setPicked} source={source} onInsert={onInsert} check={checkOf(f.name)} />);
+
+  // case à cocher d'un attribut du fichier : lu ou non (le SELECT)
+  const names = source.kind === "reader" ? source.fields.map((f) => f.name) : [];
+  const chosen = selection ? selection.chosen.filter((n) => names.includes(n)) : [];
+  const read = chosen.length ? chosen : names;
+  const checkOf = (name: string): Check | undefined =>
+    selection && source.kind === "reader"
+      ? { on: read.includes(name), last: read.length === 1 && read[0] === name, toggle: () => selection.onChange(toggled(names, read, name)) }
+      : undefined;
 
   return (
     <aside className="field-helper" aria-label={t("Attributs et valeurs")}>
       <input type="search" value={filter} placeholder={t("Rechercher un attribut…")} aria-label={t("Rechercher un attribut…")} onChange={(e) => setFilter(e.target.value)} />
-      <p className="muted field-helper-hint">{t("Clic : insérer au curseur. ▾ : ses valeurs.")}</p>
+      <p className="muted field-helper-hint">{selection ? t("Case : attribut lu (SELECT). Clic sur le nom : insérer au curseur. ▾ : ses valeurs.") : t("Clic : insérer au curseur. ▾ : ses valeurs.")}</p>
+      {selection && source.kind === "reader" && names.length > 0 && (
+        <p className="helper-select">
+          {t("{{n}} attributs lus sur {{total}}", { n: read.length, total: names.length })}
+          <button type="button" className="link" disabled={!chosen.length} onClick={() => selection.onChange([])}>
+            {t("Tous")}
+          </button>
+          <button type="button" className="link" disabled={!names.includes("geometry") || (read.length === 1 && read[0] === "geometry")} title={t("Décoche tous les attributs sauf la géométrie")} onClick={() => selection.onChange(["geometry"])}>
+            {t("Aucun")}
+          </button>
+        </p>
+      )}
       <div className="field-helper-list">
         {source.kind === "connection" &&
           (!tables ? (
@@ -160,12 +186,25 @@ function TableColumns({ connection, table, known, render }: { connection: string
   );
 }
 
-function Column({ field, at, picked, setPicked, source, onInsert }: { field: HelperField; at: Omit<Picked, "column">; picked: Picked | null; setPicked: (p: Picked | null) => void; source: HelperSource; onInsert: (text: string) => void }) {
+/** Case d'un attribut lu ; `last` : le dernier coché, qui le reste (un lecteur lit au moins un attribut). */
+type Check = { on: boolean; last: boolean; toggle: () => void };
+
+function Column({ field, at, picked, setPicked, source, onInsert, check }: { field: HelperField; at: Omit<Picked, "column">; picked: Picked | null; setPicked: (p: Picked | null) => void; source: HelperSource; onInsert: (text: string) => void; check?: Check }) {
   const here = !!picked && picked.column === field.name && picked.table === at.table && picked.input === at.input;
   const geometry = field.name === "geometry" || /geometry|wkb|blob|binary/i.test(field.type);
   return (
-    <div className="helper-column">
+    <div className={check && !check.on ? "helper-column unread" : "helper-column"}>
       <div className="helper-row">
+        {check && (
+          <input
+            type="checkbox"
+            checked={check.on}
+            disabled={check.last}
+            aria-label={t("Lire {{name}}", { name: field.name })}
+            title={check.last ? t("Un lecteur lit au moins un attribut") : t("Attribut lu (SELECT)")}
+            onChange={check.toggle}
+          />
+        )}
         <button type="button" className="helper-toggle" disabled={geometry} aria-expanded={here} aria-label={t("Valeurs de {{name}}", { name: field.name })} title={geometry ? t("Pas de valeurs proposées pour une géométrie") : t("Valeurs les plus fréquentes")} onClick={() => setPicked(here ? null : { column: field.name, ...at })}>
           {here ? "▾" : "▸"}
         </button>

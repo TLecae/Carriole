@@ -385,6 +385,18 @@ export interface SqlCheckResult {
 }
 
 /** Colonnes d'une table où un nœud écrit (`exists` faux : elle sera créée). */
+/** Colonne du fichier qu'un lecteur lit (requête de lecture) ; `geometry` pour sa géométrie. */
+export interface HelperColumn {
+  name: string;
+  type: string;
+}
+
+/** Entités du fichier qu'un lecteur lit, et celles que son filtre garde. */
+export interface ReaderCount {
+  total: number;
+  kept: number;
+}
+
 export interface TableColumns {
   exists: boolean;
   columns: { name: string; type: string }[];

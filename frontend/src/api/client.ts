@@ -11,6 +11,8 @@ import type {
   PgTableInfo,
   SqlCheckResult,
   TableColumns,
+  HelperColumn,
+  ReaderCount,
   ValueCount,
   DataQuery,
   FeatureInfo,
@@ -178,6 +180,8 @@ export const api = {
     call<ValueCount[]>(`/connections/${encodeURIComponent(name)}/values?${new URLSearchParams({ table, column, search })}`),
   readerValues: (flow: FlowDoc, node: string, column: string, search = "") =>
     call<ValueCount[]>("/fields/values", { method: "POST", ...json({ flow, node, column, search }) }),
+  readerColumns: (flow: FlowDoc, node: string) => call<HelperColumn[]>("/fields/columns", { method: "POST", ...json({ flow, node }) }),
+  readerCount: (flow: FlowDoc, node: string) => call<ReaderCount>("/fields/count", { method: "POST", ...json({ flow, node }) }),
   checkSql: (sql: string, connection = "") => call<SqlCheckResult>("/sql/check", { method: "POST", ...json({ sql, connection }) }),
   tableColumns: (name: string, table: string) =>
     call<TableColumns>(`/connections/${encodeURIComponent(name)}/columns?table=${encodeURIComponent(table)}`),

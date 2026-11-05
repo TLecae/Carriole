@@ -78,3 +78,9 @@ export function bySchema(tables: Record<string, string[]>, needle = ""): SchemaT
   }
   return [...groups.values()];
 }
+
+/** Attributs lus après un clic sur la case de `name`, dans l'ordre du fichier ; tous : vide. */
+export function toggled(names: string[], read: string[], name: string): string[] {
+  const next = read.includes(name) ? read.filter((n) => n !== name) : names.filter((n) => n === name || read.includes(n));
+  return next.length === names.length ? [] : next;
+}

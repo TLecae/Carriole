@@ -44,3 +44,32 @@ def field_values(body: ValuesIn, registry: Annotated[Registry, Depends(get_regis
         return reader_values(body.flow, registry, body.node, body.column, body.search, body.limit)
     except ConfigError as exc:
         raise HTTPException(422, str(exc)) from None
+
+
+class ReaderIn(BaseModel):
+    flow: Flow
+    node: str
+
+
+@router.post("/fields/columns")
+def field_columns(body: ReaderIn, registry: Annotated[Registry, Depends(get_registry)]) -> list[dict[str, str]]:
+    """Colonnes du fichier qu'un lecteur lit, avant le choix de ses attributs (requête de lecture)."""
+    from etl_engine.field_values import reader_columns
+    from etl_engine.sdk import ConfigError
+
+    try:
+        return reader_columns(body.flow, registry, body.node)
+    except ConfigError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
+@router.post("/fields/count")
+def field_count(body: ReaderIn, registry: Annotated[Registry, Depends(get_registry)]) -> dict[str, int]:
+    """Entités du fichier qu'un lecteur lit, et celles que son filtre garde."""
+    from etl_engine.field_values import reader_count
+    from etl_engine.sdk import ConfigError
+
+    try:
+        return reader_count(body.flow, registry, body.node)
+    except ConfigError as exc:
+        raise HTTPException(422, str(exc)) from None

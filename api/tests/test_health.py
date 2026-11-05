@@ -75,6 +75,11 @@ def test_field_values_of_a_reader_file(client):
     assert got == [{"value": "31", "count": 2}, {"value": "09", "count": 1}]
     bad = client.post("/api/fields/values", json={"flow": flow, "node": "r", "column": "inconnue"})
     assert bad.status_code == 422
+    # requête de lecture : colonnes du fichier, entités gardées par le filtre
+    columns = client.post("/api/fields/columns", json={"flow": flow, "node": "r"}).json()
+    assert columns == [{"name": "dep", "type": "string"}]
+    flow["nodes"][0]["params"]["where"] = "dep = '31'"
+    assert client.post("/api/fields/count", json={"flow": flow, "node": "r"}).json() == {"total": 3, "kept": 2}
 
 
 def test_flow_crud_with_revision_conflict(client):

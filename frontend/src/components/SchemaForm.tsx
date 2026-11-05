@@ -12,6 +12,7 @@ import type { Rule } from "../model/attributeManager";
 import { AttributeManager } from "./AttributeManager";
 import { InfoTip } from "./InfoTip";
 import type { HelperField, HelperInput, HelperSource } from "../model/fieldHelper";
+import { ReadColumns, ReaderQuery } from "./ReaderQuery";
 import { EditorButton, QueryEditor, SqlField } from "./SqlEditor";
 import { Spinner } from "./Spinner";
 
@@ -56,8 +57,11 @@ const FILTER_FROM = 9; // choix à partir desquels une liste à cocher propose u
 /** Formulaire généré depuis le JSON Schema Pydantic des paramètres d'un modificateur. */
 export function SchemaForm(props: { schema: JsonSchema; value: Record<string, unknown>; onChange: (v: Record<string, unknown>) => void; ctx: FormCtx }) {
   const [query, setQuery] = useState("");
+  const [reading, setReading] = useState(false); // requête de lecture d'un lecteur DuckDB ouverte
   const root = resolveSchema(props.schema, props.ctx.defs);
   const entries = Object.entries(root.properties ?? {});
+  // lecteur DuckDB : son SELECT (attributs lus) et son WHERE s'éditent ensemble, dans la requête de lecture
+  const readerQuery = entries.some(([, raw]) => widgetOf(resolveSchema(raw, props.ctx.defs)) === "read-columns");
   if (!entries.length) return <p className="muted">{t("Ce modificateur n'a pas de paramètre.")}</p>;
   // les champs écartés par la recherche sont masqués, pas retirés : un éditeur de code garde son état
   const shown = new Set(entries.filter(([key, raw]) => fieldMatches(key, raw, props.ctx.defs, query)).map(([key]) => key));
@@ -86,7 +90,9 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
             // un champ avec un bouton (éditeur de code, SQL) n'est pas un <label> : un clic y activerait le bouton
             simple={typeOf(s) !== "array" && !["expression", "code"].includes(widgetOf(s) ?? "") && connection === null && sqlBase === null}
           >
-            {connection !== null ? (
+            {widgetOf(s) === "read-columns" ? (
+              <ReadColumns label={labelOf(key, s)} value={Array.isArray(value) ? (value as string[]) : []} onOpen={() => setReading(true)} />
+            ) : connection !== null ? (
               <PgTableSelect label={labelOf(key, s)} connection={connection} value={String(value ?? "")} write={s["x-etl-access"] === "write"} onChange={set} />
             ) : sqlBase !== null ? (
               <SqlField
@@ -99,6 +105,7 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
                 where={key === "where"}
                 placeholder={s.examples?.[0] !== undefined ? String(s.examples[0]) : undefined}
                 preview={<VariablePreview value={String(value ?? "")} ctx={props.ctx} />}
+                onOpen={readerQuery && key === "where" ? () => setReading(true) : undefined}
               />
             ) : (
               <Editor label={labelOf(key, s)} schema={raw} value={value} ctx={props.ctx} onChange={set} />
@@ -106,6 +113,17 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
           </Field>
         );
       })}
+      {reading && (
+        <ReaderQuery
+          node={props.ctx.node ?? ""}
+          file={String(props.value.path ?? "")}
+          columns={Array.isArray(props.value.columns) ? (props.value.columns as string[]) : []}
+          where={String(props.value.where ?? "")}
+          maxRows={Number(props.value.max_rows ?? 0)}
+          onChange={(patch) => props.onChange({ ...props.value, ...patch })}
+          onClose={() => setReading(false)}
+        />
+      )}
     </div>
   );
 }
