@@ -21,6 +21,9 @@ import { QuickAdd } from "./QuickAdd";
 import { t } from "../i18n";
 import { useTheme } from "../theme";
 
+
+// recadrage (ouverture, premier nœud, bouton) : au plus la taille réelle ; un petit flux n'est pas agrandi deux fois
+const FIT = { maxZoom: 1 };
 export const DRAG_TYPE = "application/x-etl-modifier";
 
 const nodeTypes = { etl: EtlNodeView, note: NoteNodeView, bookmark: BookmarkView };
@@ -219,11 +222,12 @@ export function Canvas() {
         snapToGrid
         snapGrid={[10, 10]}
         fitView
+        fitViewOptions={FIT}
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={20} />
         {miniMap && <MiniMap pannable zoomable nodeColor={miniColor} />}
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false} fitViewOptions={FIT} />
       </ReactFlow>
       <button
         type="button"
