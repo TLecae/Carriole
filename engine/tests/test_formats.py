@@ -108,3 +108,34 @@ def test_gpkg_two_layers_and_append(tmp_path):
     assert sorted(ogr.layers(path)) == ["a", "b"]
     assert sum(t.num_rows for t in formats.read_batches("gpkg", path, 10, layer="a")) == 8
     assert sum(t.num_rows for t in formats.read_batches("gpkg", path, 10, layer="b")) == 4
+
+
+def test_a_geometry_tagged_geoarrow_wkb_is_read_as_plain_wkb(tmp_path):
+    """GDAL (GeoJSON, GeoPackage, Shapefile…) et d'autres outils marquent la géométrie de l'extension Arrow
+    « geoarrow.wkb » ; DuckDB 2 la lit alors en géométrie native, et une expression spatiale (ST_Area) échouait."""
+    import pyarrow.parquet as pq
+    from etl_engine.expr import evaluate, expression_type
+    from etl_engine.modifiers.add_attributes import AddAttributes
+    from etl_engine.testing import run_modifier
+
+    tag = {b"ARROW:extension:name": b"geoarrow.wkb", b"ARROW:extension:metadata": b"{}"}
+    schema = pa.schema([pa.field("n", pa.int64()), pa.field(GEOM, pa.binary(), metadata=tag)])
+    table = with_crs(
+        pa.table({"n": [1], GEOM: [shapely.to_wkb(shapely.box(0, 0, 10, 10))]}, schema=schema), "EPSG:2154"
+    )
+    assert expression_type(table.schema, "ST_Area(geometry)") == pa.float64()
+    assert evaluate(table, {"s": "ST_Area(geometry)"}).column("s").to_pylist() == [100.0]
+    params = {"attributes": [{"name": "s", "expression": "ST_Area(geometry)"}]}
+    assert run_modifier(AddAttributes, params, table)["output"].column("s").to_pylist() == [100.0]
+
+    # lecteurs : schéma et lots sans le marqueur, SCR gardé
+    (tmp_path / "c.geojson").write_bytes(
+        b'{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"n":1},'
+        b'"geometry":{"type":"Point","coordinates":[1.44,43.6]}}]}'
+    )
+    path = str(tmp_path / "c.geojson")
+    batch = next(formats.read_batches("geojson", path, 10))
+    assert formats.read_schema("geojson", path).field(GEOM).metadata is None
+    assert batch.schema.field(GEOM).metadata is None and get_crs(batch) == "EPSG:4326"
+    pq.write_table(table, tmp_path / "tag.parquet")
+    assert formats.read_schema("parquet", str(tmp_path / "tag.parquet")).field(GEOM).metadata is None

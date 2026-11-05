@@ -21,7 +21,7 @@ import shapely
 from etl_engine import duck
 from etl_engine.atomic import part_name
 from etl_engine.cache import batch_rows_for, dictionary_columns
-from etl_engine.data import GEOM, crs_from_geo, get_crs, has_geometry, with_crs
+from etl_engine.data import GEOM, crs_from_geo, get_crs, has_geometry, plain_geometry, with_crs
 from etl_engine.sdk import ConfigError
 
 _TYPE_NAMES = {
@@ -40,7 +40,7 @@ def _prepare(schema: pa.Schema, metadata: dict[bytes, bytes]) -> tuple[pa.Schema
     geo = json.loads(metadata[b"geo"]) if b"geo" in metadata else None
     column = geo["primary_column"] if geo else (GEOM if GEOM in schema.names else None)
     crs = get_crs(schema) or crs_from_geo(geo, column) if column else None
-    if column and column != GEOM:
+    if column:  # nommée `geometry`, sans métadonnées de champ (extension « geoarrow.wkb » : voir `plain_geometry`)
         schema = schema.set(schema.get_field_index(column), pa.field(GEOM, schema.field(column).type))
     return with_crs(schema.remove_metadata(), crs), column, crs
 
@@ -121,10 +121,7 @@ def _wanted(columns: list[str] | None, column: str | None) -> list[str] | None:
 def _named(table: pa.Table, column: str | None, crs: str | None) -> pa.Table:
     if column and column != GEOM:
         table = table.rename_columns([GEOM if n == column else n for n in table.column_names])
-    if GEOM in table.column_names:  # sans l'extension « geoarrow.wkb » que DuckDB pose : comme un fichier local
-        index = table.column_names.index(GEOM)
-        table = table.set_column(index, table.field(index).remove_metadata(), table.column(index))
-    return with_crs(table, crs)
+    return with_crs(plain_geometry(table), crs)  # sans l'extension « geoarrow.wkb » : comme un fichier local
 
 
 def _read_web(url: str, batch_rows: int, columns: list[str] | None, limit: int | None) -> Iterator[pa.Table]:

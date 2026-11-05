@@ -16,7 +16,7 @@ import pyogrio
 import pyogrio.raw
 import shapely
 
-from etl_engine.data import GEOM, get_crs, has_geometry, with_crs
+from etl_engine.data import GEOM, get_crs, has_geometry, plain_geometry, with_crs
 from etl_engine.sdk import ConfigError
 
 OGR_GEOMETRY = "wkb_geometry"  # nom de la colonne WKB dans le flux Arrow de pyogrio
@@ -49,7 +49,7 @@ def _internal(table: pa.Table, meta: dict[str, Any]) -> pa.Table:
     name = _geometry_name(meta, table.column_names)
     if name and name != GEOM:
         table = table.rename_columns([GEOM if n == name else n for n in table.column_names])
-    return with_crs(table, meta.get("crs"))
+    return plain_geometry(with_crs(table, meta.get("crs")))  # sans l'extension « geoarrow.wkb » que pose GDAL
 
 
 def layers(path: str, **_: Any) -> list[str]:

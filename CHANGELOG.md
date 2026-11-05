@@ -9,6 +9,10 @@
 - An input connected to several outputs has the attributes of all of them (rows joined by name, missing columns
   empty): only the schema of one link was used, so an attribute of another was reported missing and stopped the
   run; on the batch route, each batch is now conformed to the joined schema, as the SQL route does.
+- Expressions with spatial functions (`ST_Area`, `ST_Buffer`…) work again on data read by GDAL (GeoJSON,
+  GeoPackage, Shapefile…) or from a GeoParquet whose geometry carries the Arrow `geoarrow.wkb` extension: DuckDB 2
+  read such a column as a native geometry and the expression failed. The geometry is now plain WKB everywhere.
+- Canvas: fitting the view (opening a flow, first node, button) no longer zooms in beyond 100 %.
 - README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).
 - Inspector: the table of a dataset with a date-and-time-with-time-zone field (such as a GeoParquet read over https)
   is shown again; it failed with "invalid query" because DuckDB needs `pytz` for these values, now a dependency.

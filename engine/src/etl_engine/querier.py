@@ -11,7 +11,7 @@ import duckdb
 import pyarrow as pa
 
 from etl_engine import duck
-from etl_engine.data import GEOM, get_crs, with_crs
+from etl_engine.data import GEOM, get_crs, plain_geometry, with_crs
 from etl_engine.sdk import ConfigError
 
 IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -50,7 +50,7 @@ def describe(sql: str, schemas: Mapping[str, pa.Schema]) -> list[tuple]:
     try:
         duck.load_spatial(con)
         for name, schema in schemas.items():
-            con.register(f"__raw_{name}", schema.empty_table())
+            con.register(f"__raw_{name}", plain_geometry(schema).empty_table())
             geom = f'ST_GeomFromWKB("{GEOM}")' if GEOM in schema.names else None
             body = f'SELECT * REPLACE ({geom} AS "{GEOM}")' if geom else "SELECT *"
             con.execute(f'CREATE VIEW "{name}" AS {body} FROM "__raw_{name}"')
@@ -77,7 +77,7 @@ def run_query(sql: str, tables: Mapping[str, pa.Table]) -> pa.Table:
             if not IDENT.match(name):
                 raise ConfigError(f"nom d'entrée invalide : « {name} »")
             raw = f"__raw_{name}"
-            con.register(raw, table)
+            con.register(raw, plain_geometry(table))
             if spatial and GEOM in table.column_names:
                 con.execute(
                     f'CREATE VIEW "{name}" AS SELECT * REPLACE (ST_GeomFromWKB("{GEOM}") AS "{GEOM}") FROM "{raw}"'

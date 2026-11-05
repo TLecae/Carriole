@@ -10,7 +10,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 
 from etl_engine import duck as duck_
-from etl_engine.data import GEOM, get_crs, with_crs
+from etl_engine.data import GEOM, get_crs, plain_geometry, with_crs
 from etl_engine.sdk import ConfigError
 
 
@@ -89,7 +89,7 @@ def duck(sql: str, **tables: pa.Table) -> pa.Table:
     con = duck_.connect("heavy")
     try:
         for name, table in tables.items():
-            con.register(name, table)
+            con.register(name, plain_geometry(table))
         return con.sql(sql).to_arrow_table()
     except duckdb.Error as exc:
         if (found := duck_.resource_error(exc)) is not None:

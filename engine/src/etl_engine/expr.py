@@ -23,7 +23,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 
 from etl_engine import duck
-from etl_engine.data import GEOM
+from etl_engine.data import GEOM, plain_geometry
 from etl_engine.sdk import ConfigError
 
 _local = threading.local()
@@ -178,7 +178,7 @@ def evaluate(table: pa.Table, expressions: dict[str, str]) -> pa.Table:
     `ConfigError` si une expression est invalide ; `ExpressionError` si elle échoue sur les données.
     """
     con, select, base = _prepare(table.column_names, expressions)
-    con.register("src", table)
+    con.register("src", plain_geometry(table))
     try:
         return _run(con, f"SELECT {select} FROM ({base})")
     finally:
@@ -229,7 +229,7 @@ def _isolate(table: pa.Table, expressions: dict[str, str]) -> dict[int, str]:
     """{ligne en erreur: message}, par découpage en deux des plages qui échouent ; la table n'est enregistrée qu'une
     fois, chaque essai filtre ses lignes (le coût n'est payé que là où une erreur survient)."""
     con, select, base = _prepare(table.column_names, expressions)
-    numbered = table.append_column("__row", pa.array(np.arange(table.num_rows), pa.int64()))
+    numbered = plain_geometry(table).append_column("__row", pa.array(np.arange(table.num_rows), pa.int64()))
     head = f"SELECT {select} FROM ({base}) WHERE __row >= "  # expressions d'utilisateur : pas de str.format
     errors: dict[int, str] = {}
 

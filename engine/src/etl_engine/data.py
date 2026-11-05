@@ -70,6 +70,22 @@ def with_crs(obj: pa.Table | pa.Schema, crs: str | None):
     return obj.replace_schema_metadata(meta) if isinstance(obj, pa.Table) else schema.with_metadata(meta)
 
 
+def plain_geometry(obj: pa.Table | pa.Schema):
+    """`obj` (table ou schéma) avec sa géométrie en simple WKB, sans métadonnées de champ : GDAL et d'autres outils y
+    posent l'extension Arrow « geoarrow.wkb », que DuckDB 2 lit comme une géométrie native, refusée par les
+    expressions (`ST_GeomFromWKB`). Le SCR reste dans les métadonnées du schéma."""
+    schema = obj.schema if isinstance(obj, pa.Table) else obj
+    if GEOM not in schema.names:
+        return obj
+    i = schema.get_field_index(GEOM)
+    field = schema.field(i)
+    if not field.metadata:
+        return obj
+    if isinstance(obj, pa.Table):
+        return obj.set_column(i, field.remove_metadata(), obj.column(i))
+    return schema.set(i, field.remove_metadata())
+
+
 def has_geometry(obj: pa.Table | pa.Schema) -> bool:
     schema = obj.schema if isinstance(obj, pa.Table) else obj
     return GEOM in schema.names
