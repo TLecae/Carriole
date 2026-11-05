@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completionSchema, containsWhere, literal, quoteName, tableName } from "./fieldHelper";
+import { bySchema, completionSchema, containsWhere, literal, quoteName, tableName } from "./fieldHelper";
 
 describe("aide à la saisie des éditeurs", () => {
   it("écrit les noms et les valeurs comme SQL les attend", () => {
@@ -12,6 +12,16 @@ describe("aide à la saisie des éditeurs", () => {
     expect(containsWhere("nom", "")).toBe("");
   });
 
+  it("range les tables d'une base par schéma, et filtre sur le schéma, la table ou une colonne", () => {
+    const tables = { "public.communes": ["insee", "nom"], "public.routes": ["id"], "cadastre.parcelles": ["idu"], seule: [] };
+    expect(bySchema(tables).map((g) => [g.schema, g.tables.map((x) => x.short)])).toEqual([
+      ["public", ["communes", "routes"]],
+      ["cadastre", ["parcelles"]],
+      ["", ["seule"]],
+    ]);
+    expect(bySchema(tables, "INSEE").map((g) => g.tables.map((x) => x.name))).toEqual([["public.communes"]]);
+    expect(bySchema(tables, "cadas")[0].tables[0]).toEqual({ name: "cadastre.parcelles", short: "parcelles", columns: ["idu"] });
+  });
   it("propose les colonnes d'une seule entrée sans préfixe, sinon par nom de port", () => {
     const one = { kind: "inputs" as const, inputs: [{ port: "input", label: "", fields: [{ name: "a", type: "int64" }], ref: null }] };
     expect(completionSchema(one)).toEqual({ data: ["a"] });

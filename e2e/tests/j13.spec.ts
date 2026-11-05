@@ -129,3 +129,47 @@ test("les sorties d'un RouteByExpression suivent ses conditions, et ExecuteSql a
   await overlay.getByRole("button", { name: "Fermer" }).click();
   await expect(editor.locator(".cm-content")).toContainText("FORM t"); // la surcouche modifie le paramètre
 });
+
+test("éditeur SQL d'une base : tables rangées par schéma, colonnes et types à l'ouverture d'une table", async ({ page }) => {
+  // base simulée : aucune base réelle n'est contactée par l'interface
+  const json = (body: unknown) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  const base = { name: "ma_base", kind: "postgres", host: "localhost", port: 5432, dbname: "ma_base", user: "lecteur", sslmode: "", options: {}, has_password: false, owner: "" };
+  await page.route(/\/api\/connections$/, (route) => route.fulfill(json([base])));
+  await page.route(/\/api\/connections\/ma_base\/schema$/, (route) =>
+    route.fulfill(json({ dialect: "postgres", tables: { "public.communes": ["insee", "nom"], "public.routes": ["id"], "cadastre.parcelles": ["idu", "surface"] } })),
+  );
+  const types: Record<string, Record<string, string>> = {
+    "public.communes": { insee: "character varying", nom: "text" },
+    "public.routes": { id: "integer" },
+    "cadastre.parcelles": { idu: "text", surface: "double precision" },
+  };
+  await page.route(/\/api\/connections\/ma_base\/columns\?/, (route) => {
+    const table = new URL(route.request().url()).searchParams.get("table") ?? "";
+    const columns = Object.entries(types[table] ?? {}).map(([name, type]) => ({ name, type }));
+    return route.fulfill(json({ exists: true, case_sensitive: true, columns }));
+  });
+  await page.route(/\/api\/sql\/check$/, (route) => route.fulfill(json({ ok: true, error: null, line: null, column: null, skipped: null })));
+  const flow = { name: "sql base", nodes: [{ id: "sql", type: "DatabaseQuery", position: [0, 0], params: { connection: "ma_base", sql: "SELECT * FROM " } }], links: [] };
+  const created = await (await page.request.post("/api/flows", { data: { flow } })).json();
+  await page.goto(`/#flow=${created.id}`);
+
+  await page.getByTestId("node-sql").click();
+  await page.getByRole("button", { name: "Éditeur SQL" }).first().click();
+  const editor = page.getByRole("dialog", { name: /Éditeur SQL/ });
+  const helper = editor.getByRole("complementary", { name: "Attributs et valeurs" });
+  await expect(editor.locator(".cm-content")).toBeVisible();
+  await expect(helper.getByRole("button", { name: "public", exact: true })).toBeVisible();
+  await expect(helper.getByRole("button", { name: "parcelles", exact: true })).toHaveCount(0); // schémas repliés
+  await helper.getByRole("button", { name: "Tables du schéma cadastre" }).click();
+  await helper.getByRole("button", { name: "Colonnes de cadastre.parcelles" }).click();
+  await expect(helper.locator(".helper-column", { hasText: "surface" })).toContainText("double precision");
+  await editor.locator(".cm-content").press("End");
+  await helper.getByRole("button", { name: "parcelles", exact: true }).click();
+  await expect(editor.locator(".cm-content")).toHaveText("SELECT * FROM cadastre.parcelles");
+
+  // recherche sur une colonne : son schéma et sa table se déplient
+  await helper.getByRole("searchbox", { name: "Rechercher un attribut…" }).fill("insee");
+  await expect(helper.getByRole("button", { name: "insee", exact: true })).toBeVisible();
+  await expect(helper.getByRole("button", { name: "routes", exact: true })).toHaveCount(0);
+  await page.request.delete(`/api/flows/${created.id}`);
+});

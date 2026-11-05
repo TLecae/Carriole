@@ -55,3 +55,26 @@ export function completionSchema(source: HelperSource, tables?: Record<string, s
   if (source.inputs.length === 1) return { data: source.inputs[0].fields.map((f) => f.name) };
   return Object.fromEntries(source.inputs.map((i) => [i.port, i.fields.map((f) => f.name)]));
 }
+
+export interface SchemaTables {
+  schema: string; // "" : tables sans schéma
+  tables: { name: string; short: string; columns: string[] }[]; // nom complet, nom dans le schéma
+}
+
+/** Tables d'une base (« schéma.table » -> colonnes) rangées par schéma, dans l'ordre reçu ; `needle` : seulement
+ * celles dont le schéma, le nom ou une colonne le contient (sans la casse). */
+export function bySchema(tables: Record<string, string[]>, needle = ""): SchemaTables[] {
+  const n = needle.trim().toLowerCase();
+  const has = (s: string) => s.toLowerCase().includes(n);
+  const groups = new Map<string, SchemaTables>();
+  for (const [name, columns] of Object.entries(tables)) {
+    const dot = name.indexOf(".");
+    const schema = dot > 0 ? name.slice(0, dot) : "";
+    const short = dot > 0 ? name.slice(dot + 1) : name;
+    if (n && !has(schema) && !has(short) && !columns.some(has)) continue;
+    let group = groups.get(schema);
+    if (!group) groups.set(schema, (group = { schema, tables: [] }));
+    group.tables.push({ name, short, columns });
+  }
+  return [...groups.values()];
+}

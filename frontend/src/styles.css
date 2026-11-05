@@ -617,7 +617,9 @@ button.icon-only { padding: 4px 6px; }
 .helper-row button:hover:not(:disabled) { background: var(--hover); }
 .helper-toggle { flex: none; width: 18px; color: var(--muted); }
 .helper-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; }
-.helper-name.table { font-weight: 600; font-family: inherit; }
+.helper-name.schema { font-weight: 600; font-family: inherit; }
+.helper-name.table { font-weight: 500; font-family: inherit; }
+.helper-tables { padding-left: 12px; }
 .helper-type { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
 .helper-columns { padding-left: 14px; }
 .helper-values { margin: 2px 0 6px 20px; padding-left: 6px; border-left: 2px solid var(--line); display: grid; gap: 3px; }

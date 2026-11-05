@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError, api } from "../api/client";
-import type { ValueCount } from "../api/types";
+import type { TableColumns as Described, ValueCount } from "../api/types";
 import { formatCount, t } from "../i18n";
 import { toFlowDoc } from "../model/graph";
-import { containsWhere, literal, quoteName, tableName, type HelperField, type HelperSource } from "../model/fieldHelper";
+import { bySchema, containsWhere, literal, quoteName, tableName, type HelperField, type HelperSource } from "../model/fieldHelper";
 import { useEditor } from "../store/editor";
 import { Spinner } from "./Spinner";
 
@@ -23,13 +23,17 @@ export function FieldHelper({ source: given, tables, onInsert }: { source: Helpe
   if (!empty(given) || given.kind !== known.current.kind) known.current = given;
   const source = known.current;
   const [filter, setFilter] = useState("");
-  const [open, setOpen] = useState<string | null>(null); // table dépliée (base)
+  const [openSchemas, setOpenSchemas] = useState<Set<string>>(() => new Set()); // schémas dépliés (base)
+  const [openTables, setOpenTables] = useState<Set<string>>(() => new Set()); // tables dépliées
   const [picked, setPicked] = useState<Picked | null>(null);
   const needle = filter.trim().toLowerCase();
   const match = (name: string) => !needle || name.toLowerCase().includes(needle);
 
-  const columns = (fields: HelperField[], at: Omit<Picked, "column">) =>
-    fields.filter((f) => match(f.name)).map((f) => <Column key={f.name} field={f} at={at} picked={picked} setPicked={setPicked} source={source} onInsert={onInsert} />);
+  const groups = source.kind === "connection" && tables ? bySchema(tables, needle) : [];
+
+  // `all` : toutes les colonnes, même hors de la recherche (elle désigne la table, pas une colonne)
+  const columns = (fields: HelperField[], at: Omit<Picked, "column">, all = false) =>
+    fields.filter((f) => all || match(f.name)).map((f) => <Column key={f.name} field={f} at={at} picked={picked} setPicked={setPicked} source={source} onInsert={onInsert} />);
 
   return (
     <aside className="field-helper" aria-label={t("Attributs et valeurs")}>
@@ -40,30 +44,52 @@ export function FieldHelper({ source: given, tables, onInsert }: { source: Helpe
           (!tables ? (
             <p className="muted">{t("Lecture des tables…")}</p>
           ) : (
-            Object.entries(tables)
-              .filter(([name, cols]) => match(name) || cols.some(match))
-              .slice(0, 300)
-              .map(([name, cols]) => (
-                <div key={name} className="helper-table">
-                  <div className="helper-row">
-                    <button type="button" className="helper-toggle" aria-expanded={open === name || !!needle} onClick={() => setOpen(open === name ? null : name)} aria-label={t("Colonnes de {{name}}", { name })}>
-                      {open === name || needle ? "▾" : "▸"}
-                    </button>
-                    <button type="button" className="helper-name table" onClick={() => onInsert(tableName(name))} title={t("Insérer la table")}>
-                      {name}
-                    </button>
-                  </div>
-                  {(open === name || needle) && (
-                    <div className="helper-columns">
-                      {!cols.length && <p className="muted">{t("Colonnes à la demande : choisir la table dans la requête.")}</p>}
-                      {columns(
-                        cols.map((c) => ({ name: c, type: "" })),
-                        { table: name },
-                      )}
+            groups.map((group) => {
+              // un seul schéma, ou une recherche : tout est déplié
+              const unfolded = !group.schema || groups.length === 1 || !!needle || openSchemas.has(group.schema);
+              return (
+                <div key={group.schema} className="helper-schema">
+                  {group.schema && (
+                    <div className="helper-row">
+                      <button type="button" className="helper-toggle" aria-expanded={unfolded} onClick={() => setOpenSchemas(flip(openSchemas, group.schema))} aria-label={t("Tables du schéma {{name}}", { name: group.schema })}>
+                        {unfolded ? "▾" : "▸"}
+                      </button>
+                      <button type="button" className="helper-name schema" onClick={() => setOpenSchemas(flip(openSchemas, group.schema))} title={t("Schéma : afficher ou masquer ses tables")}>
+                        {group.schema}
+                      </button>
+                      <small className="muted helper-type" title={t("Tables et vues")}>
+                        {group.tables.length}
+                      </small>
+                    </div>
+                  )}
+                  {unfolded && (
+                    <div className={group.schema ? "helper-tables" : undefined}>
+                      {group.tables.slice(0, 300).map(({ name, short, columns: cols }) => {
+                        const hit = !!needle && cols.some(match); // la recherche porte sur une de ses colonnes
+                        const shown = openTables.has(name) || hit;
+                        return (
+                          <div key={name} className="helper-table">
+                            <div className="helper-row">
+                              <button type="button" className="helper-toggle" aria-expanded={shown} onClick={() => setOpenTables(flip(openTables, name))} aria-label={t("Colonnes de {{name}}", { name })}>
+                                {shown ? "▾" : "▸"}
+                              </button>
+                              <button type="button" className="helper-name table" onClick={() => onInsert(tableName(name))} title={t("Insérer la table {{name}}", { name })}>
+                                {short}
+                              </button>
+                            </div>
+                            {shown && (
+                              <div className="helper-columns">
+                                <TableColumns connection={source.connection} table={name} known={cols} render={(fields) => columns(fields, { table: name }, !hit)} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-              ))
+              );
+            })
           ))}
         {source.kind === "inputs" &&
           (source.inputs.length === 0 ? (
@@ -87,6 +113,50 @@ export function FieldHelper({ source: given, tables, onInsert }: { source: Helpe
           (source.fields.length ? columns(source.fields, {}) : <p className="muted">{t("Colonnes du fichier inconnues : choisir un fichier lisible.")}</p>)}
       </div>
     </aside>
+  );
+}
+
+/** Ensemble avec `key` ajouté ou retiré (état React : un nouvel objet). */
+function flip(set: Set<string>, key: string): Set<string> {
+  const next = new Set(set);
+  if (!next.delete(key)) next.add(key);
+  return next;
+}
+
+// colonnes et types d'une table, lus une fois par session de l'éditeur (la complétion n'a que les noms)
+const described = new Map<string, Promise<Described>>();
+
+/** Colonnes d'une table dépliée, avec leurs types : celles de la complétion d'abord, puis celles lues sur la base
+ * (toutes, même pour une base dont la complétion n'a pas chargé les colonnes). */
+function TableColumns({ connection, table, known, render }: { connection: string; table: string; known: string[]; render: (fields: HelperField[]) => ReactNode }) {
+  const [fields, setFields] = useState<HelperField[] | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let live = true;
+    const key = `${connection}|${table}`;
+    if (!described.has(key)) described.set(key, api.tableColumns(connection, table));
+    described
+      .get(key)!
+      .then((r) => live && setFields(r.columns))
+      .catch((err: unknown) => {
+        described.delete(key);
+        if (live) setError(err instanceof ApiError ? err.message : String(err));
+      });
+    return () => {
+      live = false;
+    };
+  }, [connection, table]);
+  const shown = fields ?? known.map((name) => ({ name, type: "" }));
+  return (
+    <>
+      {render(shown)}
+      {!fields && !error && !known.length && (
+        <p className="muted">
+          <Spinner size={11} /> {t("Lecture des colonnes…")}
+        </p>
+      )}
+      {error && !known.length && <p className="error-text">{error}</p>}
+    </>
   );
 }
 

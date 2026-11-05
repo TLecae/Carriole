@@ -29,6 +29,8 @@
 - Editors: the SQL and expression editor has a side panel with the attributes (tables and columns of the database,
   inputs of the node, columns of the file a reader reads) and their most frequent values, inserted at the cursor in
   a click; it opens from every expression field and from the values of *Manage attributes*.
+- SQL editor of a database: tables are listed under their schema, folded when there are several; opening a table
+  shows its columns with their types.
 - Run parameters: the launch dialog proposes the values of the last run; going back to the defaults changed the
   fingerprint of the nodes using a parameter, so the cache was not used.
 - Inspector map: the selection of a huge entity is read at the level of the tiles of the current zoom, within the

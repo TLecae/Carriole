@@ -700,8 +700,6 @@
  "Rechercher un attribut…": "Search an attribute…",
  "Clic : insérer au curseur. ▾ : ses valeurs.": "Click: insert at the cursor. ▾: its values.",
  "Colonnes de {{name}}": "Columns of {{name}}",
- "Insérer la table": "Insert the table",
- "Colonnes à la demande : choisir la table dans la requête.": "Columns on demand: pick the table in the query.",
  "Insérer le nom de l'entrée": "Insert the input name",
  "Colonnes du fichier inconnues : choisir un fichier lisible.": "Columns of the file unknown: choose a readable file.",
  "Valeurs de {{name}}": "Values of {{name}}",
@@ -723,5 +721,9 @@
  "Expression": "Expression",
  "Valeur de {{name}}": "Value of {{name}}",
  "Recalcule tous les nœuds sans rien reprendre du dernier run : relit aussi les bases, API web et STAC": "Recomputes every node, reusing nothing from the last run: databases, web APIs and STAC are read again too",
- "Source externe reprise du dernier run, ses réglages n'ayant pas changé. « Tout relancer » (menu Exécution) la relit.": "External source reused from the last run, as its settings did not change. “Run everything again” (Run menu) reads it again."
+ "Source externe reprise du dernier run, ses réglages n'ayant pas changé. « Tout relancer » (menu Exécution) la relit.": "External source reused from the last run, as its settings did not change. “Run everything again” (Run menu) reads it again.",
+ "Tables du schéma {{name}}": "Tables of schema {{name}}",
+ "Schéma : afficher ou masquer ses tables": "Schema: show or hide its tables",
+ "Insérer la table {{name}}": "Insert the table {{name}}",
+ "Tables et vues": "Tables and views"
 }
