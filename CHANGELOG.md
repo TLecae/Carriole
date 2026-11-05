@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.6
 
 - *OverlayPolygons*: computed by tiles on all cores, sized from the memory budget of *Settings* and the number
   of cores; pieces across tiles are joined exactly. A polygon with a very large extent (a network in one piece) no
@@ -9,9 +9,6 @@
 - An input connected to several outputs has the attributes of all of them (rows joined by name, missing columns
   empty): only the schema of one link was used, so an attribute of another was reported missing and stopped the
   run; on the batch route, each batch is now conformed to the joined schema, as the SQL route does.
-
-## 0.1.6
-
 - README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).
 - Inspector: the table of a dataset with a date-and-time-with-time-zone field (such as a GeoParquet read over https)
   is shown again; it failed with "invalid query" because DuckDB needs `pytz` for these values, now a dependency.
