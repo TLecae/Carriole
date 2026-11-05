@@ -1368,7 +1368,11 @@
   "AddAttributes.params.on_error.title": "On failure",
   "AddAttributes.params.on_error.description": "reject: the feature goes to \"Rejected\" with the reason; null: the attribute stays empty.",
   "ExtractJson.params.on_error.title": "Invalid JSON",
-  "ExtractJson.params.on_error.description": "null: the extracted values are empty; reject: the feature goes to \"Rejected\"."
+  "ExtractJson.params.on_error.description": "null: the extracted values are empty; reject: the feature goes to \"Rejected\".",
+  "CsvReader.params.where.title": "Filter (WHERE)",
+  "CsvReader.params.where.description": "SQL condition (DuckDB) applied while reading: only the features that meet it are read, and DuckDB reads only the useful parts of the file; empty = all features.",
+  "GeoParquetReader.params.where.title": "Filter (WHERE)",
+  "GeoParquetReader.params.where.description": "SQL condition (DuckDB) applied while reading: only the features that meet it are read, and DuckDB reads only the useful parts of the file; empty = all features."
  },
  "messages": {
   "  entités : {info}": "  features: {info}",
@@ -1861,6 +1865,8 @@
   "terminé en {seconds} s : {ports}": "finished in {seconds} s: {ports}",
   "terminé en {seconds} s, reçu : {ports}": "finished in {seconds} s, received: {ports}",
   "{count} entité(s) rejetée(s) : le motif est dans l'attribut _rejection_reason": "{count} feature(s) rejected: the reason is in the _rejection_reason attribute",
-  "{len} fichier(s) au-delà des {MAX_OPEN_FILES} premiers : écrits un à un": "{len} file(s) beyond the first {MAX_OPEN_FILES}: written one by one"
+  "{len} fichier(s) au-delà des {MAX_OPEN_FILES} premiers : écrits un à un": "{len} file(s) beyond the first {MAX_OPEN_FILES}: written one by one",
+  "le filtre « {cond} » doit être une condition (vrai ou faux)": "the filter “{cond}” must be a condition (true or false)",
+  "{failed} entité(s) non lue(s) : le filtre n'a pas pu être évalué ({failure})": "{failed} feature(s) not read: the filter could not be evaluated ({failure})"
  }
 }

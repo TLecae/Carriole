@@ -21,6 +21,7 @@ export interface FormCtx {
   parameters: string[]; // paramètres publiés du flux
   variables: VariableHint[]; // tout ce qui peut s'écrire entre ${ et }
   doc?: (param: string) => string; // page du catalogue sur un paramètre (modificateurs livrés)
+  columns?: string[]; // attributs de la sortie du nœud : complétion d'un filtre appliqué à la lecture
 }
 
 /** Attributs proposés par un champ : ceux de son entrée s'il en désigne une, sinon ceux de toutes les entrées. */
@@ -87,6 +88,7 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
                 value={String(value ?? "")}
                 onChange={set}
                 connection={sqlBase || undefined}
+                schema={!sqlBase && props.ctx.columns ? { data: props.ctx.columns } : undefined}
                 where={key === "where"}
                 placeholder={s.examples?.[0] !== undefined ? String(s.examples[0]) : undefined}
                 preview={<VariablePreview value={String(value ?? "")} ctx={props.ctx} />}

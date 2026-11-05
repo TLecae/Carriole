@@ -13,10 +13,13 @@ import os
 from collections.abc import Iterator, Mapping
 from typing import Any, ClassVar, Literal
 
+import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 from pydantic import Field
 
-from etl_engine import formats, paths
+from etl_engine import duck, formats, paths
+from etl_engine.expr import check_single_expression, expression_type, needs_spatial, safe_mask, sql_base, sql_columns
 from etl_engine.modifiers.writer import abort_target, finish_target, open_target
 from etl_engine.sdk import AttributeList, ConfigError, Crs, Emit, FilePath, Modifier, Params, first_rows, row_limit
 
@@ -74,6 +77,20 @@ def where() -> Any:
         title="Filtre attributaire",
         description="Condition SQL appliquée à la lecture ; vide = toutes les entités.",
         examples=["population > 1000"],
+    )
+
+
+def duck_where() -> Any:
+    """Filtre des lecteurs DuckDB (CSV, Parquet) : une condition sur les colonnes du fichier, évaluée à la lecture."""
+    return Field(
+        "",
+        title="Filtre (WHERE)",
+        description=(
+            "Condition SQL (DuckDB) appliquée à la lecture : seules les entités qui la vérifient sont lues, et DuckDB "
+            "ne lit du fichier que les parties utiles ; vide = toutes les entités."
+        ),
+        examples=['"dep" = \'31\' AND "pop" > 1000'],
+        json_schema_extra={"x-etl-widget": "sql", "x-etl-dialect": "duckdb"},
     )
 
 
@@ -172,10 +189,9 @@ class FileReader(Modifier):
         opts = self._options()
         sources = self._patterns() if fmt == "csv" else files  # le CSV gère lui-même les motifs (union par nom)
         add_filename = getattr(self.params, "add_filename", False) and fmt != "csv"
-        if fmt == "parquet" and self.params.max_rows:
-            opts["limit"] = (
-                self.params.max_rows
-            )  # au plus autant par fichier : une adresse web n'en télécharge pas plus
+        if fmt == "parquet" and self._limit():
+            opts["limit"] = self._limit()  # au plus autant par fichier : une adresse web n'en télécharge pas plus
+        self._failed, self._failure = 0, ""
 
         def batches() -> Iterator[pa.Table]:
             for src in sources:
@@ -183,7 +199,7 @@ class FileReader(Modifier):
                     if add_filename and "filename" not in batch.column_names:
                         name = os.path.basename(src.split("?")[0])
                         batch = batch.append_column("filename", pa.repeat(pa.scalar(name, pa.string()), batch.num_rows))
-                    yield batch
+                    yield self._keep(batch)
 
         total = 0
         for batch in first_rows(batches(), self.params.max_rows):
@@ -191,7 +207,18 @@ class FileReader(Modifier):
             total += batch.num_rows
             self.ctx.progress(total)
             emit("output", batch)
+        if self._failed:
+            self.ctx.warning(
+                f"{self._failed} entité(s) non lue(s) : le filtre n'a pas pu être évalué ({self._failure})"
+            )
         self.ctx.info(f"{total} entités lues")
+
+    def _limit(self) -> int | None:
+        return self.params.max_rows or None
+
+    def _keep(self, batch: pa.Table) -> pa.Table:
+        """Entités gardées d'un lot lu (les lecteurs DuckDB y appliquent leur filtre)."""
+        return batch
 
 
 class DuckDbReader(FileReader):
@@ -199,6 +226,41 @@ class DuckDbReader(FileReader):
     SQL, ADR 0042), sans passer les lignes par Python. `run` reste la référence, et le repli si DuckDB échoue."""
 
     sql_fallback = True
+
+    def _where(self) -> str:
+        """Filtre DuckDB appliqué à la lecture (paramètre `where`) ; vide : toutes les entités."""
+        return (getattr(self.params, "where", "") or "").strip()
+
+    def _options(self) -> dict[str, Any]:
+        out = super()._options()
+        out.pop("where", None)  # SQL de DuckDB, appliqué ici (le `where` des autres lecteurs est celui de GDAL)
+        return out
+
+    def _limit(self) -> int | None:
+        """Limite de lignes poussée dans la lecture : sans filtre seulement (avec lui, elle compte les lignes gardées)."""
+        return None if self._where() else (self.params.max_rows or None)
+
+    def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
+        out = super().output_schema(inputs)
+        cond, schema = self._where(), out["output"]
+        if cond and schema is not None:  # erreur de configuration : le run s'arrête avant de lire les données
+            check_single_expression(cond)
+            if not pa.types.is_boolean(expression_type(schema, cond)):
+                raise ConfigError(f"le filtre « {cond} » doit être une condition (vrai ou faux)")
+        return out
+
+    def _keep(self, batch: pa.Table) -> pa.Table:
+        cond = self._where()
+        if not cond:
+            return batch
+        mask, errors = safe_mask(batch, cond)
+        if errors:  # une entité sur laquelle la condition échoue n'est pas lue ; le journal le dit
+            self._failed += len(errors)
+            self._failure = self._failure or next(iter(errors.values()))
+            keep = np.ones(batch.num_rows, dtype=bool)
+            keep[list(errors)] = False
+            mask = pc.and_(mask, pa.array(keep))
+        return batch.filter(mask)
 
     def _sources(self) -> tuple[str, list[str]] | None:
         fmt = self._fmt()
@@ -212,20 +274,30 @@ class DuckDbReader(FileReader):
         if found is None or self.output_schema({})["output"] is None:  # schéma (et SCR) inconnu : voie Python
             return None
         fmt, sources = found
-        query = formats.sql_query(fmt, sources, limit=self.params.max_rows or None, **self._options())
-        return None if query is None else {"output": query}
+        query = formats.sql_query(fmt, sources, limit=self._limit(), **self._options())
+        cond = self._where()
+        if query is None or not cond:
+            return None if query is None else {"output": query}
+        # filtre dans la requête de lecture : DuckDB ne lit que les colonnes et les groupes de lignes utiles ; une
+        # condition qui échoue sur une entité fait échouer la requête, et la lecture repasse par lots (`run`)
+        schema = self.output_schema({})["output"]
+        rows = f"({sql_base(f'({query})', schema, [cond])})"
+        query = f"SELECT {sql_columns(schema.names, schema, [cond])} FROM {rows} WHERE COALESCE(({cond}), FALSE)"
+        return {"output": f"{query} LIMIT {int(self.params.max_rows)}" if self.params.max_rows else query}
 
     def ready_ports(self) -> dict[str, str] | None:
         found = self._sources()
-        if found is None:
+        if found is None or self._where():  # filtré : le port n'est plus le fichier lui-même
             return None
         fmt, sources = found
-        path = formats.as_port(fmt, sources, limit=self.params.max_rows or None, **self._options())
+        path = formats.as_port(fmt, sources, limit=self._limit(), **self._options())
         return None if path is None else {"output": path}
 
     def sql_prepare(self, con: Any) -> None:
         fmt, sources = self._sources() or (self._fmt(), [])
-        formats.sql_prepare(fmt, con, sources, self.params.max_rows or None, **self._options())
+        formats.sql_prepare(fmt, con, sources, self._limit(), **self._options())
+        if needs_spatial([self._where()]):
+            duck.load_spatial(con)
 
 
 class CsvReader(DuckDbReader):
@@ -263,6 +335,7 @@ class CsvReader(DuckDbReader):
         crs: Crs = Field("", title="Système de coordonnées", description="Celui de la colonne WKT ou des X/Y.")
         paths: list[FilePath] = other_files()
         add_filename: bool = filename_column()
+        where: str = duck_where()
         max_rows: int = row_limit()
 
 
@@ -375,6 +448,7 @@ class GeoParquetReader(DuckDbReader):
         path: str = path_field((".parquet", ".geoparquet"), "D:/donnees/communes.parquet", web=True)
         paths: list[FilePath] = other_files()
         add_filename: bool = filename_column()
+        where: str = duck_where()
         max_rows: int = row_limit()
 
 

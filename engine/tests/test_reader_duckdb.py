@@ -92,6 +92,47 @@ def test_parquet_files_pattern_filename_and_row_limit(registry, tmp_path):
     same(duck, python)
 
 
+def test_parquet_filter_at_read_same_on_both_routes(registry, tmp_path):
+    """Filtre (WHERE) d'un lecteur : appliqué dans la requête de lecture (DuckDB ne lit que les parties utiles), et la
+    voie par lots garde les mêmes entités, dans le même ordre ; la limite compte les entités gardées."""
+    for k in range(3):
+        t = pa.table(
+            {"k": [k] * 5, "v": list(range(5)), GEOM: pa.array([shapely.to_wkb(shapely.Point(k, j)) for j in range(5)])}
+        )
+        pq.write_table(with_crs(t, "EPSG:2154"), tmp_path / f"part_{k}.parquet")
+    params = {"path": str(tmp_path / "part_*.parquet"), "where": "v >= 3 AND ST_Y(geometry) < 4.5", "max_rows": 5}
+    duck, python, logs = read_both(registry, tmp_path, "GeoParquetReader", params)
+    assert by_duckdb(logs)
+    assert list(zip(duck.column("k").to_pylist(), duck.column("v").to_pylist(), strict=True)) == [
+        (0, 3), (0, 4), (1, 3), (1, 4), (2, 3)
+    ]  # fmt: skip
+    same(duck, python)
+    # un seul fichier local, filtré : le port n'est plus le fichier lui-même (ADR 0043), mais ses entités gardées
+    one, python_one, _ = read_both(
+        registry, tmp_path / "un", "GeoParquetReader", {"path": str(tmp_path / "part_1.parquet"), "where": "v = 2"}
+    )
+    assert one.column("v").to_pylist() == [2]
+    same(one, python_one)
+
+
+def test_csv_filter_at_read(registry, tmp_path):
+    (tmp_path / "c.csv").write_bytes(b"code;nom\n31;Toulouse\n09;Foix\n31;Muret\n")
+    params = {"path": str(tmp_path / "c.csv"), "delimiter": ";", "where": "code = '31'"}
+    duck, python, logs = read_both(registry, tmp_path, "CsvReader", params)
+    assert by_duckdb(logs) and duck.column("nom").to_pylist() == ["Toulouse", "Muret"]
+    same(duck, python)
+
+
+def test_a_filter_that_is_not_a_condition_stops_the_run_before_reading(registry, tmp_path):
+    (tmp_path / "c.csv").write_bytes(b"code\n31\n")
+    for where, message in (("code || 'x'", "condition"), ("inconnue = 1", "inconnue")):
+        flow = Flow.model_validate(
+            {"nodes": [{"id": "r", "type": "CsvReader", "params": {"path": str(tmp_path / "c.csv"), "where": where}}]}
+        )
+        res = run_flow(flow, registry, tmp_path / f"run_{message}")
+        assert res.status == "error" and message in (res.nodes["r"].error or res.error or "")
+
+
 def test_parquet_without_geometry(registry, tmp_path):
     pq.write_table(pa.table({"code": ["031", "009"], "pop": [10, 20]}), tmp_path / "plain.parquet")
     duck, python, logs = read_both(registry, tmp_path, "GeoParquetReader", {"path": str(tmp_path / "plain.parquet")})

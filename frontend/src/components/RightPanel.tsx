@@ -64,6 +64,7 @@ function NodePanel({ id }: { id: string }) {
             parameters: published.map((p) => p.name),
             variables: buildHints(meta, allNodes),
             doc: info.documented ? (param: string) => catalogueUrl(info.name, param) : undefined,
+            columns: analysis?.schemas[`${id}/${info.outputs[0] ?? "output"}`]?.fields.map((f) => f.name),
           }
         : null,
     [info, id, edges, analysis, published, meta, allNodes],

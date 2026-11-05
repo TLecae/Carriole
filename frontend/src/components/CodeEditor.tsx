@@ -61,7 +61,14 @@ export default function CodeEditor({
   const languageSlot = useRef(new Compartment());
 
   const languageSupport = () =>
-    language === "python" ? python() : sql({ dialect: dialect === "oracle" ? PLSQL : dialect ? PostgreSQL : StandardSQL, schema, upperCaseKeywords: true });
+    language === "python"
+      ? python()
+      : sql({
+          dialect: dialect === "oracle" ? PLSQL : dialect ? PostgreSQL : StandardSQL,
+          schema,
+          defaultTable: schema && Object.keys(schema).length === 1 && "data" in schema ? "data" : undefined, // filtre d'un fichier : ses colonnes sans préfixe
+          upperCaseKeywords: true,
+        });
 
   useEffect(() => {
     if (!host.current) return;

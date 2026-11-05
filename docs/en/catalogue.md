@@ -1469,6 +1469,7 @@ Columns are read as text (codes with a leading zero are kept), unless "Detect ty
 | <a id="csvreader-crs"></a>Coordinate system | That of the WKT column or of the X/Y columns. |  |
 | <a id="csvreader-paths"></a>Other files | Files or patterns read in addition to "File" (their schemas must be compatible). |  |
 | <a id="csvreader-add_filename"></a>Add the file name | Adds the "filename" column (useful with a file pattern). | false |
+| <a id="csvreader-where"></a>Filter (WHERE) | SQL condition (DuckDB) applied while reading: only the features that meet it are read, and DuckDB reads only the useful parts of the file; empty = all features. |  |
 | <a id="csvreader-max_rows"></a>Maximum rows read | To try a flow on a sample: only the first N features are read; 0 = all. | `0` |
 
 <a id="excelreader"></a>
@@ -1561,6 +1562,7 @@ A Parquet file without geometry is read as is. For a GeoParquet file, the geomet
 | <a id="geoparquetreader-path"></a>File | File path, pattern (*.ext, folder/**/*.ext: every file found) or https:// web address. |  |
 | <a id="geoparquetreader-paths"></a>Other files | Files or patterns read in addition to "File" (their schemas must be compatible). |  |
 | <a id="geoparquetreader-add_filename"></a>Add the file name | Adds the "filename" column (useful with a file pattern). | false |
+| <a id="geoparquetreader-where"></a>Filter (WHERE) | SQL condition (DuckDB) applied while reading: only the features that meet it are read, and DuckDB reads only the useful parts of the file; empty = all features. |  |
 | <a id="geoparquetreader-max_rows"></a>Maximum rows read | To try a flow on a sample: only the first N features are read; 0 = all. | `0` |
 
 <a id="mapinforeader"></a>
