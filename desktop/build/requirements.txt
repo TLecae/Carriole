@@ -116,7 +116,9 @@ packaging==26.3
 pluggy==1.6.0
     # via pytest
 psutil==7.2.2
-    # via etl-engine
+    # via
+    #   etl-engine
+    #   etl-store
 psycopg==3.3.6
     # via etl-engine
 psycopg-binary==3.3.6 ; implementation_name != 'pypy'
@@ -233,6 +235,8 @@ python-dateutil==2.9.0.post0
     #   pystac-core
 python-dotenv==1.2.4
     # via uvicorn
+pytz==2026.6
+    # via etl-engine
 pyyaml==6.0.3
     # via uvicorn
 rasterio==1.5.2

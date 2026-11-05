@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.6
 
 - README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).
 - Inspector: the table of a dataset with a date-and-time-with-time-zone field (such as a GeoParquet read over https)
