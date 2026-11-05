@@ -1873,6 +1873,7 @@
   "valeurs de « {column} » : {v}": "values of “{column}”: {v}",
   "valeurs de « {column} » trop longues à lire (plus de {TIMEOUT} s)": "values of “{column}” too long to read (more than {TIMEOUT} s)",
   "valeurs indisponibles : ce nœud ne lit pas un fichier CSV ou Parquet": "values unavailable: this node does not read a CSV or Parquet file",
-  "valeurs indisponibles : fichier introuvable ou illisible par DuckDB": "values unavailable: file not found or unreadable by DuckDB"
+  "valeurs indisponibles : fichier introuvable ou illisible par DuckDB": "values unavailable: file not found or unreadable by DuckDB",
+  "emprise invalide (ouest,sud,est,nord)": "invalid extent (west,south,east,north)"
  }
 }
