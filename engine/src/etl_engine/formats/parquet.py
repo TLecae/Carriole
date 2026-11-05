@@ -233,10 +233,24 @@ class ParquetWriter:
             tid, has_z = divmod(int(code), 2)
             self._types.add(_TYPE_NAMES.get(tid, "Geometry") + (" Z" if has_z else ""))
 
+    def _geo(self, final: bool) -> str:
+        """Métadonnées GeoParquet. Celles de l'ouverture (`final` faux : SCR et encodage, types inconnus) vont dans le
+        schéma Arrow que le fichier recopie ; les lecteurs qui passent par Arrow (GDAL, donc QGIS, geopandas…) ne
+        voient que celles-là. Celles de la fermeture (types et emprise en plus) remplacent `geo` du pied du fichier."""
+        col: dict[str, Any] = {"encoding": "WKB", "geometry_types": sorted(self._types) if final else []}
+        if self._crs:
+            with contextlib.suppress(pyproj.exceptions.CRSError):
+                col["crs"] = pyproj.CRS.from_user_input(self._crs).to_json_dict()
+        if final and self._bounds is not None:
+            col["bbox"] = [float(x) for x in self._bounds]
+        return json.dumps({"version": "1.1.0", "primary_column": GEOM, "columns": {GEOM: col}})
+
     def write(self, table: pa.Table) -> None:
         if self._writer is None:
-            self._schema = table.schema
             self._crs = get_crs(table)
+            self._schema = table.schema
+            if has_geometry(table):
+                self._schema = table.schema.with_metadata({**(table.schema.metadata or {}), b"geo": self._geo(False)})
             self._writer = pq.ParquetWriter(
                 self._part, self._schema, compression=self.compression, use_dictionary=dictionary_columns(self._schema)
             )
@@ -250,14 +264,7 @@ class ParquetWriter:
         if self._writer is None:
             return
         if has_geometry(self._schema):
-            col: dict[str, Any] = {"encoding": "WKB", "geometry_types": sorted(self._types)}
-            if self._crs:
-                with contextlib.suppress(pyproj.exceptions.CRSError):
-                    col["crs"] = pyproj.CRS.from_user_input(self._crs).to_json_dict()
-            if self._bounds is not None:
-                col["bbox"] = [float(x) for x in self._bounds]
-            geo = {"version": "1.1.0", "primary_column": GEOM, "columns": {GEOM: col}}
-            self._writer.add_key_value_metadata({"geo": json.dumps(geo)})
+            self._writer.add_key_value_metadata({"geo": self._geo(True)})
         self._writer.close()
         self._writer = None
         os.replace(self._part, self.path)

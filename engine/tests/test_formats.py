@@ -55,6 +55,19 @@ def test_parquet_geo_metadata(tmp_path):
     assert col["bbox"] == [700000.0, 6500000.0, 700009.0, 6500009.0]
 
 
+def test_parquet_crs_seen_through_the_arrow_schema(tmp_path):
+    """Les lecteurs qui passent par le schéma Arrow du fichier (GDAL, donc QGIS ; geopandas) n'en lisent pas le pied :
+    ils trouvent le SCR dans le `geo` posé à l'ouverture (un GeoParquet sans SCR pour eux, auparavant)."""
+    import json
+
+    import pyarrow.parquet as pq
+
+    _, path, _, _ = roundtrip(tmp_path, "g.parquet", make_table())
+    geo = json.loads(pq.read_schema(path).metadata[b"geo"])
+    assert geo["primary_column"] == GEOM and geo["columns"][GEOM]["encoding"] == "WKB"
+    assert geo["columns"][GEOM]["crs"]["id"] == {"authority": "EPSG", "code": 2154}
+
+
 def test_csv_roundtrip_wkt_and_xy(tmp_path):
     src = make_table()
     path = str(tmp_path / "t.csv")
