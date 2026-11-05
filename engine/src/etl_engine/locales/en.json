@@ -1867,6 +1867,7 @@
   "{count} entité(s) rejetée(s) : le motif est dans l'attribut _rejection_reason": "{count} feature(s) rejected: the reason is in the _rejection_reason attribute",
   "{len} fichier(s) au-delà des {MAX_OPEN_FILES} premiers : écrits un à un": "{len} file(s) beyond the first {MAX_OPEN_FILES}: written one by one",
   "le filtre « {cond} » doit être une condition (vrai ou faux)": "the filter “{cond}” must be a condition (true or false)",
-  "{failed} entité(s) non lue(s) : le filtre n'a pas pu être évalué ({failure})": "{failed} feature(s) not read: the filter could not be evaluated ({failure})"
+  "{failed} entité(s) non lue(s) : le filtre n'a pas pu être évalué ({failure})": "{failed} feature(s) not read: the filter could not be evaluated ({failure})",
+  "exemple introuvable": "example not found"
  }
 }
