@@ -328,15 +328,23 @@ def port_source(run_dir: Path, node: str, port: str) -> Path | Relation | None:
 class PortSource:
     """Lots d'un port d'entrée : ses fichiers Parquet, ou les requêtes des ports définis à la demande (ADR 0044), lues
     par DuckDB, à la suite, lot par lot. Les lots ne portent que le SCR du port, comme ceux qu'il a reçus (un fichier
-    désigné garde ses autres métadonnées : « geo »…). `total` : nombre d'entités, s'il est connu d'avance."""
+    désigné garde ses autres métadonnées : « geo »…). `total` : nombre d'entités, s'il est connu d'avance.
+    `schema` : celui d'une entrée branchée à plusieurs sorties (leurs colonnes réunies par nom) ; chaque lot y est
+    remis (colonnes qu'il n'a pas : vides), comme la voie SQL réunit les lignes (`UNION ALL BY NAME`)."""
 
     def __init__(
-        self, sources: list[Path | Relation], batch_rows: int, cancel: threading.Event, total: int | None = None
+        self,
+        sources: list[Path | Relation],
+        batch_rows: int,
+        cancel: threading.Event,
+        total: int | None = None,
+        schema: pa.Schema | None = None,
     ) -> None:
         self.sources = sources
         self.batch_rows = batch_rows
         self.cancel = cancel
         self.total = total
+        self.schema = schema
         self.rows = 0
 
     def __iter__(self) -> Iterator[pa.Table]:
@@ -345,7 +353,7 @@ class PortSource:
                 if self.cancel.is_set():
                     raise Cancelled
                 self.rows += table.num_rows
-                yield table
+                yield table if self.schema is None else conform(table, self.schema)
 
     def _file(self, path: Path) -> Iterator[pa.Table]:
         pf = pq.ParquetFile(path)

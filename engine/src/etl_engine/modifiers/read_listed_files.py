@@ -10,6 +10,7 @@ import pyarrow as pa
 from pydantic import Field
 
 from etl_engine import formats, paths
+from etl_engine.data import unify_schemas
 from etl_engine.sdk import (
     Attribute,
     AttributeList,
@@ -23,27 +24,6 @@ from etl_engine.sdk import (
 )
 
 Format = Literal["auto", "parquet", "gpkg", "csv", "geojson", "fgb", "shp", "tab", "mif", "xlsx"]
-
-
-def _merge(a: pa.Field, b: pa.Field) -> pa.Field:
-    try:
-        return pa.unify_schemas([pa.schema([a]), pa.schema([b])], promote_options="permissive").field(0)
-    except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
-        return pa.field(a.name, pa.string())  # types inconciliables : du texte
-
-
-def unify(schemas: list[pa.Schema]) -> pa.Schema:
-    """Union des schémas par nom ; deux types qui ne se concilient pas deviennent du texte."""
-    fields: dict[str, pa.Field] = {}
-    for schema in schemas:
-        for field in schema:
-            known = fields.get(field.name)
-            if known is None or pa.types.is_null(known.type):
-                fields[field.name] = field
-            elif known.type != field.type and not pa.types.is_null(field.type):
-                fields[field.name] = _merge(known, field)
-    metadata = next((s.metadata for s in schemas if s.metadata), None)
-    return pa.schema(list(fields.values()), metadata=metadata)
 
 
 def conform(batch: pa.Table, schema: pa.Schema) -> pa.Table:
@@ -197,7 +177,7 @@ class ReadListedFiles(Modifier):
                 usable.append((path, attrs))
         if not usable:
             return
-        union = unify([s for s in schemas.values() if s is not None])
+        union = unify_schemas([s for s in schemas.values() if s is not None])
         clash = [a for a in p.copy_attributes if a in union.names]
         if clash:
             raise ConfigError(f"attributs déjà présents dans les fichiers : {', '.join(clash)}")

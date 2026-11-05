@@ -5,7 +5,7 @@ import pyarrow.parquet as pq
 import pytest
 from etl_engine import executor
 from etl_engine.analysis import analyze
-from etl_engine.cache import has_port
+from etl_engine.cache import has_port, materialize
 from etl_engine.data import get_crs
 from etl_engine.executor import run_flow
 from etl_engine.sdk import Modifier, Params
@@ -320,6 +320,53 @@ class Rebuild(Modifier):
         import pyarrow as pa
 
         return {"output": pa.Table.from_arrays(batch.columns, names=batch.column_names)}
+
+
+def test_an_input_fed_by_several_outputs_has_the_attributes_of_all(registry, tmp_path):
+    """Deux sorties branchées sur une même entrée : leurs lignes sont réunies par nom, et le schéma de l'entrée aussi.
+    Seul celui de la première (à l'analyse) ou de la dernière (à l'exécution) comptait : un attribut de l'autre était
+    « absent », et le run s'arrêtait avant de lire les données."""
+    import pyarrow as pa
+    import shapely
+    from etl_engine.data import GEOM, with_crs
+
+    def write(name, box, **columns):
+        table = pa.table({**columns, GEOM: pa.array([shapely.to_wkb(shapely.box(*box))], pa.binary())})
+        pq.write_table(with_crs(table, "EPSG:2154"), tmp_path / name)
+        return str(tmp_path / name)
+
+    nodes = [
+        {
+            "id": "occupation",
+            "type": "GeoParquetReader",
+            "params": {"path": write("occ.parquet", (0, 0, 10, 10), code=["a"])},
+        },
+        {
+            "id": "communes",
+            "type": "GeoParquetReader",
+            "params": {"path": write("com.parquet", (5, 0, 15, 10), insee=["31555"])},
+        },
+        {"id": "o", "type": "OverlayPolygons", "params": {"attributes": ["code", "insee"]}},
+        {"id": "f", "type": "ExtractByExpression", "params": {"conditions": ['"insee" IS NOT NULL']}},
+    ]
+    links = [
+        ("occupation", "output", "o", "input"),
+        ("communes", "output", "o", "input"),
+        ("occupation", "output", "f", "input"),
+        ("communes", "output", "f", "input"),
+    ]
+    flow = make_flow(nodes, links)
+    analysis = analyze(flow, registry)
+    assert not [i for i in analysis["issues"] if i["node"] in ("o", "f")], analysis["issues"]
+    assert {"code", "insee"} <= {f["name"] for f in analysis["schemas"]["f/Passed"]["fields"]}
+    for sql in (True, False):  # voie SQL (`UNION ALL BY NAME`) et voie par lots (lots réunis par nom)
+        run_dir = tmp_path / f"run_{sql}"
+        res = run_flow(flow, registry, run_dir, sql_route=sql)
+        assert res.status == "done", res.error
+        out = pq.read_table(materialize(run_dir, "o", "output"))
+        pieces = sorted(zip(out.column("code").to_pylist(), out.column("insee").to_pylist(), strict=True), key=str)
+        assert pieces == sorted([([None], ["31555"]), (["a"], [None]), (["a", None], [None, "31555"])], key=str)
+        assert pq.read_table(materialize(run_dir, "f", "Passed")).column("insee").to_pylist() == ["31555"]
 
 
 def test_a_geometry_rebuilt_without_its_metadata_keeps_the_crs_of_its_input(registry, communes, tmp_path):

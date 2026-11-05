@@ -173,6 +173,28 @@ def set_geometries(table: pa.Table, geoms: Iterable, crs: str | None = None) -> 
     return with_crs(table, crs or get_crs(table))
 
 
+def _merge_fields(a: pa.Field, b: pa.Field) -> pa.Field:
+    try:
+        return pa.unify_schemas([pa.schema([a]), pa.schema([b])], promote_options="permissive").field(0)
+    except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+        return pa.field(a.name, pa.string())  # types inconciliables : du texte
+
+
+def unify_schemas(schemas: list[pa.Schema]) -> pa.Schema:
+    """Union des schémas par nom (lignes réunies par nom, comme `UNION ALL BY NAME`) ; deux types qui ne se
+    concilient pas deviennent du texte."""
+    fields: dict[str, pa.Field] = {}
+    for schema in schemas:
+        for field in schema:
+            known = fields.get(field.name)
+            if known is None or pa.types.is_null(known.type):
+                fields[field.name] = field
+            elif known.type != field.type and not pa.types.is_null(field.type):
+                fields[field.name] = _merge_fields(known, field)
+    metadata = next((s.metadata for s in schemas if s.metadata), None)
+    return pa.schema(list(fields.values()), metadata=metadata)
+
+
 def empty_like(schema: pa.Schema) -> pa.Table:
     return schema.empty_table()
 

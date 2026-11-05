@@ -40,7 +40,7 @@ import pyarrow.parquet as pq
 from pydantic import ValidationError
 
 from etl_engine import duck, i18n
-from etl_engine.analysis import compute_schemas
+from etl_engine.analysis import compute_schemas, input_schemas
 from etl_engine.cache import (
     PortSink,
     PortSource,
@@ -544,9 +544,7 @@ def run_flow(
                 rows_in = {port: sum(results[u].rows.get(p, 0) for u, p in ups) for port, ups in upstream.items()}
                 inherited = _common_crs([s for parts in inputs.values() for s in parts])
                 out_schemas = {port: schemas.get((nid, port)) for port in outs}
-                in_schemas = {
-                    link.to[1]: schemas.get((link.from_[0], link.from_[1])) for link in plan.inbound.get(nid, [])
-                }
+                in_schemas = input_schemas(plan, nid, schemas)
                 spill = ndir / ".spill"
                 route, routed = "", None
                 ready = inst.ready_ports() if direct[nid] else None
@@ -613,7 +611,8 @@ def run_flow(
                         event(type="log", node=nid, level="INFO", message=f"{total} entités lues")
                     return
                 for port, parts in inputs.items():
-                    sources[port] = PortSource(parts, batch_rows, cancel, total=rows_in[port])
+                    joined = in_schemas.get(port) if len(parts) > 1 else None  # plusieurs sorties : réunies par nom
+                    sources[port] = PortSource(parts, batch_rows, cancel, total=rows_in[port], schema=joined)
             throttles = {port: Throttle() for port in outs}
             for port in outs:
 

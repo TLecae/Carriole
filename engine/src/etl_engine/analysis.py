@@ -7,7 +7,7 @@ import pyarrow as pa
 from etl_engine import i18n
 from etl_engine.components import PREFIX as COMPONENT_PREFIX
 from etl_engine.components import SEP, expand_components
-from etl_engine.data import GEOM, get_crs, schema_to_json, with_crs
+from etl_engine.data import GEOM, get_crs, schema_to_json, unify_schemas, with_crs
 from etl_engine.flow import Flow, late_names, resolve_params, system_values
 from etl_engine.plan import Issue, Plan, build_plan
 from etl_engine.registry import Registry
@@ -16,15 +16,26 @@ from etl_engine.sdk import ConfigError, Context
 SchemaMap = dict[tuple[str, str], pa.Schema | None]
 
 
+def input_schemas(plan: Plan, nid: str, schemas: SchemaMap) -> dict[str, pa.Schema | None]:
+    """Schéma de chaque port d'entrée de `nid`. Un port branché à plusieurs sorties reçoit leurs lignes réunies par
+    nom (les colonnes de toutes, vides là où une sortie ne les a pas) : son schéma est l'union des leurs ; inconnu si
+    l'un d'eux l'est."""
+    found: dict[str, list[pa.Schema | None]] = {}
+    for link in plan.inbound.get(nid, []):
+        found.setdefault(link.to[1], []).append(schemas.get(link.from_))
+    return {
+        port: None if any(s is None for s in parts) else parts[0] if len(parts) == 1 else unify_schemas(parts)  # type: ignore[arg-type]
+        for port, parts in found.items()
+    }
+
+
 def compute_schemas(plan: Plan) -> tuple[SchemaMap, list[Issue]]:
     """Schéma de chaque port de sortie, dans l'ordre du flux, et problèmes détectés."""
     schemas: SchemaMap = {}
     issues: list[Issue] = []
     for nid in plan.order:
         inst = plan.nodes[nid]
-        inputs: dict[str, pa.Schema | None] = {}
-        for link in plan.inbound.get(nid, []):
-            inputs.setdefault(link.to[1], schemas.get(link.from_))
+        inputs = input_schemas(plan, nid, schemas)
         known = inputs.get(inst.inputs[0]) if inst.inputs else None
         if known is not None:
             missing = sorted({a for a in inst.used_attributes() if a not in known.names})

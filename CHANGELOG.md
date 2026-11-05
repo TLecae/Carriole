@@ -6,6 +6,9 @@
   of cores; pieces across tiles are joined exactly. A polygon with a very large extent (a network in one piece) no
   longer keeps the whole computation on one core: 184 s to 32 s on 177,000 land-cover polygons
   ([ADR 0049](docs/decisions/0049-superposition-par-carreaux.md)).
+- An input connected to several outputs has the attributes of all of them (rows joined by name, missing columns
+  empty): only the schema of one link was used, so an attribute of another was reported missing and stopped the
+  run; on the batch route, each batch is now conformed to the joined schema, as the SQL route does.
 
 ## 0.1.6
 
