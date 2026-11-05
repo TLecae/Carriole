@@ -91,6 +91,14 @@ def test_unknown_connection_routes(client):
     assert client.post("/api/connections/nope/test").status_code == 404
     assert client.get("/api/connections/nope/tables").status_code == 404
     assert client.get("/api/connections/nope/columns", params={"table": "public.t"}).status_code == 404
+    assert client.get("/api/connections/nope/schema").status_code == 404
+    assert client.post("/api/sql/check", json={"sql": "SELECT 1", "connection": "nope"}).status_code == 404
+
+
+def test_sql_check_without_connection_is_duckdb(client):
+    bad = client.post("/api/sql/check", json={"sql": "SELECT * FORM t"}).json()
+    assert bad["ok"] is False and bad["line"] == 1
+    assert client.post("/api/sql/check", json={"sql": "SELECT 1"}).json()["ok"] is True
 
 
 @pytest.mark.skipif(not TEST_PG, reason="ETL_TEST_PG non défini")
@@ -121,6 +129,15 @@ def test_test_and_tables_against_postgis(client):
             assert [(c["name"], c["type"]) for c in got["columns"]] == [("id", "integer"), ("nom", "text")]
             none = client.get("/api/connections/pg/columns", params={"table": "public.etl_cols_absente"}).json()
             assert none == {"exists": False, "columns": [], "case_sensitive": True}
+            # éditeur SQL : complétion et vérification par le plan de la requête
+            schema = client.get("/api/connections/pg/schema").json()
+            assert schema["dialect"] == "postgres" and schema["tables"]["public.etl_cols_test"] == ["id", "nom"]
+            check = lambda sql: client.post("/api/sql/check", json={"sql": sql, "connection": "pg"}).json()  # noqa: E731
+            assert check("SELECT id FROM public.etl_cols_test WHERE nom LIKE 'a%'")["ok"] is True
+            bad = check("SELECT id\nFROM public.etl_cols_test WHERE inconnue = 1")
+            assert bad["ok"] is False and bad["line"] == 2
+            assert check("SELECT id FROM public.etl_cols_test WHERE id = {{code}}")["ok"] is True
+            assert check("CREATE TABLE x (a int)")["skipped"] == "statement"
         finally:
             conn.execute("DROP TABLE public.etl_cols_test")
 

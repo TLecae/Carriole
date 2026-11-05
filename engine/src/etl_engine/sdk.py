@@ -87,6 +87,11 @@ PgTable = Annotated[str, _widget("pg-table", **{"x-etl-connection": "connection"
 PgTableOut = Annotated[str, _widget("pg-table", **{"x-etl-connection": "connection", "x-etl-access": "write"})]
 PythonCode = Annotated[str, _widget("code", **{"x-etl-language": "python"})]  # éditeur de code Python
 SqlCode = Annotated[str, _widget("code", **{"x-etl-language": "sql"})]  # éditeur de code SQL
+# SQL envoyé à la base de la connexion du paramètre `connection` : champ texte et éditeur en surcouche (dialecte de la
+# base, complétion des tables et colonnes, vérification par le serveur)
+DbSql = Annotated[str, _widget("sql", **{"x-etl-connection": "connection"})]
+# SQL DuckDB (lecture d'un fichier filtrée à la source) : même éditeur, dialecte de DuckDB
+DuckSql = Annotated[str, _widget("sql", **{"x-etl-dialect": "duckdb"})]
 
 Emit = Callable[[str, pa.Table], None]
 

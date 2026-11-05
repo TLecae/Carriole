@@ -17,6 +17,7 @@ from etl_engine.sdk import (
     ConfigError,
     Crs,
     DbConnection,
+    DbSql,
     Emit,
     Modifier,
     Params,
@@ -139,13 +140,13 @@ class ReaderParams(Params):
         description="Table ou vue lue en entier. Ignorée si une requête est renseignée.",
         examples=["carto.communes"],
     )
-    query: str = Field(
+    query: DbSql = Field(
         "",
         title="Requête SQL",
         description="Facultatif : remplace la table ; un seul SELECT.",
         examples=["SELECT id, nom, geom FROM carto.communes WHERE dep = '31'"],
     )
-    where: str = Field(
+    where: DbSql = Field(
         "",
         title="Filtre (WHERE)",
         description="Condition SQL ajoutée en WHERE, évaluée par le serveur ; vide = aucun filtre.",

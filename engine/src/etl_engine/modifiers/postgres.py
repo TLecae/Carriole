@@ -13,6 +13,7 @@ from etl_engine.sdk import (
     AttributeList,
     ConfigError,
     Crs,
+    DbSql,
     Emit,
     Modifier,
     Params,
@@ -54,7 +55,7 @@ class PostgresReader(Modifier):
             ),
             examples=["public.communes"],
         )
-        query: str = Field(
+        query: DbSql = Field(
             "",
             title="Requête SQL",
             description=(
@@ -63,7 +64,7 @@ class PostgresReader(Modifier):
             ),
             examples=["SELECT id, nom, geom FROM public.communes WHERE dep = '31'"],
         )
-        where: str = Field(
+        where: DbSql = Field(
             "",
             title="Filtre (WHERE)",
             description="Condition SQL ajoutée en WHERE, évaluée par le serveur ; vide = aucun filtre.",

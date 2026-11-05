@@ -11,6 +11,7 @@ import { formatCount, t } from "../i18n";
 import type { Rule } from "../model/attributeManager";
 import { AttributeManager } from "./AttributeManager";
 import { InfoTip } from "./InfoTip";
+import { SqlField, SqlOverlay } from "./SqlEditor";
 import { Spinner } from "./Spinner";
 
 export interface FormCtx {
@@ -65,6 +66,8 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
         const set = (v: unknown) => props.onChange({ ...props.value, [key]: v });
         // table d'une base : listes lues sur la connexion choisie dans le paramètre voisin
         const connection = widgetOf(s) === "pg-table" ? String(props.value[String(s["x-etl-connection"] ?? "connection")] ?? "") : null;
+        // SQL : celui de la base de la connexion voisine, ou de DuckDB
+        const sqlBase = widgetOf(s) === "sql" ? String(s["x-etl-connection"] ? (props.value[String(s["x-etl-connection"])] ?? "") : "") : null;
         return (
           <Field
             key={key}
@@ -73,10 +76,21 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
             hint={s.description}
             doc={props.ctx.doc?.(key)}
             inline={typeOf(s) === "boolean"}
-            simple={typeOf(s) !== "array" && widgetOf(s) !== "expression" && connection === null}
+            // un champ avec un bouton (éditeur de code, SQL) n'est pas un <label> : un clic y activerait le bouton
+            simple={typeOf(s) !== "array" && !["expression", "code"].includes(widgetOf(s) ?? "") && connection === null && sqlBase === null}
           >
             {connection !== null ? (
               <PgTableSelect label={labelOf(key, s)} connection={connection} value={String(value ?? "")} write={s["x-etl-access"] === "write"} onChange={set} />
+            ) : sqlBase !== null ? (
+              <SqlField
+                label={labelOf(key, s)}
+                value={String(value ?? "")}
+                onChange={set}
+                connection={sqlBase || undefined}
+                where={key === "where"}
+                placeholder={s.examples?.[0] !== undefined ? String(s.examples[0]) : undefined}
+                preview={<VariablePreview value={String(value ?? "")} ctx={props.ctx} />}
+              />
             ) : (
               <Editor label={labelOf(key, s)} schema={raw} value={value} ctx={props.ctx} onChange={set} />
             )}
@@ -197,6 +211,7 @@ function TextEditor({ widget, value, onChange, ctx, compact, label, example, acc
   };
   const area = useRef<HTMLTextAreaElement>(null);
   const field = useRef<HTMLInputElement>(null);
+  const [sqlOpen, setSqlOpen] = useState(false); // champ de code SQL : éditeur en surcouche
 
   const insert = (text: string) => {
     const el = area.current ?? field.current;
@@ -243,9 +258,15 @@ function TextEditor({ widget, value, onChange, ctx, compact, label, example, acc
     return (
       <div className="code-field">
         <Suspense fallback={<textarea aria-label={label} rows={8} value={value} onChange={(e) => onChange(e.target.value)} />}>
-          <CodeEditor value={value} language={codeLanguage} onChange={onChange} label={label} />
+          <CodeEditor value={value} language={codeLanguage} onChange={onChange} label={label} dialect={codeLanguage === "sql" ? "duckdb" : undefined} check={codeLanguage === "sql" ? (sql) => api.checkSql(sql) : undefined} />
         </Suspense>
+        {codeLanguage === "sql" && (
+          <button type="button" className="sql-open" onClick={() => setSqlOpen(true)} title={t("Ouvrir l'éditeur SQL : toute la requête, complétion, vérification")}>
+            {t("Éditeur SQL")}
+          </button>
+        )}
         <VariablePreview value={value} ctx={ctx} />
+        {sqlOpen && <SqlOverlay label={label ?? "SQL"} value={value} onChange={onChange} onClose={() => setSqlOpen(false)} />}
       </div>
     );
   }

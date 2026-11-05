@@ -79,6 +79,44 @@ async def tables(name: str, conns: Conns) -> list[dict[str, Any]]:
         raise HTTPException(502, str(exc)) from None
 
 
+@router.get("/connections/{name}/schema")
+async def schema(name: str, conns: Conns) -> dict[str, Any]:
+    """Tables et colonnes de la base, et son dialecte : complétion de l'éditeur SQL."""
+    try:
+        conns.get(name)
+    except NotFound:
+        raise HTTPException(404, "connexion introuvable") from None
+    try:
+        db = databases.backend(name)
+        tables = await asyncio.to_thread(lambda: db.schema_columns(name))
+    except ConfigError as exc:
+        raise HTTPException(502, str(exc)) from None
+    return {"dialect": db.sql_dialect, "tables": tables}
+
+
+class SqlCheck(BaseModel):
+    sql: str = Field(max_length=200_000)
+    connection: str = ""  # vide : SQL de DuckDB
+
+
+@router.post("/sql/check")
+async def check_sql(body: SqlCheck, conns: Conns) -> dict[str, Any]:
+    """Vérifie un SQL sans l'exécuter (syntaxe DuckDB, ou plan de la base de la connexion)."""
+    from etl_engine import sql_check
+
+    if not body.connection:
+        return await asyncio.to_thread(lambda: sql_check.check_duckdb(body.sql))
+    try:
+        conns.get(body.connection)
+    except NotFound:
+        raise HTTPException(404, "connexion introuvable") from None
+    try:
+        db = databases.backend(body.connection)
+        return await asyncio.to_thread(lambda: db.check_sql(body.connection, body.sql))
+    except ConfigError as exc:
+        raise HTTPException(502, str(exc)) from None
+
+
 @router.get("/connections/{name}/columns")
 async def columns(name: str, table: str, conns: Conns) -> dict[str, Any]:
     """Colonnes d'une table où écrire : l'éditeur montre en rouge les attributs qu'elle ne peut pas recevoir."""

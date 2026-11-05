@@ -10,7 +10,7 @@ from pydantic import Field
 
 from etl_engine.data import get_crs, with_crs
 from etl_engine.formats import databases
-from etl_engine.sdk import ConfigError, DbConnection, Emit, Modifier, Params, missing_attributes
+from etl_engine.sdk import ConfigError, DbConnection, DbSql, Emit, Modifier, Params, missing_attributes
 
 
 class DatabaseQueryPerFeature(Modifier):
@@ -33,7 +33,7 @@ class DatabaseQueryPerFeature(Modifier):
 
     class Params(Params):
         connection: DbConnection = Field("", title="Connexion", description="Connexion nommée (menu Connexions).")
-        sql: str = Field(
+        sql: DbSql = Field(
             "",
             title="SQL",
             description="Avec {{attribut}} pour les valeurs de l'entité.",

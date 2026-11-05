@@ -290,6 +290,54 @@ def table_columns(connection: str, table: str) -> list[dict[str, str]] | None:
     return [{"name": r[0], "type": r[1]} for r in rows] or None
 
 
+def schema_columns(connection: str, limit: int = 50_000) -> dict[str, list[str]]:
+    """Colonnes de toutes les tables et vues lisibles (« schéma.table » -> colonnes) : complétion de l'éditeur SQL.
+    `limit` : une base à des milliers de tables ne charge pas l'éditeur au-delà."""
+    with connect(connection, read_only=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT table_schema, table_name, column_name FROM information_schema.columns
+                WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+                ORDER BY table_schema, table_name, ordinal_position LIMIT %s""",
+            (limit,),
+        )
+        out: dict[str, list[str]] = {}
+        for schema, table, column in cur.fetchall():
+            out.setdefault(f"{schema}.{table}", []).append(column)
+        return out
+
+
+_EXPLAINABLE = re.compile(r"^\s*(\(\s*)*(select|with|values|table|insert|update|delete|merge)\b", re.IGNORECASE)
+
+
+def check_sql(connection: str, statement: str) -> dict[str, Any]:
+    """Vérifie un ordre sans l'exécuter : plan de la requête (`EXPLAIN`, ni lecture ni écriture des lignes), dans une
+    transaction en lecture seule annulée ensuite ; les `{{attribut}}` y valent NULL. Un ordre sans plan (CREATE…)
+    n'est pas vérifié."""
+    from etl_engine import sql_check
+
+    if not statement.strip():
+        return sql_check.result()
+    if sql_check.has_variables(statement):
+        return sql_check.result(skipped="variables")
+    if not _EXPLAINABLE.match(statement):
+        return sql_check.result(skipped="statement")
+    query, names = bind_placeholders(statement.strip().rstrip(";"))
+    with connect(connection, read_only=True) as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SET LOCAL statement_timeout = 10000")
+                # paramètres liés : un seul ordre accepté par le serveur (protocole étendu)
+                cur.execute("EXPLAIN " + query, dict.fromkeys(names))
+        except psycopg.errors.Error as exc:
+            offset = int(exc.diag.statement_position or 0) - 1 - len("EXPLAIN ")
+            if offset < 0 or names:  # les paramètres décalent les positions : l'erreur n'est pas située
+                return sql_check.result(_first_line(exc))
+            return sql_check.result(_first_line(exc), *sql_check.position(statement.strip(), offset))
+        finally:
+            conn.rollback()
+    return sql_check.result()
+
+
 def _has_postgis(cur: psycopg.Cursor) -> bool:
     cur.execute("SELECT to_regclass('geometry_columns') IS NOT NULL")
     return bool(cur.fetchone()[0])

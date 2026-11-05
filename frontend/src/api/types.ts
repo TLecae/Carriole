@@ -359,6 +359,15 @@ export interface PgTableInfo {
   geometry: string | null; // première colonne géométrique (PostGIS)
 }
 
+/** Vérification d'un SQL sans l'exécuter ; `line` et `column` à partir de 1 ; `skipped` : pas vérifié, et pourquoi. */
+export interface SqlCheckResult {
+  ok: boolean;
+  error: string | null;
+  line: number | null;
+  column: number | null;
+  skipped: "variables" | "statement" | "database" | null;
+}
+
 /** Colonnes d'une table où un nœud écrit (`exists` faux : elle sera créée). */
 export interface TableColumns {
   exists: boolean;

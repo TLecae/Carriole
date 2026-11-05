@@ -93,6 +93,14 @@ class _Postgres:
     def table_columns(self, connection: str, table: str) -> list[dict[str, str]] | None:
         return self.pg.table_columns(connection, table)
 
+    sql_dialect = "postgres"  # éditeur SQL : mots-clés et fonctions de cette base
+
+    def schema_columns(self, connection: str) -> dict[str, list[str]]:
+        return self.pg.schema_columns(connection)
+
+    def check_sql(self, connection: str, statement: str) -> dict[str, Any]:
+        return self.pg.check_sql(connection, statement)
+
     def check_connection(self, connection: str) -> dict[str, Any]:
         info = self.pg.check_connection(connection)
         return {**info, "spatial": f"PostGIS {info['postgis']}" if info.get("postgis") else None}

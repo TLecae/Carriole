@@ -10,7 +10,7 @@ from pydantic import Field
 
 from etl_engine.data import GEOM
 from etl_engine.formats import databases
-from etl_engine.sdk import ConfigError, DbConnection, Emit, Modifier, Params
+from etl_engine.sdk import ConfigError, DbConnection, DbSql, Emit, Modifier, Params
 
 
 class DatabaseQuery(Modifier):
@@ -34,7 +34,7 @@ class DatabaseQuery(Modifier):
 
     class Params(Params):
         connection: DbConnection = Field("", title="Connexion", description="Connexion nommée (menu Connexions).")
-        sql: str = Field(
+        sql: DbSql = Field(
             "", title="SQL", description="Un seul ordre.", examples=["SELECT id, nom FROM public.communes"]
         )
         allow_write: bool = Field(

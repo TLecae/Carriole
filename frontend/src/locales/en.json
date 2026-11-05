@@ -680,5 +680,18 @@
  "Garder cet attribut": "Keep this attribute",
  "Supprimer cet attribut": "Remove this attribute",
  "Garder": "Keep",
- "+ Ajouter un attribut": "+ Add an attribute"
+ "+ Ajouter un attribut": "+ Add an attribute",
+ "Ouvrir l'éditeur SQL : toute la requête, complétion, vérification": "Open the SQL editor: the whole query, completion, checking",
+ "Éditeur SQL": "SQL editor",
+ "Tables de la base indisponibles": "Database tables unavailable",
+ "Éditeur SQL — {{label}}": "SQL editor — {{label}}",
+ "Dialecte : {{name}}": "Dialect: {{name}}",
+ "connexion « {{name}} »": "connection “{{name}}”",
+ "Ctrl+Espace : compléter": "Ctrl+Space: complete",
+ "Requête valide": "Valid query",
+ "Ligne {{line}} : {{error}}": "Line {{line}}: {{error}}",
+ "Vérifier": "Check",
+ "Non vérifiée : la requête contient des variables ${…}, connues au lancement.": "Not checked: the query contains ${…} variables, known when the flow runs.",
+ "Non vérifiée : seuls SELECT, WITH, INSERT, UPDATE, DELETE et MERGE se vérifient sans être exécutés.": "Not checked: only SELECT, WITH, INSERT, UPDATE, DELETE and MERGE can be checked without running them.",
+ "Cette base ne permet pas de vérifier une requête sans l'exécuter.": "This database cannot check a query without running it."
 }

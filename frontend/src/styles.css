@@ -590,6 +590,18 @@ button.icon-only { padding: 4px 6px; }
 .check { display: flex; gap: 8px; align-items: center; }
 /* table d'une base : schéma puis table, côte à côte */
 .pg-table { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 6px; }
+/* champ SQL : texte et bouton de l'éditeur en surcouche (dialecte de la base, complétion, vérification) */
+.sql-field { display: grid; gap: 3px; min-width: 0; }
+.sql-line { display: flex; gap: 4px; align-items: flex-start; }
+.sql-text { flex: 1; min-width: 0; font-family: ui-monospace, Consolas, monospace; font-size: 12px; resize: vertical; }
+.sql-open { flex: none; white-space: nowrap; font-size: 12px; padding: 3px 8px; }
+.code-field .sql-open { justify-self: start; margin-top: 4px; }
+.modal.sql-modal { width: min(1100px, 96vw); height: min(760px, 92vh); max-height: 92vh; grid-template-rows: auto auto 1fr auto; }
+.sql-meta { margin: 0; font-size: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.code-editor.tall { max-height: none; height: 100%; min-height: 240px; font-size: 13px; }
+.code-editor.tall .cm-editor { height: 100%; }
+.sql-actions { align-items: center; }
+.sql-result { flex: 1; min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
 /* « Gérer des attributs » : tableau entrée / sortie / valeur / action, agrandissable en surcouche */
 .attr-manager { display: grid; gap: 6px; min-width: 0; }
 .attr-manager-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; }

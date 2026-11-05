@@ -68,4 +68,18 @@ test("les sorties d'un RouteByExpression suivent ses conditions, et ExecuteSql a
   await page.getByTestId("node-RouteByExpression_1").click();
   await page.getByTestId("node-ExecuteSql_1").click();
   await expect(editor.locator(".cm-content")).toContainText("SELECT 42 AS reponse");
+
+  // éditeur SQL en surcouche : même texte, une erreur de syntaxe est signalée par le serveur (DuckDB)
+  await page.getByRole("button", { name: "Éditeur SQL" }).click();
+  const overlay = page.getByRole("dialog", { name: /Éditeur SQL/ });
+  await expect(overlay).toContainText("DuckDB");
+  await expect(overlay.locator(".cm-content")).toContainText("SELECT 42 AS reponse");
+  await overlay.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type(" FORM t");
+  await overlay.getByRole("button", { name: "Vérifier" }).click();
+  await expect(overlay.locator(".sql-result")).toContainText("Ligne 1");
+  await expect(overlay.locator(".cm-lintRange-error")).toBeVisible(); // soulignée dans le texte
+  await overlay.getByRole("button", { name: "Fermer" }).click();
+  await expect(editor.locator(".cm-content")).toContainText("FORM t"); // la surcouche modifie le paramètre
 });

@@ -196,6 +196,21 @@ class Database:
 
     case_sensitive_columns = False  # `_match_columns` compare les noms sans la casse
 
+    @property
+    def sql_dialect(self) -> str:
+        return self.d.label.lower()  # éditeur SQL : mots-clés et fonctions de cette base (« oracle »)
+
+    def schema_columns(self, name: str) -> dict[str, list[str]]:
+        """Tables lisibles pour la complétion de l'éditeur SQL (leurs colonnes, à la demande : trop nombreuses)."""
+        return {f"{t['schema']}.{t['table']}": [] for t in self.list_tables(name)}
+
+    def check_sql(self, name: str, statement: str) -> dict[str, Any]:
+        """Pas de vérification sans exécution sûre sur ces bases (`EXPLAIN PLAN` écrit dans une table) : l'éditeur
+        s'en tient à la coloration et à la complétion."""
+        from etl_engine import sql_check
+
+        return sql_check.result(skipped="database")
+
     def table_columns(self, name: str, table: str) -> list[dict[str, str]] | None:
         """Colonnes d'une table existante, None si elle n'existe pas (l'éditeur signale les attributs absents)."""
         conn = self.connect(name, read_only=True)
