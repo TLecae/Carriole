@@ -55,7 +55,7 @@ from etl_engine import duck
 from etl_engine.cache import port_data
 from etl_engine.data import GEOM, get_crs
 
-VERSION = 5  # une vue d'une autre version est reconstruite
+VERSION = 6  # une vue d'une autre version est reconstruite (6 : pièces simplifiées invalides réparées)
 ROW_GROUP_SIZE = 50_000
 ROW_GROUP_BYTES = "8MB"  # au plus par row group de la vue : une tuile n'en décompresse pas plus (pièces énormes)
 WEB_MERCATOR = "EPSG:3857"
@@ -124,6 +124,35 @@ def simplify_polygons(g: np.ndarray, tolerance: float) -> np.ndarray:
     return out
 
 
+def clip(g: Any, x0: float, y0: float, x1: float, y1: float) -> Any:
+    """`shapely.clip_by_rect` (une géométrie ou un tableau), corrigé quand GEOS se trompe.
+
+    Simplifié anneau par anneau sans réparation (`simplify_polygons`), un polygone peut être invalide : un anneau qui se
+    recoupe, un trou qui déborde du contour. `clip_by_rect` rend alors parfois la case entière, et la carte dessinait
+    des rectangles pleins bien au-delà des données (réseau routier fusionné). Un résultat qui couvre toute la case alors
+    que son centre n'est pas dans le polygone est faux : ce polygone-là est réparé (`make_valid`), puis coupé de
+    nouveau. Réparer chaque niveau simplifié coûtait 45 s de plus sur un réseau de 1,1 million de sommets ; ce
+    contrôle, presque rien (seuls les résultats qui couvrent toute la case sont examinés)."""
+    out = shapely.clip_by_rect(g, x0, y0, x1, y1)
+    full = (shapely.get_dimensions(out) == 2) & (shapely.area(out) >= (x1 - x0) * (y1 - y0) * (1 - 1e-9))
+    if not np.any(full):
+        return out
+    # une case vraiment couverte a son centre et ses coins dans le polygone (ou sur son bord : coupes précédentes)
+    wrong = full & ~shapely.intersects_xy(g, (x0 + x1) / 2, (y0 + y1) / 2)
+    for x, y in ((x0, y0), (x0, y1), (x1, y0), (x1, y1)):
+        wrong |= full & ~shapely.intersects_xy(g, x, y)
+    if not np.any(wrong):
+        return out
+    if not isinstance(out, np.ndarray):
+        return shapely.clip_by_rect(_repaired(g), x0, y0, x1, y1)
+    out[wrong] = shapely.clip_by_rect(_repaired(g[wrong]), x0, y0, x1, y1)
+    return out
+
+
+def _repaired(g: Any) -> Any:
+    return shapely.make_valid(g, method="structure", keep_collapsed=False)
+
+
 def _halves(box: tuple[float, ...], depth: int) -> tuple[tuple[float, ...], tuple[float, ...], float, int]:
     """Les deux moitiés de `box` (en long aux profondeurs paires, en large sinon), la coupe et son axe (0 : x)."""
     x0, y0, x1, y1 = box
@@ -179,7 +208,7 @@ def subdivide(g: np.ndarray, finest: float, pool: ThreadPoolExecutor | None = No
                 else:
                     halves += [(geom, i, half, depth, holes.touching(inside, half)) for half in (a, b)]
                     break
-        cut_pieces = (pool.map if pool else map)(lambda h: shapely.clip_by_rect(h[0], *h[2]), halves)
+        cut_pieces = (pool.map if pool else map)(lambda h: clip(h[0], *h[2]), halves)
         todo = [(p, *rest) for p, (_, *rest) in zip(cut_pieces, halves, strict=True) if not shapely.is_empty(p)]
     pieces = list((pool.map if pool else map)(lambda leaf: _holes_back(*leaf, holes), leaves))
     found = [(p, i) for ps, i in zip(pieces, owners, strict=True) for p in ps]

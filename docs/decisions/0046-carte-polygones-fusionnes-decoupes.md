@@ -74,3 +74,10 @@ Mesures sur un polygone fusionné de 1,57 million de sommets et 21 000 trous (un
   fort, ses contours sont grossiers.
 - Un polygone énorme simplifié peut être invalide (trous qui touchent le contour, anneaux qui se croisent) : seul le
   dessin s'en sert. Dans une pièce invalide, un petit trou coupé par la case peut rester plein.
+
+## Complément (2026-11-05) : découpe d'un polygone simplifié invalide
+Sur un tel polygone (réseau routier tamponné et fusionné), `clip_by_rect` rend parfois la case entière : la découpe,
+puis la tuile, dessinaient des rectangles pleins loin des données. Les deux passent par `view.clip` : un résultat qui
+couvre toute la case alors que le centre ou un coin de la case est hors du polygone est faux ; ce polygone seul est
+réparé (`make_valid`), puis recoupé. Réparer chaque niveau simplifié aurait coûté 45 s de plus sur un réseau de
+1,1 million de sommets (16 s → 62 s) ; le contrôle, 1 s (16 s → 17 s). Vue de version 6.

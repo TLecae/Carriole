@@ -994,7 +994,8 @@ def _tile_shapes(wkb: np.ndarray, x0: float, y1: float, size: float) -> tuple[np
     scale = EXTENT / size
     g = shapely.from_wkb(wkb)
     g = shapely.transform(g, lambda c: np.c_[(c[:, 0] - x0) * scale, (y1 - c[:, 1]) * scale])
-    g = shapely.clip_by_rect(g, -TILE_BUFFER, -TILE_BUFFER, EXTENT + TILE_BUFFER, EXTENT + TILE_BUFFER)
+    # `views.clip` : un morceau simplifié invalide ne remplit plus toute la tuile (rectangle hors des données)
+    g = views.clip(g, -TILE_BUFFER, -TILE_BUFFER, EXTENT + TILE_BUFFER, EXTENT + TILE_BUFFER)
     b = shapely.bounds(g)
     with np.errstate(invalid="ignore"):
         tiny = (shapely.get_dimensions(g) == 2) & (np.fmax(b[:, 2] - b[:, 0], b[:, 3] - b[:, 1]) < PIXEL)

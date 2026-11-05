@@ -155,6 +155,45 @@ def test_fused_polygon_is_simplified_and_cut_with_its_outline_apart(tmp_path):
     assert len(union.interiors) == len(poly.interiors)  # aucun trou perdu (ni coupe prise pour un bord)
 
 
+def road_network(lines=1500, seed=1):
+    """Un réseau de routes tamponné et fusionné d'un seul tenant : simplifiés, ses anneaux se recoupent."""
+    rng = np.random.default_rng(seed)
+    paths = [shapely.LineString([(0, 20_000), (40_000, 20_000)]), shapely.LineString([(20_000, 0), (20_000, 40_000)])]
+    for _ in range(lines):
+        x, y = rng.uniform(0, 40_000, 2)
+        steps = rng.normal(0, 400, (rng.integers(3, 12), 2)).cumsum(axis=0)
+        paths.append(shapely.LineString(np.c_[x + steps[:, 0], y + steps[:, 1]]))
+    merged = shapely.union_all(shapely.buffer(np.array(paths), 15))
+    return shapely.transform(merged, lambda xy: xy + [550_000, 6_300_000])
+
+
+def test_simplified_pieces_stay_within_the_entity(tmp_path, monkeypatch):
+    """Un réseau routier fusionné : simplifiés sans réparation, ses anneaux se recoupent, et `clip_by_rect` rendait
+    alors des cases entières, dessinées bien au-delà des données (carrés pleins sur la carte). Les pièces de chaque
+    niveau restent dans l'emprise de l'entité, sans surface en trop."""
+    monkeypatch.setattr(views, "PIECE_VERTICES", 256)  # plus de coupes : celles d'un réseau de taille réelle
+    src = tmp_path / "Reseau.parquet"
+    net = road_network()
+    pq.write_table(
+        with_crs(pa.table({"id": [1], GEOM: pa.array([shapely.to_wkb(net)], pa.binary())}), "EPSG:2154"), src
+    )
+    build_view(src)
+    view = pq.read_table(view_path(src))
+    lvl, role = (np.array(view.column(c).to_pylist()) for c in ("lvl", "role"))
+    shapes = shapely.from_wkb(np.array(view.column("geom_3857").to_pylist(), dtype=object))
+    (ent,) = pq.read_table(entities_path(src)).to_pylist()
+    e = ent["bbox"]
+    margin = views.pixel(8)  # une simplification déplace un sommet d'au plus un pixel du niveau
+    surfaces = ~shapely.is_missing(shapes) & (shapely.get_dimensions(shapes) == 2)
+    b = shapely.bounds(shapes[surfaces])
+    assert (b[:, 0] >= e["xmin"] - margin).all() and (b[:, 2] <= e["xmax"] + margin).all()
+    assert (b[:, 1] >= e["ymin"] - margin).all() and (b[:, 3] <= e["ymax"] + margin).all()
+    full = shapely.area(shapes[surfaces & (lvl == views.FULL)]).sum()
+    for level in set(lvl[surfaces]) - {views.FULL}:
+        drawn = shapes[surfaces & (lvl == level) & (role != views.EDGE)]
+        assert shapely.area(drawn).sum() < 4 * full, level  # simplifiées, pas des rectangles pleins
+
+
 def test_huge_entity_is_split_into_parts_and_generalized_by_zoom(tmp_path):
     src = tmp_path / "Dissolved.parquet"
     write_dissolved(src)
