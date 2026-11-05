@@ -275,6 +275,21 @@ def list_tables(connection: str) -> list[dict[str, Any]]:
         ]
 
 
+def table_columns(connection: str, table: str) -> list[dict[str, str]] | None:
+    """Colonnes (nom, type) d'une table existante, None si elle n'existe pas : l'éditeur signale les attributs qu'un
+    ajout ne pourra pas y écrire (même comparaison que `PgWriter._check_columns` : nom exact)."""
+    schema, name = split_table(table)
+    with connect(connection, read_only=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT column_name, CASE WHEN data_type = 'USER-DEFINED' THEN udt_name ELSE data_type END
+                 FROM information_schema.columns WHERE table_schema = %s AND table_name = %s
+                ORDER BY ordinal_position""",
+            (schema, name),
+        )
+        rows = cur.fetchall()
+    return [{"name": r[0], "type": r[1]} for r in rows] or None
+
+
 def _has_postgis(cur: psycopg.Cursor) -> bool:
     cur.execute("SELECT to_regclass('geometry_columns') IS NOT NULL")
     return bool(cur.fetchone()[0])

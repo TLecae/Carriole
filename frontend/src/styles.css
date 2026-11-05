@@ -590,4 +590,13 @@ button.icon-only { padding: 4px 6px; }
 .check { display: flex; gap: 8px; align-items: center; }
 /* table d'une base : schéma puis table, côte à côte */
 .pg-table { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 6px; }
+/* écriture dans une table existante : attributs reçus face aux colonnes */
+.table-fields h3 { margin: 14px 0 4px; font-size: 13px; }
+.field-match { list-style: none; margin: 4px 0; padding: 0; border: 1px solid var(--line); border-radius: 5px; max-height: 260px; overflow: auto; font-size: 12px; }
+.field-match li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 8px; border-bottom: 1px solid var(--line-soft); }
+.field-match li:last-child { border-bottom: 0; }
+.field-match li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-match li.ok small { color: var(--ok); }
+.field-match li.absent { background: var(--danger-soft); color: var(--danger); font-weight: 600; }
+.field-match li.unfed { color: var(--muted); font-style: italic; }
 .pg-loading { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }

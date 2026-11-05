@@ -88,6 +88,11 @@ class _Postgres:
     def list_tables(self, connection: str) -> list[dict[str, Any]]:
         return self.pg.list_tables(connection)
 
+    case_sensitive_columns = True  # un nom de colonne s'écrit à l'identique (PgWriter)
+
+    def table_columns(self, connection: str, table: str) -> list[dict[str, str]] | None:
+        return self.pg.table_columns(connection, table)
+
     def check_connection(self, connection: str) -> dict[str, Any]:
         info = self.pg.check_connection(connection)
         return {**info, "spatial": f"PostGIS {info['postgis']}" if info.get("postgis") else None}

@@ -90,6 +90,7 @@ def test_secret_key_from_environment(tmp_path, monkeypatch):
 def test_unknown_connection_routes(client):
     assert client.post("/api/connections/nope/test").status_code == 404
     assert client.get("/api/connections/nope/tables").status_code == 404
+    assert client.get("/api/connections/nope/columns", params={"table": "public.t"}).status_code == 404
 
 
 @pytest.mark.skipif(not TEST_PG, reason="ETL_TEST_PG non défini")
@@ -107,6 +108,21 @@ def test_test_and_tables_against_postgis(client):
     ok = client.post("/api/connections/pg/test").json()
     assert ok["ok"] is True and "PostgreSQL" in ok["server"]
     assert isinstance(client.get("/api/connections/pg/tables").json(), list)
+
+    # colonnes d'une table où écrire (attributs absents signalés dans l'éditeur)
+    import psycopg
+
+    with psycopg.connect(TEST_PG, autocommit=True) as conn:
+        conn.execute("DROP TABLE IF EXISTS public.etl_cols_test")
+        conn.execute("CREATE TABLE public.etl_cols_test (id integer, nom text)")
+        try:
+            got = client.get("/api/connections/pg/columns", params={"table": "public.etl_cols_test"}).json()
+            assert got["exists"] and got["case_sensitive"]
+            assert [(c["name"], c["type"]) for c in got["columns"]] == [("id", "integer"), ("nom", "text")]
+            none = client.get("/api/connections/pg/columns", params={"table": "public.etl_cols_absente"}).json()
+            assert none == {"exists": False, "columns": [], "case_sensitive": True}
+        finally:
+            conn.execute("DROP TABLE public.etl_cols_test")
 
     client.put("/api/connections/bad", json=body | {"password": "pwd-faux-x"})
     failed = client.post("/api/connections/bad/test").json()

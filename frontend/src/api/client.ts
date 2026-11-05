@@ -9,6 +9,7 @@ import type {
   ConnectionInput,
   ConnectionTest,
   PgTableInfo,
+  TableColumns,
   DataQuery,
   FeatureInfo,
   FileListing,
@@ -167,6 +168,8 @@ export const api = {
   deleteConnection: (name: string) => call<void>(`/connections/${encodeURIComponent(name)}`, { method: "DELETE" }),
   testConnection: (name: string) => call<ConnectionTest>(`/connections/${encodeURIComponent(name)}/test`, { method: "POST" }),
   connectionTables: (name: string) => call<PgTableInfo[]>(`/connections/${encodeURIComponent(name)}/tables`),
+  tableColumns: (name: string, table: string) =>
+    call<TableColumns>(`/connections/${encodeURIComponent(name)}/columns?table=${encodeURIComponent(table)}`),
 
   // planifications
   schedules: () => call<ScheduleInfo[]>("/schedules"),

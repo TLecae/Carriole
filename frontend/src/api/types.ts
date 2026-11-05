@@ -359,6 +359,13 @@ export interface PgTableInfo {
   geometry: string | null; // première colonne géométrique (PostGIS)
 }
 
+/** Colonnes d'une table où un nœud écrit (`exists` faux : elle sera créée). */
+export interface TableColumns {
+  exists: boolean;
+  columns: { name: string; type: string }[];
+  case_sensitive: boolean; // PostgreSQL : nom exact ; Oracle : sans la casse
+}
+
 export interface ConnectionTest {
   ok: boolean;
   server?: string;

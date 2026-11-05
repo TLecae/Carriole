@@ -77,3 +77,18 @@ async def tables(name: str, conns: Conns) -> list[dict[str, Any]]:
         return await asyncio.to_thread(lambda: databases.backend(name).list_tables(name))
     except ConfigError as exc:
         raise HTTPException(502, str(exc)) from None
+
+
+@router.get("/connections/{name}/columns")
+async def columns(name: str, table: str, conns: Conns) -> dict[str, Any]:
+    """Colonnes d'une table où écrire : l'éditeur montre en rouge les attributs qu'elle ne peut pas recevoir."""
+    try:
+        conns.get(name)
+    except NotFound:
+        raise HTTPException(404, "connexion introuvable") from None
+    try:
+        db = databases.backend(name)
+        found = await asyncio.to_thread(lambda: db.table_columns(name, table))
+    except ConfigError as exc:
+        raise HTTPException(502, str(exc)) from None
+    return {"exists": found is not None, "columns": found or [], "case_sensitive": db.case_sensitive_columns}

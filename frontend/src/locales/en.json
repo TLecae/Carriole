@@ -644,5 +644,16 @@
  "Description, paramètres publiés et variables du flux": "Description, published parameters and variables of the flow",
  "Replier les propriétés du flux": "Fold the flow properties",
  "Documentation du paramètre": "Parameter documentation",
- "Documentation de {{name}}": "{{name}} documentation"
+ "Documentation de {{name}}": "{{name}} documentation",
+ "Colonnes de la table indisponibles": "Table columns unavailable",
+ "Champs écrits dans la table": "Fields written to the table",
+ "Lecture des colonnes…": "Reading columns…",
+ "La table n'existe pas encore : elle sera créée avec les attributs reçus.": "The table does not exist yet: it will be created with the incoming attributes.",
+ "Attributs reçus inconnus : relier l'entrée, ou lancer le flux en amont.": "Incoming attributes unknown: connect the input, or run the flow upstream.",
+ "{{count}} attribut(s) absent(s) de la table : ils ne peuvent pas y être écrits (à renommer ou retirer avant l'écriture).": "{{count}} attribute(s) missing from the table: they cannot be written to it (rename or drop them before writing).",
+ "Absent de la table : ne peut pas être écrit": "Missing from the table: cannot be written",
+ "Colonne de la table": "Table column",
+ "absent de la table": "not in table",
+ "Colonne que rien n'alimente : laissée vide": "Column fed by nothing: left empty",
+ "non alimentée": "not fed"
 }

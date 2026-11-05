@@ -194,6 +194,25 @@ class Database:
         finally:
             conn.close()
 
+    case_sensitive_columns = False  # `_match_columns` compare les noms sans la casse
+
+    def table_columns(self, name: str, table: str) -> list[dict[str, str]] | None:
+        """Colonnes d'une table existante, None si elle n'existe pas (l'éditeur signale les attributs absents)."""
+        conn = self.connect(name, read_only=True)
+        try:
+            cur = conn.cursor()
+            try:
+                schema, tbl = self.split_table(conn, table)
+                if not self.d.exists(cur, schema, tbl):
+                    return None
+                return [{"name": c, "type": ""} for c in self.d.table_columns(cur, schema, tbl)]
+            finally:
+                cur.close()
+        except self.d.errors() as exc:
+            raise ConfigError(f"{self.d.label} : {first_line(exc)}") from None
+        finally:
+            conn.close()
+
     def split_table(self, conn: Any, name: str) -> tuple[str, str]:
         """« schéma.table » -> (schéma, table) ; sans schéma : celui de l'utilisateur."""
         parts = [p.strip() for p in name.split(".")]
