@@ -33,6 +33,25 @@ def list_flows(store: Annotated[Store, Depends(get_store)]) -> list[dict[str, An
     return store.list_flows()
 
 
+@router.get("/examples")
+def list_examples() -> list[dict[str, Any]]:
+    """Flux d'exemple livrés avec l'application (page d'accueil)."""
+    from etl_engine import example_flows
+
+    return example_flows.list_examples()
+
+
+@router.get("/examples/{example_id}")
+def get_example(example_id: str) -> dict[str, Any]:
+    """Le flux d'un exemple : l'éditeur l'ouvre comme un flux neuf, à enregistrer où l'on veut."""
+    from etl_engine import example_flows
+
+    flow = example_flows.load_example(example_id)
+    if flow is None:
+        raise HTTPException(404, "exemple introuvable")
+    return flow
+
+
 @router.post("/flows/open")
 def open_flow(body: OpenIn, store: Annotated[Store, Depends(get_store)]):
     """Ouvre un fichier de flux par son chemin (stockage en fichiers)."""

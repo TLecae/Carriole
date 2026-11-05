@@ -471,6 +471,8 @@ label.inline input { width: auto; }
 .flow-card footer { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px 8px 14px; border-top: 1px solid var(--line-soft); }
 .flow-card footer .remove { border: 0; background: none; color: var(--muted); font-size: 16px; }
 .flow-card footer .remove:hover { color: var(--danger); }
+.flow-card.example { border-style: dashed; }
+.flow-card.example .flow-card-main { border-radius: 10px; }
 .home-empty { background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 14px 20px; }
 .home-empty ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
 

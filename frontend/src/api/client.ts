@@ -14,6 +14,7 @@ import type {
   DataQuery,
   FeatureInfo,
   FileListing,
+  ExampleFlow,
   FlowDoc,
   FlowRecord,
   FlowSummary,
@@ -112,6 +113,8 @@ const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 export const api = {
   modifiers: () => call<{ modifiers: ModifierInfo[]; errors: Record<string, string> }>("/modifiers"),
   flows: () => call<FlowSummary[]>("/flows"),
+  examples: () => call<ExampleFlow[]>("/examples"),
+  example: (id: string) => call<FlowDoc>(`/examples/${encodeURIComponent(id)}`),
   componentVersions: (name: string) => call<ComponentVersions>(`/components/${encodeURIComponent(name)}/versions`),
   publishComponent: (name: string, note: string) =>
     call<ComponentVersion>(`/components/${encodeURIComponent(name)}/versions`, { method: "POST", ...json({ note }) }),

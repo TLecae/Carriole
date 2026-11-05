@@ -1,3 +1,4 @@
+import { api } from "./api/client";
 import { useEditor } from "./store/editor";
 import { useUi } from "./store/ui";
 import { t } from "./i18n";
@@ -41,6 +42,19 @@ export async function openFlowFileFromHome(path: string): Promise<void> {
     await s.openFile(path);
     history.pushState(null, "", location.hash); // l'ouverture a posé l'adresse du flux : Précédent revient à l'accueil
     void s.loadFlows();
+  } catch (err) {
+    s.setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Ouverture impossible") });
+  }
+}
+
+/** Ouvre un flux d'exemple comme un flux neuf : on l'essaie, on le modifie, on l'enregistre où l'on veut. */
+export async function openExampleFromHome(id: string): Promise<void> {
+  const s = useEditor.getState();
+  if (!confirmLoss()) return;
+  try {
+    const doc = await api.example(id);
+    history.pushState(null, "", "#new");
+    s.openDraft(doc);
   } catch (err) {
     s.setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Ouverture impossible") });
   }

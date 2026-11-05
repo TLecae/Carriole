@@ -693,5 +693,8 @@
  "Vérifier": "Check",
  "Non vérifiée : la requête contient des variables ${…}, connues au lancement.": "Not checked: the query contains ${…} variables, known when the flow runs.",
  "Non vérifiée : seuls SELECT, WITH, INSERT, UPDATE, DELETE et MERGE se vérifient sans être exécutés.": "Not checked: only SELECT, WITH, INSERT, UPDATE, DELETE and MERGE can be checked without running them.",
- "Cette base ne permet pas de vérifier une requête sans l'exécuter.": "This database cannot check a query without running it."
+ "Cette base ne permet pas de vérifier une requête sans l'exécuter.": "This database cannot check a query without running it.",
+ "Exemples": "Examples",
+ "Des flux prêts à lancer sur des données publiques lues par https (API, catalogues) : ils s'ouvrent comme des flux neufs, à modifier et à enregistrer.": "Flows ready to run on public data read over https (APIs, catalogues): they open as new flows, to modify and save.",
+ "Ouvrir l'exemple {{name}}": "Open the example {{name}}"
 }

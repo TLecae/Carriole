@@ -51,6 +51,19 @@ def test_modifiers_palette(client):
     )
 
 
+def test_example_flows_are_listed_and_open(client):
+    """Les flux d'exemple livrés (page d'accueil) : listés, ouverts, et faits de modificateurs du catalogue."""
+    listed = client.get("/api/examples").json()
+    assert {e["id"] for e in listed} >= {"insee_melodi_populations", "stac_sentinel2_ndvi"}
+    known = {m["name"] for m in client.get("/api/modifiers").json()["modifiers"]}
+    for example in listed:
+        flow = client.get(f"/api/examples/{example['id']}").json()
+        assert flow["name"] == example["name"] and len(flow["nodes"]) == example["node_count"]
+        assert {n["type"] for n in flow["nodes"]} <= known
+        assert all(not n["enabled"] for n in flow["nodes"] if n["type"].endswith("Writer"))  # rien n'est écrit
+    assert client.get("/api/examples/inconnu").status_code == 404
+
+
 def test_flow_crud_with_revision_conflict(client):
     flow = sample_flow(client.tmp)
     created = client.post("/api/flows", json={"flow": flow}).json()

@@ -52,6 +52,16 @@ test("accueil : la liste des flux, ouverture et retour", async ({ page }) => {
   await page.request.delete(`/api/flows/${id}`);
 });
 
+test("accueil : un flux d'exemple s'ouvre comme un flux neuf, prêt à lancer", async ({ page }) => {
+  await page.goto("/");
+  const examples = page.getByRole("region", { name: "Exemples" });
+  await expect(examples.getByTestId("example-card")).toHaveCount(2);
+  await examples.getByRole("button", { name: /Sentinel-2/ }).click();
+  await expect(page.getByLabel("Nom du flux")).toHaveValue(/NDVI Sentinel-2/);
+  await expect(page.getByTestId("node-stac")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Enregistrer •/ })).toBeVisible(); // pas encore enregistré
+});
+
 test("accueil : « Nouveau flux » ouvre un éditeur vide, « Reprendre » le retrouve", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "+ Nouveau flux" }).click();
@@ -92,6 +102,7 @@ test("explorateur de fichiers : choisir un fichier, puis un emplacement d'écrit
   await expect(page.getByTestId("node-CsvWriter_1")).toBeVisible();
   await page.getByRole("button", { name: "Fichier : parcourir" }).click();
   const out = page.getByRole("dialog", { name: "Choisir où écrire" });
+  await expect(out.getByRole("button", { name: /Dossier personnel/ })).toBeVisible(); // racines lues : la saisie n'est plus écrasée
   await out.getByLabel("Dossier courant").fill(process.env.E2E_OUT!);
   await out.getByLabel("Dossier courant").press("Enter");
   await out.getByLabel("Nom du fichier").fill("depuis_explorateur.csv");

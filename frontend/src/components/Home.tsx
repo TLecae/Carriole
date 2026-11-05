@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
-import type { FlowSummary, RunStatus, RunSummary } from "../api/types";
-import { enterEditor, newFlowFromHome, openFlowFileFromHome, openFlowFromHome } from "../navigation";
+import type { ExampleFlow, FlowSummary, RunStatus, RunSummary } from "../api/types";
+import { enterEditor, newFlowFromHome, openExampleFromHome, openFlowFileFromHome, openFlowFromHome } from "../navigation";
 import { pickPath } from "../platform";
 import { useEditor } from "../store/editor";
 import { useUi } from "../store/ui";
@@ -37,6 +37,14 @@ export function Home() {
   const [query, setQuery] = useState("");
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [examples, setExamples] = useState<ExampleFlow[]>([]);
+
+  useEffect(() => {
+    void api
+      .examples()
+      .then(setExamples)
+      .catch(() => undefined); // sans exemples, l'accueil reste utilisable
+  }, []);
 
   // Liste des flux et derniers runs, rafraîchis tant que la page est affichée (un run lancé ailleurs apparaît).
   useEffect(() => {
@@ -162,6 +170,23 @@ export function Home() {
         {plain.length > 0 && (
           <section aria-label={t("Flux")}>
             <div className="flow-grid">{plain.map(card)}</div>
+          </section>
+        )}
+        {examples.length > 0 && (
+          <section aria-label={t("Exemples")}>
+            <h2>{t("Exemples")}</h2>
+            <p className="muted">{t("Des flux prêts à lancer sur des données publiques lues par https (API, catalogues) : ils s'ouvrent comme des flux neufs, à modifier et à enregistrer.")}</p>
+            <div className="flow-grid">
+              {examples.map((e) => (
+                <article className="flow-card example" key={e.id} data-testid="example-card">
+                  <button type="button" className="flow-card-main" onClick={() => void openExampleFromHome(e.id)} aria-label={t("Ouvrir l'exemple {{name}}", { name: e.name })}>
+                    <strong>{e.name}</strong>
+                    <span className="flow-desc">{e.description}</span>
+                    <small className="muted">{t("{{count}} nœud(s)", { count: e.node_count })}</small>
+                  </button>
+                </article>
+              ))}
+            </div>
           </section>
         )}
         {components.length > 0 && (

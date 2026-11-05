@@ -100,6 +100,14 @@ export interface FlowDoc {
   subflows: Record<string, unknown>;
 }
 
+/** Flux d'exemple livré avec l'application (données publiques lues par https) : proposé sur l'accueil. */
+export interface ExampleFlow {
+  id: string;
+  name: string;
+  description: string;
+  node_count: number;
+}
+
 export interface FlowSummary {
   id: string;
   name: string;

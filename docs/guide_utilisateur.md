@@ -194,12 +194,12 @@ invalides avec le motif ; *Réparer les géométries* les rend valides (les autr
 *Rejected* celles qui ne donnent plus rien. À placer avant un découpage, une jointure spatiale ou une écriture
 PostGIS qui refuse les géométries invalides.
 
-**Flux d'exemple**, dans le dossier `examples/flows` du dépôt (*Fichier → Ouvrir*), avec des annotations qui les
-expliquent ; il faut un accès à internet :
+**Flux d'exemple**, sur la page d'accueil (section *Exemples*) : un clic en ouvre un comme un flux neuf, à lancer, à
+modifier et à enregistrer où l'on veut. Des annotations les expliquent ; il faut un accès à internet :
 
-- `insee_melodi_populations.json` : populations municipales du recensement (API Melodi de l'Insee, sans clé) jointes
+- *Populations Insee (API Melodi)* : populations municipales du recensement (API Melodi de l'Insee, sans clé) jointes
   aux contours des communes d'un département (geo.api.gouv.fr), avec la densité. Paramètres : département, année.
-- `stac_sentinel2_ndvi.json` : l'image Sentinel-2 la moins nuageuse d'une période (catalogue STAC Earth Search),
+- *NDVI Sentinel-2 d'une commune (STAC)* : l'image Sentinel-2 la moins nuageuse d'une période (catalogue STAC Earth Search),
   découpée par le contour d'une commune, puis son NDVI. Paramètres : commune, période, tuile Sentinel-2.
 
 Leur nœud d'écriture est désactivé : l'activer et choisir le fichier pour garder le résultat.
