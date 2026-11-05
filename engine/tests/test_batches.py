@@ -170,6 +170,31 @@ def test_feature_writer_cleans_names_and_refuses_unknown_attributes(registry, co
     )
 
 
+def test_feature_writer_has_no_limit_on_the_number_of_files(registry, communes, tmp_path, monkeypatch):
+    """Au-delà des fichiers ouverts ensemble, les groupes suivants passent par des paquets temporaires : tous les
+    fichiers sont écrits, chacun avec ses entités dans l'ordre d'arrivée (auparavant : erreur au-delà de 200)."""
+    from etl_engine.modifiers import split_to_files
+
+    monkeypatch.setattr(split_to_files, "MAX_OPEN_FILES", 3)
+    nodes = [
+        {"id": "r", "type": "Reader", "params": {"path": str(communes)}},
+        {"id": "m", "type": "AddAttributes", "params": {"attributes": [{"name": "g", "expression": "id % 7"}]}},
+        {"id": "w", "type": "SplitToFiles", "params": {"path": str(tmp_path / "o" / "{g}.csv")}},
+        {"id": "s", "type": "Writer", "params": {"path": str(tmp_path / "summary.parquet")}},
+    ]
+    links = [("r", "output", "m", "input"), ("m", "output", "w", "input"), ("w", "summary", "s", "input")]
+    res = run_flow(make_flow(nodes, links), registry, tmp_path / "run", batch_rows=4)
+    assert res.status == "done", res.error
+    files = sorted((tmp_path / "o").glob("*.csv"))
+    assert len(files) == 7
+    for g in range(7):
+        lines = (tmp_path / "o" / f"{g}.csv").read_text(encoding="utf-8").splitlines()
+        ids = [int(line.split(",")[0]) for line in lines[1:]]
+        assert ids == [i for i in range(20) if i % 7 == g]
+    summary = read_out(tmp_path / "summary.parquet").to_pylist()
+    assert sum(r["rows"] for r in summary) == 20 and len(summary) == 7
+
+
 def test_feature_writer_without_placeholder_writes_a_single_file(registry, communes, tmp_path):
     nodes = [
         {"id": "r", "type": "Reader", "params": {"path": str(communes)}},

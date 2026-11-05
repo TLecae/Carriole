@@ -428,7 +428,7 @@ Writes the features to several files: the path is built with attribute values.
 
 - **Inputs** : `input` — **Outputs** : `summary` — **Processing** : streaming
 
-Writing {attribute} in the path creates one file per value of that attribute, e.g. D:\outputs\{department}\communes.gpkg or {department}_{year}.csv. Characters not allowed in a file name are replaced by _ and an empty value gives "_vide". The format settings are those of the writer of this format. Each file is opened only once: at most 200 files at a time. The "summary" output gives one feature per file written (path, feature count, format), for the rest of the flow (log, SetVariables, RunFlow…).
+Writing {attribute} in the path creates one file per value of that attribute, e.g. D:\outputs\{department}\communes.gpkg or {department}_{year}.csv. Characters not allowed in a file name are replaced by _ and an empty value gives "_vide". The format settings are those of the writer of this format. Each file is opened only once and the number of files is not limited: beyond 200 files, the next groups are set aside in the spill folder, then written one by one. The "summary" output gives one feature per file written (path, feature count, format), for the rest of the flow (log, SetVariables, RunFlow…).
 
 | Parameter | Role | Default |
 | --- | --- | --- |

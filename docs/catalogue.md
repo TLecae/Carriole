@@ -1332,7 +1332,7 @@ Les entités passent sans changement. Les variables posées ici s'utilisent dans
 
 - **Entrées** : `input` — **Sorties** : `summary` — **Traitement** : au fil de l'eau
 
-Écrire {attribut} dans le chemin crée un fichier par valeur de cet attribut, ex. D:\sorties\{departement}\communes.gpkg ou {departement}_{annee}.csv. Les caractères interdits dans un nom de fichier sont remplacés par _ et une valeur vide donne « _vide ». Les réglages du format sont ceux de l'écriture de ce format. Chaque fichier est ouvert une seule fois : au plus 200 fichiers à la fois. La sortie « summary » donne une entité par fichier écrit (chemin, nombre d'entités, format), pour la suite du flux (journal, SetVariables, RunFlow…).
+Écrire {attribut} dans le chemin crée un fichier par valeur de cet attribut, ex. D:\sorties\{departement}\communes.gpkg ou {departement}_{annee}.csv. Les caractères interdits dans un nom de fichier sont remplacés par _ et une valeur vide donne « _vide ». Les réglages du format sont ceux de l'écriture de ce format. Chaque fichier est ouvert une seule fois et le nombre de fichiers n'est pas limité : au-delà de 200 fichiers, les groupes suivants sont mis de côté dans le dossier de débordement puis écrits un à un. La sortie « summary » donne une entité par fichier écrit (chemin, nombre d'entités, format), pour la suite du flux (journal, SetVariables, RunFlow…).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |

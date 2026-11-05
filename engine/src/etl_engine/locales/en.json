@@ -1252,7 +1252,7 @@
   "SplitText.params.trim.description": "Removes leading and trailing spaces from each piece.",
   "SplitText.params.trim.title": "Trim spaces around each piece",
   "SplitToFiles.description": "Writes the features to several files: the path is built with attribute values.",
-  "SplitToFiles.help": "Writing {attribute} in the path creates one file per value of that attribute, e.g. D:\\outputs\\{department}\\communes.gpkg or {department}_{year}.csv. Characters not allowed in a file name are replaced by _ and an empty value gives \"_vide\". The format settings are those of the writer of this format. Each file is opened only once: at most 200 files at a time. The \"summary\" output gives one feature per file written (path, feature count, format), for the rest of the flow (log, SetVariables, RunFlow…).",
+  "SplitToFiles.help": "Writing {attribute} in the path creates one file per value of that attribute, e.g. D:\\outputs\\{department}\\communes.gpkg or {department}_{year}.csv. Characters not allowed in a file name are replaced by _ and an empty value gives \"_vide\". The format settings are those of the writer of this format. Each file is opened only once and the number of files is not limited: beyond 200 files, the next groups are set aside in the spill folder, then written one by one. The \"summary\" output gives one feature per file written (path, feature count, format), for the rest of the flow (log, SetVariables, RunFlow…).",
   "SplitToFiles.label": "Write one file per group",
   "SplitToFiles.params.compression.description": "Compression of the (Geo)Parquet files.",
   "SplitToFiles.params.compression.title": "Compression ((Geo)Parquet)",
@@ -1711,7 +1711,6 @@
   "planification introuvable": "schedule not found",
   "planification ou flux introuvable": "schedule or flow not found",
   "plugin ignoré : {source} : {message}": "plugin ignored: {source}: {message}",
-  "plus de {MAX_OPEN_FILES} fichiers à écrire en même temps : regrouper sur un attribut moins fin": "more than {MAX_OPEN_FILES} files to write at the same time: group on a coarser attribute",
   "plus de {MAX_PARTITIONS} partitions : choisir une colonne moins fine": "more than {MAX_PARTITIONS} partitions: choose a coarser column",
   "plusieurs correspondances pour une même entité (choisir « première » ou « toutes »)": "several matches for the same feature (choose \"first\" or \"all\")",
   "plusieurs rasters : écrire un dossier ou un modèle avec {attributs} dans le chemin": "several rasters: write a folder or a template with {attributs} in the path",
@@ -1861,6 +1860,7 @@
   "terminé en {seconds} s": "finished in {seconds} s",
   "terminé en {seconds} s : {ports}": "finished in {seconds} s: {ports}",
   "terminé en {seconds} s, reçu : {ports}": "finished in {seconds} s, received: {ports}",
-  "{count} entité(s) rejetée(s) : le motif est dans l'attribut _rejection_reason": "{count} feature(s) rejected: the reason is in the _rejection_reason attribute"
+  "{count} entité(s) rejetée(s) : le motif est dans l'attribut _rejection_reason": "{count} feature(s) rejected: the reason is in the _rejection_reason attribute",
+  "{len} fichier(s) au-delà des {MAX_OPEN_FILES} premiers : écrits un à un": "{len} file(s) beyond the first {MAX_OPEN_FILES}: written one by one"
  }
 }
