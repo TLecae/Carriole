@@ -438,6 +438,7 @@ test("composant : publier des versions et les épingler dans un nœud", async ({
 
   // version 1 publiée depuis le panneau du flux
   await page.goto(`/#flow=${created.id}`);
+  await page.getByRole("button", { name: "Propriétés du flux" }).click(); // sans sélection, le panneau est replié
   await page.getByLabel("Note de version").fill("première");
   await page.getByRole("button", { name: "Publier une version" }).click();
   await expect(page.locator(".version-list")).toContainText("v1");
