@@ -306,6 +306,26 @@ def schema_columns(connection: str, limit: int = 50_000) -> dict[str, list[str]]
         return out
 
 
+def column_values(connection: str, table: str, column: str, search: str = "", limit: int = 50) -> list[dict[str, Any]]:
+    """Valeurs les plus fréquentes d'une colonne (aide à la saisie de l'éditeur SQL), en lecture seule, 20 s au plus."""
+    from etl_engine.field_values import json_value
+
+    schema, name = split_table(table)
+    c = sql.Identifier(column)
+    where = sql.SQL("WHERE {}::text ILIKE %s").format(c) if search else sql.SQL("")
+    query = sql.SQL("SELECT {c}, count(*) FROM {t} {w} GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT %s").format(
+        c=c, t=sql.Identifier(schema, name), w=where
+    )
+    with connect(connection, read_only=True) as conn, conn.cursor() as cur:
+        try:
+            cur.execute("SET LOCAL statement_timeout = 20000")
+            cur.execute(query, [*([f"%{search}%"] if search else []), min(int(limit), 500)])
+            rows = cur.fetchall()
+        except psycopg.errors.Error as exc:
+            raise ConfigError(f"valeurs de « {column} » : {_first_line(exc)}") from None
+    return [{"value": json_value(v), "count": int(n)} for v, n in rows]
+
+
 _EXPLAINABLE = re.compile(r"^\s*(\(\s*)*(select|with|values|table|insert|update|delete|merge)\b", re.IGNORECASE)
 
 

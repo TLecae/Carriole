@@ -204,6 +204,30 @@ class Database:
         """Tables lisibles pour la complétion de l'éditeur SQL (leurs colonnes, à la demande : trop nombreuses)."""
         return {f"{t['schema']}.{t['table']}": [] for t in self.list_tables(name)}
 
+    def column_values(self, name: str, table: str, column: str, search: str, limit: int) -> list[dict]:
+        """Valeurs les plus fréquentes d'une colonne (aide à la saisie de l'éditeur SQL), en lecture seule."""
+        from etl_engine.field_values import json_value
+
+        conn = self.connect(name, read_only=True)
+        try:
+            cur = conn.cursor()
+            try:
+                schema, tbl = self.split_table(conn, table)
+                c = self.d.quote(column)
+                where = f"WHERE UPPER(TO_CHAR({c})) LIKE UPPER({self.d.param(1)})" if search else ""
+                cur.execute(
+                    f"SELECT {c}, COUNT(*) FROM {self.d.table_ref(schema, tbl)} {where} GROUP BY {c} "
+                    f"ORDER BY 2 DESC FETCH FIRST {min(int(limit), 500)} ROWS ONLY",
+                    [f"%{search}%"] if search else [],
+                )
+                return [{"value": json_value(v), "count": int(n)} for v, n in cur.fetchall()]
+            finally:
+                cur.close()
+        except self.d.errors() as exc:
+            raise ConfigError(f"valeurs de « {column} » : {first_line(exc)}") from None
+        finally:
+            conn.close()
+
     def check_sql(self, name: str, statement: str) -> dict[str, Any]:
         """Pas de vérification sans exécution sûre sur ces bases (`EXPLAIN PLAN` écrit dans une table) : l'éditeur
         s'en tient à la coloration et à la complétion."""

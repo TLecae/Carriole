@@ -101,6 +101,9 @@ class _Postgres:
     def check_sql(self, connection: str, statement: str) -> dict[str, Any]:
         return self.pg.check_sql(connection, statement)
 
+    def column_values(self, connection: str, table: str, column: str, search: str, limit: int) -> list[dict]:
+        return self.pg.column_values(connection, table, column, search, limit)
+
     def check_connection(self, connection: str) -> dict[str, Any]:
         info = self.pg.check_connection(connection)
         return {**info, "spatial": f"PostGIS {info['postgis']}" if info.get("postgis") else None}

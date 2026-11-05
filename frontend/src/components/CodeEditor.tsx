@@ -42,6 +42,7 @@ export default function CodeEditor({
   schema,
   check,
   tall = false,
+  inserter,
 }: {
   value: string;
   language: "python" | "sql";
@@ -51,6 +52,7 @@ export default function CodeEditor({
   schema?: Record<string, string[]>; // SQL : tables et leurs colonnes, proposées à la saisie
   check?: (sql: string) => Promise<SqlCheckResult>; // SQL : vérification par le serveur, soulignée dans le texte
   tall?: boolean; // éditeur en surcouche : toute la hauteur disponible
+  inserter?: { current: ((text: string) => void) | null }; // insère un texte au curseur (aide à la saisie)
 }) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -114,9 +116,16 @@ export default function CodeEditor({
       }),
     });
     view.current = editor;
+    if (inserter)
+      inserter.current = (text) => {
+        const { from, to } = editor.state.selection.main;
+        editor.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } });
+        editor.focus();
+      };
     return () => {
       editor.destroy();
       view.current = null;
+      if (inserter) inserter.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- le contenu est suivi par l'effet ci-dessous
   }, [language, label, !!check]);

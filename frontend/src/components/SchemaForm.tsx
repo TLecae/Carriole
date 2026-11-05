@@ -11,7 +11,8 @@ import { formatCount, t } from "../i18n";
 import type { Rule } from "../model/attributeManager";
 import { AttributeManager } from "./AttributeManager";
 import { InfoTip } from "./InfoTip";
-import { SqlField, SqlOverlay } from "./SqlEditor";
+import type { HelperField, HelperInput, HelperSource } from "../model/fieldHelper";
+import { EditorButton, QueryEditor, SqlField } from "./SqlEditor";
 import { Spinner } from "./Spinner";
 
 export interface FormCtx {
@@ -21,8 +22,13 @@ export interface FormCtx {
   parameters: string[]; // paramètres publiés du flux
   variables: VariableHint[]; // tout ce qui peut s'écrire entre ${ et }
   doc?: (param: string) => string; // page du catalogue sur un paramètre (modificateurs livrés)
-  columns?: string[]; // attributs de la sortie du nœud : complétion d'un filtre appliqué à la lecture
+  node?: string; // nœud du formulaire (valeurs du fichier d'un lecteur)
+  own?: HelperField[]; // attributs de la sortie du nœud : aide d'un filtre appliqué à la lecture
+  inputs?: HelperInput[]; // entrées du nœud : attributs et port amont du dernier run (aide des éditeurs)
 }
+
+/** Aide des éditeurs d'expression ou de SQL DuckDB : les entrées du nœud (celle que désigne le champ, s'il en a une). */
+const inputsHelper = (ctx: FormCtx, port?: string): HelperSource => ({ kind: "inputs", inputs: (ctx.inputs ?? []).filter((i) => !port || i.port === port) });
 
 /** Attributs proposés par un champ : ceux de son entrée s'il en désigne une, sinon ceux de toutes les entrées. */
 const attributesFor = (s: JsonSchema, ctx: FormCtx): string[] => {
@@ -88,7 +94,8 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
                 value={String(value ?? "")}
                 onChange={set}
                 connection={sqlBase || undefined}
-                schema={!sqlBase && props.ctx.columns ? { data: props.ctx.columns } : undefined}
+                // SQL DuckDB : filtre d'un lecteur (colonnes et valeurs de son fichier), sinon les entrées du nœud
+                helper={sqlBase ? undefined : props.ctx.inputs?.length ? inputsHelper(props.ctx) : { kind: "reader", node: props.ctx.node ?? "", fields: props.ctx.own ?? [] }}
                 where={key === "where"}
                 placeholder={s.examples?.[0] !== undefined ? String(s.examples[0]) : undefined}
                 preview={<VariablePreview value={String(value ?? "")} ctx={props.ctx} />}
@@ -155,6 +162,7 @@ function Editor({ label, schema, value, onChange, ctx, compact }: EditorProps) {
         <AttributeManager
           value={asArray(value) as Partial<Rule>[]}
           received={attributesFor(s, ctx)}
+          helper={inputsHelper(ctx, s["x-etl-input"])}
           onChange={onChange}
           fallback={<ObjectTable schema={item} rawItem={s.items!} value={asArray(value)} onChange={onChange} ctx={ctx} />}
         />
@@ -230,7 +238,11 @@ function TextEditor({ widget, value, onChange, ctx, compact, label, example, acc
   if (widget === "expression") {
     return (
       <div className="expression">
-        <textarea ref={area} aria-label={label} rows={compact ? 2 : 3} spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} placeholder={example ?? t('"attribut" > 10')} />
+        <div className="sql-line">
+          <textarea ref={area} className="sql-text" aria-label={label} rows={compact ? 2 : 3} spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} placeholder={example ?? t('"attribut" > 10')} />
+          <EditorButton compact onClick={() => setSqlOpen(true)} />
+        </div>
+        {sqlOpen && <QueryEditor label={label ?? t("Expression")} value={value} onChange={onChange} mode="expression" helper={inputsHelper(ctx, inputPort)} onClose={() => setSqlOpen(false)} />}
         <div className="expression-tools">
           <select value="" onChange={(e) => e.target.value && insert(`"${e.target.value}"`)} title={t("Insérer un attribut")}>
             <option value="">{t("+ attribut")}</option>
@@ -262,13 +274,9 @@ function TextEditor({ widget, value, onChange, ctx, compact, label, example, acc
         <Suspense fallback={<textarea aria-label={label} rows={8} value={value} onChange={(e) => onChange(e.target.value)} />}>
           <CodeEditor value={value} language={codeLanguage} onChange={onChange} label={label} dialect={codeLanguage === "sql" ? "duckdb" : undefined} check={codeLanguage === "sql" ? (sql) => api.checkSql(sql) : undefined} />
         </Suspense>
-        {codeLanguage === "sql" && (
-          <button type="button" className="sql-open" onClick={() => setSqlOpen(true)} title={t("Ouvrir l'éditeur SQL : toute la requête, complétion, vérification")}>
-            {t("Éditeur SQL")}
-          </button>
-        )}
+        {codeLanguage === "sql" && <EditorButton onClick={() => setSqlOpen(true)} />}
         <VariablePreview value={value} ctx={ctx} />
-        {sqlOpen && <SqlOverlay label={label ?? "SQL"} value={value} onChange={onChange} onClose={() => setSqlOpen(false)} />}
+        {sqlOpen && <QueryEditor label={label ?? "SQL"} value={value} onChange={onChange} mode="sql" helper={inputsHelper(ctx)} onClose={() => setSqlOpen(false)} />}
       </div>
     );
   }

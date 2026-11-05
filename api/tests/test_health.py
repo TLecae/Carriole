@@ -64,6 +64,19 @@ def test_example_flows_are_listed_and_open(client):
     assert client.get("/api/examples/inconnu").status_code == 404
 
 
+def test_field_values_of_a_reader_file(client):
+    """Aide à la saisie du filtre d'un lecteur : les valeurs du fichier, de la plus fréquente à la moins fréquente."""
+    pq.write_table(pa.table({"dep": ["31", "09", "31"]}), client.tmp / "c.parquet")
+    flow = {
+        "name": "v",
+        "nodes": [{"id": "r", "type": "GeoParquetReader", "params": {"path": str(client.tmp / "c.parquet")}}],
+    }
+    got = client.post("/api/fields/values", json={"flow": flow, "node": "r", "column": "dep"}).json()
+    assert got == [{"value": "31", "count": 2}, {"value": "09", "count": 1}]
+    bad = client.post("/api/fields/values", json={"flow": flow, "node": "r", "column": "inconnue"})
+    assert bad.status_code == 422
+
+
 def test_flow_crud_with_revision_conflict(client):
     flow = sample_flow(client.tmp)
     created = client.post("/api/flows", json={"flow": flow}).json()

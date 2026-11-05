@@ -11,6 +11,7 @@ import type {
   PgTableInfo,
   SqlCheckResult,
   TableColumns,
+  ValueCount,
   DataQuery,
   FeatureInfo,
   FileListing,
@@ -173,6 +174,10 @@ export const api = {
   testConnection: (name: string) => call<ConnectionTest>(`/connections/${encodeURIComponent(name)}/test`, { method: "POST" }),
   connectionTables: (name: string) => call<PgTableInfo[]>(`/connections/${encodeURIComponent(name)}/tables`),
   connectionSchema: (name: string) => call<{ dialect: string; tables: Record<string, string[]> }>(`/connections/${encodeURIComponent(name)}/schema`),
+  connectionValues: (name: string, table: string, column: string, search = "") =>
+    call<ValueCount[]>(`/connections/${encodeURIComponent(name)}/values?${new URLSearchParams({ table, column, search })}`),
+  readerValues: (flow: FlowDoc, node: string, column: string, search = "") =>
+    call<ValueCount[]>("/fields/values", { method: "POST", ...json({ flow, node, column, search }) }),
   checkSql: (sql: string, connection = "") => call<SqlCheckResult>("/sql/check", { method: "POST", ...json({ sql, connection }) }),
   tableColumns: (name: string, table: string) =>
     call<TableColumns>(`/connections/${encodeURIComponent(name)}/columns?table=${encodeURIComponent(table)}`),

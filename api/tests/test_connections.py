@@ -92,6 +92,7 @@ def test_unknown_connection_routes(client):
     assert client.get("/api/connections/nope/tables").status_code == 404
     assert client.get("/api/connections/nope/columns", params={"table": "public.t"}).status_code == 404
     assert client.get("/api/connections/nope/schema").status_code == 404
+    assert client.get("/api/connections/nope/values", params={"table": "t", "column": "c"}).status_code == 404
     assert client.post("/api/sql/check", json={"sql": "SELECT 1", "connection": "nope"}).status_code == 404
 
 
@@ -138,6 +139,13 @@ def test_test_and_tables_against_postgis(client):
             assert bad["ok"] is False and bad["line"] == 2
             assert check("SELECT id FROM public.etl_cols_test WHERE id = {{code}}")["ok"] is True
             assert check("CREATE TABLE x (a int)")["skipped"] == "statement"
+            # aide à la saisie : valeurs d'une colonne, les plus fréquentes d'abord, filtrables
+            conn.execute("INSERT INTO public.etl_cols_test VALUES (1, 'Muret'), (2, 'Toulouse'), (3, 'Muret')")
+            values = lambda **q: client.get(  # noqa: E731
+                "/api/connections/pg/values", params={"table": "public.etl_cols_test", "column": "nom", **q}
+            ).json()
+            assert values() == [{"value": "Muret", "count": 2}, {"value": "Toulouse", "count": 1}]
+            assert values(search="tou") == [{"value": "Toulouse", "count": 1}]
         finally:
             conn.execute("DROP TABLE public.etl_cols_test")
 

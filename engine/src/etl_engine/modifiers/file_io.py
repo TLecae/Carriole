@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import glob
 import os
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from typing import Any, ClassVar, Literal
 
 import numpy as np
@@ -261,6 +261,19 @@ class DuckDbReader(FileReader):
             keep[list(errors)] = False
             mask = pc.and_(mask, pa.array(keep))
         return batch.filter(mask)
+
+    def read_query(self) -> tuple[str, Callable[[Any], None]] | None:
+        """Requête DuckDB qui lit tout le fichier (sans filtre ni limite), et la préparation de sa connexion : l'aide
+        à la saisie y cherche les valeurs d'un attribut. None : ce fichier ne se lit pas par DuckDB."""
+        found = self._sources()
+        if found is None:
+            return None
+        fmt, sources = found
+        opts = self._options()
+        query = formats.sql_query(fmt, sources, limit=None, **opts)
+        if query is None:
+            return None
+        return query, lambda con: formats.sql_prepare(fmt, con, sources, None, **opts)
 
     def _sources(self) -> tuple[str, list[str]] | None:
         fmt = self._fmt()

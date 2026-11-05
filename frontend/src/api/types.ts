@@ -367,6 +367,12 @@ export interface PgTableInfo {
   geometry: string | null; // première colonne géométrique (PostGIS)
 }
 
+/** Une valeur d'un attribut et son nombre d'entités (aide à la saisie des éditeurs, inspecteur). */
+export interface ValueCount {
+  value: unknown;
+  count: number;
+}
+
 /** Vérification d'un SQL sans l'exécuter ; `line` et `column` à partir de 1 ; `skipped` : pas vérifié, et pourquoi. */
 export interface SqlCheckResult {
   ok: boolean;

@@ -94,6 +94,20 @@ async def schema(name: str, conns: Conns) -> dict[str, Any]:
     return {"dialect": db.sql_dialect, "tables": tables}
 
 
+@router.get("/connections/{name}/values")
+async def values(name: str, table: str, column: str, conns: Conns, search: str = "", limit: int = 50) -> list[Any]:
+    """Valeurs les plus fréquentes d'une colonne : l'éditeur SQL les propose à l'insertion."""
+    try:
+        conns.get(name)
+    except NotFound:
+        raise HTTPException(404, "connexion introuvable") from None
+    try:
+        db = databases.backend(name)
+        return await asyncio.to_thread(lambda: db.column_values(name, table, column, search, limit))
+    except ConfigError as exc:
+        raise HTTPException(502, str(exc)) from None
+
+
 class SqlCheck(BaseModel):
     sql: str = Field(max_length=200_000)
     connection: str = ""  # vide : SQL de DuckDB

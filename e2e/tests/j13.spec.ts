@@ -2,6 +2,52 @@ import { expect, test } from "@playwright/test";
 import { IN } from "./paths";
 import { addFromPalette } from "./ui";
 
+test("éditeur : attributs et valeurs à insérer, depuis le fichier lu ou le dernier run", async ({ page }) => {
+  const flow = {
+    name: "aide à la saisie",
+    nodes: [
+      { id: "lire", type: "CsvReader", position: [0, 0], params: { path: `${IN}/communes.csv`, delimiter: ";" } },
+      { id: "filtre", type: "ExtractByExpression", position: [320, 0], params: { conditions: [""] } },
+    ],
+    links: [{ id: "l", from: ["lire", "output"], to: ["filtre", "input"] }],
+  };
+  const created = await (await page.request.post("/api/flows", { data: { flow } })).json();
+  await page.goto(`/#flow=${created.id}`);
+
+  // filtre du lecteur : les colonnes du fichier et leurs valeurs, lues dans le fichier (sans run)
+  await page.getByTestId("node-lire").click();
+  await page.getByRole("group", { name: "Filtre (WHERE)" }).getByRole("button", { name: "Éditeur SQL" }).click();
+  const editor = page.getByRole("dialog", { name: /Éditeur SQL/ });
+  const helper = editor.getByRole("complementary", { name: "Attributs et valeurs" });
+  await expect(editor.locator(".cm-content")).toBeVisible(); // éditeur chargé (à la demande)
+  await helper.getByRole("button", { name: "dep", exact: true }).click(); // insère "dep"
+  await editor.locator(".cm-content").press("End");
+  await page.keyboard.type(" = ");
+  await helper.getByRole("button", { name: "Valeurs de dep" }).click();
+  await helper.getByRole("button", { name: /^31/ }).click(); // insère '31'
+  await expect(editor.locator(".cm-content")).toHaveText(`"dep" = '31'`);
+  await expect(helper).toContainText("Valeurs lues dans le fichier.");
+  await editor.getByRole("button", { name: "Fermer" }).click();
+  await expect(page.getByRole("textbox", { name: "Filtre (WHERE)" })).toHaveValue(`"dep" = '31'`);
+
+  // condition d'un filtre : les attributs de l'entrée, leurs valeurs après un run
+  await page.getByTestId("node-filtre").click();
+  await page.getByRole("button", { name: "Éditeur SQL" }).first().click();
+  await helper.getByRole("button", { name: "Valeurs de nom" }).click();
+  await expect(helper).toContainText("lancer le flux");
+  await editor.getByRole("button", { name: "Fermer" }).click();
+  await page.getByLabel("Conditions 1").fill("pop IS NOT NULL");
+  await page.getByRole("button", { name: /Lancer/ }).first().click();
+  await expect(page.getByTestId("run-status")).toHaveText("done");
+  await page.getByTestId("node-filtre").click();
+  await page.getByRole("button", { name: "Éditeur SQL" }).first().click();
+  await helper.getByRole("button", { name: "Valeurs de dep" }).click();
+  await expect(helper).toContainText("Valeurs du dernier run.");
+  await expect(helper.getByRole("button", { name: /^31/ })).toBeVisible(); // le lecteur ne garde que le 31
+  await expect(helper.getByRole("button", { name: /^09/ })).toHaveCount(0);
+  await page.request.delete(`/api/flows/${created.id}`);
+});
+
 test("Gérer des attributs : tous les attributs reçus dans un tableau, agrandi en surcouche", async ({ page }) => {
   const flow = {
     name: "gérer des attributs",

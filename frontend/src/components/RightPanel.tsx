@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
-import type { PublishedParam } from "../api/types";
+import type { PublishedParam, SchemaInfo } from "../api/types";
+import type { HelperField } from "../model/fieldHelper";
 import { isBookmark, isEtl, isNote, upstreamAttributes } from "../model/graph";
 import { useEditor } from "../store/editor";
 import { useUi } from "../store/ui";
@@ -10,6 +11,10 @@ import { TableFields } from "./TableFields";
 import { formatNumber, t } from "../i18n";
 import { buildHints } from "../model/variables";
 import { catalogueUrl } from "../model/docs";
+
+/** Attributs d'un port (analyse du flux) pour l'aide des éditeurs ; la géométrie, sous son nom. */
+const helperFields = (schema: SchemaInfo | null | undefined): HelperField[] =>
+  schema ? [...schema.fields, ...(schema.geometry ? [{ name: "geometry", type: "GEOMETRY" }] : [])] : [];
 
 export function RightPanel() {
   const nodes = useEditor((s) => s.nodes);
@@ -50,6 +55,8 @@ function NodePanel({ id }: { id: string }) {
   const published = useEditor((s) => s.meta.publishedParams);
   const meta = useEditor((s) => s.meta);
   const allNodes = useEditor((s) => s.nodes);
+  const runId = useEditor((s) => s.run.id);
+  const runNodes = useEditor((s) => s.run.nodes);
   const { updateNodeData, updateParams } = useEditor.getState();
 
   const ctx: FormCtx | null = useMemo(
@@ -64,10 +71,25 @@ function NodePanel({ id }: { id: string }) {
             parameters: published.map((p) => p.name),
             variables: buildHints(meta, allNodes),
             doc: info.documented ? (param: string) => catalogueUrl(info.name, param) : undefined,
-            columns: analysis?.schemas[`${id}/${info.outputs[0] ?? "output"}`]?.fields.map((f) => f.name),
+            node: id,
+            own: helperFields(analysis?.schemas[`${id}/${info.outputs[0] ?? "output"}`]),
+            inputs: edges
+              .filter((e) => e.target === id && e.data?.enabled !== false)
+              .map((e) => {
+                const port = e.sourceHandle ?? "output";
+                const source = allNodes.find((n) => n.id === e.source);
+                const label = source && isEtl(source) ? source.data.label || source.data.type : e.source;
+                return {
+                  port: e.targetHandle ?? "input",
+                  label: `${label} / ${port}`,
+                  fields: helperFields(analysis?.schemas[`${e.source}/${port}`]),
+                  // valeurs : le port amont du dernier run, s'il a des entités
+                  ref: runId && (runNodes[e.source]?.rows?.[port] ?? 0) > 0 ? { run: runId, node: e.source, port } : null,
+                };
+              }),
           }
         : null,
-    [info, id, edges, analysis, published, meta, allNodes],
+    [info, id, edges, analysis, published, meta, allNodes, runId, runNodes],
   );
   if (!node || !isEtl(node)) return null;
   if (!info || !ctx) return <p className="error-text">{t("Modificateur « {{type}} » introuvable (plugin retiré ?).", { type: node.data.type })}</p>;

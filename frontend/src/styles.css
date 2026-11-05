@@ -603,6 +603,32 @@ button.icon-only { padding: 4px 6px; }
 .code-editor.tall { max-height: none; height: 100%; min-height: 240px; font-size: 13px; }
 .code-editor.tall .cm-editor { height: 100%; }
 .sql-actions { align-items: center; }
+.sql-open.compact { padding: 2px 7px; font-size: 13px; line-height: 1.2; }
+.query-body { display: grid; min-height: 0; }
+.query-body.with-helper { grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 10px; }
+.attr-value-cell { display: flex; gap: 3px; align-items: center; }
+.attr-value-cell .attr-value { flex: 1; min-width: 0; }
+/* aide à la saisie : attributs (tables, entrées, fichier) et leurs valeurs, à insérer d'un clic */
+.field-helper { display: flex; flex-direction: column; gap: 4px; min-height: 0; border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: var(--surface-2); font-size: 12px; }
+.field-helper-hint { margin: 0; font-size: 11px; }
+.field-helper-list { flex: 1; min-height: 0; overflow: auto; }
+.helper-row { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.helper-row button { border: 0; background: transparent; padding: 1px 3px; border-radius: 3px; }
+.helper-row button:hover:not(:disabled) { background: var(--hover); }
+.helper-toggle { flex: none; width: 18px; color: var(--muted); }
+.helper-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; }
+.helper-name.table { font-weight: 600; font-family: inherit; }
+.helper-type { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.helper-columns { padding-left: 14px; }
+.helper-values { margin: 2px 0 6px 20px; padding-left: 6px; border-left: 2px solid var(--line); display: grid; gap: 3px; }
+.helper-values input { padding: 2px 5px; font-size: 12px; }
+.helper-values ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; }
+.helper-values li button { display: flex; justify-content: space-between; gap: 6px; width: 100%; text-align: left; border: 0; background: transparent; padding: 1px 4px; border-radius: 3px; }
+.helper-values li button:hover { background: var(--hover); }
+.helper-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; }
+.helper-values p { margin: 0; }
+.helper-note { font-size: 10px; }
+@media (max-width: 760px) { .query-body.with-helper { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 1fr) minmax(160px, 40%); } }
 .sql-result { flex: 1; min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
 /* « Gérer des attributs » : tableau entrée / sortie / valeur / action, agrandissable en surcouche */
 .attr-manager { display: grid; gap: 6px; min-width: 0; }

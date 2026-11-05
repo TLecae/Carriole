@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { t } from "../i18n";
 import { actionOf, norm, rowsFromRules, rulesFromRows, type Row, type Rule } from "../model/attributeManager";
+import type { HelperSource } from "../model/fieldHelper";
 import { Modal } from "./Dialogs";
+import { EditorButton, QueryEditor } from "./SqlEditor";
 
 const ACTION_LABEL: Record<ReturnType<typeof actionOf>, () => string> = {
   none: () => "",
@@ -17,7 +19,7 @@ const ACTION_LABEL: Record<ReturnType<typeof actionOf>, () => string> = {
  * d'ensemble ; on renomme en changeant la sortie, on calcule en donnant une valeur. Les règles ne tiennent pas dans
  * le tableau (ordre qui compte) : `fallback`, la liste des règles.
  */
-export function AttributeManager({ value, received, onChange, fallback }: { value: Partial<Rule>[]; received: string[]; onChange: (rules: Rule[]) => void; fallback: ReactNode }) {
+export function AttributeManager({ value, received, helper, onChange, fallback }: { value: Partial<Rule>[]; received: string[]; helper?: HelperSource; onChange: (rules: Rule[]) => void; fallback: ReactNode }) {
   const [rows, setRows] = useState<Row[] | null>(() => rowsFromRules(value, received));
   const emitted = useRef(JSON.stringify(value.map(norm)));
   const [big, setBig] = useState(false);
@@ -51,7 +53,7 @@ export function AttributeManager({ value, received, onChange, fallback }: { valu
     emitted.current = JSON.stringify(rules);
     onChange(rules);
   };
-  const table = <AttributeTable rows={rows} received={received} update={update} />;
+  const table = <AttributeTable rows={rows} received={received} update={update} helper={helper} />;
   return (
     <div className="attr-manager">
       <div className="attr-manager-bar">
@@ -73,8 +75,9 @@ export function AttributeManager({ value, received, onChange, fallback }: { valu
   );
 }
 
-function AttributeTable({ rows, received, update }: { rows: Row[]; received: string[]; update: (rows: Row[]) => void }) {
+function AttributeTable({ rows, received, update, helper }: { rows: Row[]; received: string[]; update: (rows: Row[]) => void; helper?: HelperSource }) {
   const [filter, setFilter] = useState("");
+  const [editing, setEditing] = useState<number | null>(null); // valeur ouverte dans l'éditeur (attributs, valeurs)
   const known = new Set(received);
   const patch = (i: number, p: Partial<Row>) => update(rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
   const outputs = rows.filter((r) => !r.removed).map((r) => r.output);
@@ -115,15 +118,18 @@ function AttributeTable({ rows, received, update }: { rows: Row[]; received: str
                   />
                 </td>
                 <td>
-                  <input
-                    type="text"
-                    className="attr-value"
-                    aria-label={t("Valeur, ligne {{n}}", { n: i + 1 })}
-                    value={r.expression}
-                    disabled={r.removed}
-                    placeholder={r.input === null ? t("expression SQL") : t("(inchangée)")}
-                    onChange={(e) => patch(i, { expression: e.target.value })}
-                  />
+                  <div className="attr-value-cell">
+                    <input
+                      type="text"
+                      className="attr-value"
+                      aria-label={t("Valeur, ligne {{n}}", { n: i + 1 })}
+                      value={r.expression}
+                      disabled={r.removed}
+                      placeholder={r.input === null ? t("expression SQL") : t("(inchangée)")}
+                      onChange={(e) => patch(i, { expression: e.target.value })}
+                    />
+                    {!r.removed && <EditorButton compact onClick={() => setEditing(i)} />}
+                  </div>
                 </td>
                 <td className="attr-action">
                   <span>{ACTION_LABEL[action]()}</span>
@@ -142,6 +148,16 @@ function AttributeTable({ rows, received, update }: { rows: Row[]; received: str
           })}
         </tbody>
       </table>
+      {editing !== null && rows[editing] && (
+        <QueryEditor
+          label={t("Valeur de {{name}}", { name: rows[editing].output || rows[editing].input || "?" })}
+          value={rows[editing].expression}
+          onChange={(v) => patch(editing, { expression: v })}
+          mode="expression"
+          helper={helper}
+          onClose={() => setEditing(null)}
+        />
+      )}
       {!received.length && <p className="muted">{t("Attributs reçus inconnus : relier l'entrée, ou lancer le flux en amont.")}</p>}
       <button type="button" className="add" onClick={() => update([...rows, { input: null, output: "", expression: "", removed: false }])}>
         {t("+ Ajouter un attribut")}

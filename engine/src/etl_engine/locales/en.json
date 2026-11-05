@@ -1868,6 +1868,11 @@
   "{len} fichier(s) au-delà des {MAX_OPEN_FILES} premiers : écrits un à un": "{len} file(s) beyond the first {MAX_OPEN_FILES}: written one by one",
   "le filtre « {cond} » doit être une condition (vrai ou faux)": "the filter “{cond}” must be a condition (true or false)",
   "{failed} entité(s) non lue(s) : le filtre n'a pas pu être évalué ({failure})": "{failed} feature(s) not read: the filter could not be evaluated ({failure})",
-  "exemple introuvable": "example not found"
+  "exemple introuvable": "example not found",
+  "valeurs de « {column} » : {first_line}": "values of “{column}”: {first_line}",
+  "valeurs de « {column} » : {v}": "values of “{column}”: {v}",
+  "valeurs de « {column} » trop longues à lire (plus de {TIMEOUT} s)": "values of “{column}” too long to read (more than {TIMEOUT} s)",
+  "valeurs indisponibles : ce nœud ne lit pas un fichier CSV ou Parquet": "values unavailable: this node does not read a CSV or Parquet file",
+  "valeurs indisponibles : fichier introuvable ou illisible par DuckDB": "values unavailable: file not found or unreadable by DuckDB"
  }
 }
