@@ -5,6 +5,27 @@
 - README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).
 - Inspector: the table of a dataset with a date-and-time-with-time-zone field (such as a GeoParquet read over https)
   is shown again; it failed with "invalid query" because DuckDB needs `pytz` for these values, now a dependency.
+- Appearance follows the system light or dark theme; *Settings → General → Appearance* can force light or dark.
+- Editor: with nothing selected, the properties panel folds into a narrow strip; *File → Flow properties* or the strip
+  reopens the flow's description, published parameters and variables.
+- Forms: the help of each field is in an info tooltip next to its label; for built-in modifiers it links to the
+  parameter's row in the catalogue on GitHub, and the node panel links to the modifier's section.
+- *Manage attributes* (`RefactorAttributes`): a table of all incoming attributes (input, output, value, action), which
+  can be enlarged in an overlay; rules whose order matters stay as a list.
+- SQL editor: SQL parameters of the database modifiers and `ExecuteSql` open an overlay with the database dialect,
+  completion of tables and columns, and errors underlined as you type (DuckDB parsing, or the PostgreSQL query plan
+  in a read-only transaction).
+- CSV and (Geo)Parquet readers: *Filter (WHERE)*, a DuckDB condition applied while reading; DuckDB reads only the
+  useful columns and row groups.
+- Database writers (append, truncate, upsert): incoming attributes missing from the existing table are shown in red
+  before the run.
+- Home: an *Examples* section opens the Insee Melodi populations and Sentinel-2 NDVI (STAC) flows as new flows; they
+  are now shipped with the application.
+- *SplitToFiles*: no limit on the number of files (it stopped beyond 200).
+- GeoParquet: the CRS is visible to readers that use the Arrow schema of the file (GDAL, QGIS, geopandas).
+- Inspector map: a simplified merged polygon whose rings cross no longer draws filled rectangles outside the data
+  ([ADR 0046](docs/decisions/0046-carte-polygones-fusionnes-decoupes.md)); clicking a feature on the map no longer
+  moves the map; the layers menu is no longer covered by the minimap button.
 
 ## 0.1.5
 
