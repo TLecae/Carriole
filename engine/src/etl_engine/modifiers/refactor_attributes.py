@@ -37,7 +37,13 @@ class RefactorAttributes(Modifier):
     version = 2  # 2 : la sortie garde le SCR (les sorties en cache, sans lui, sont recalculées)
 
     class Params(Params):
-        rules: list[Rule] = Field([], title="Règles", description="Appliquées dans l'ordre.")
+        # l'éditeur en fait un tableau (attributs reçus, sortie, valeur, action) ; le moteur applique les règles
+        rules: list[Rule] = Field(
+            [],
+            title="Règles",
+            description="Appliquées dans l'ordre.",
+            json_schema_extra={"x-etl-widget": "attribute-manager"},
+        )
 
     def used_attributes(self) -> list[str]:
         # « set » crée l'attribut : seuls rename et remove visent un attribut existant

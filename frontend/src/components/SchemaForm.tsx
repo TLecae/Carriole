@@ -8,6 +8,8 @@ import { kindLabel } from "../model/databases";
 import { useConnections } from "../store/connections";
 import { useUi } from "../store/ui";
 import { formatCount, t } from "../i18n";
+import type { Rule } from "../model/attributeManager";
+import { AttributeManager } from "./AttributeManager";
 import { InfoTip } from "./InfoTip";
 import { Spinner } from "./Spinner";
 
@@ -132,6 +134,15 @@ function Editor({ label, schema, value, onChange, ctx, compact }: EditorProps) {
     const item = resolveSchema(s.items, ctx.defs);
     if (widget === "attributes") return <CheckList value={asArray(value) as string[]} options={attributesFor(s, ctx)} free onChange={onChange} label={label} />;
     if (item.enum) return <CheckList value={asArray(value) as string[]} options={item.enum.map(String)} onChange={onChange} label={label} />;
+    if (widget === "attribute-manager")
+      return (
+        <AttributeManager
+          value={asArray(value) as Partial<Rule>[]}
+          received={attributesFor(s, ctx)}
+          onChange={onChange}
+          fallback={<ObjectTable schema={item} rawItem={s.items!} value={asArray(value)} onChange={onChange} ctx={ctx} />}
+        />
+      );
     if (typeOf(item) === "object") return <ObjectTable schema={item} rawItem={s.items!} value={asArray(value)} onChange={onChange} ctx={ctx} />;
     return <StringList item={item} value={asArray(value) as string[]} onChange={onChange} ctx={ctx} label={label} />;
   }

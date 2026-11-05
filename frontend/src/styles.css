@@ -590,6 +590,27 @@ button.icon-only { padding: 4px 6px; }
 .check { display: flex; gap: 8px; align-items: center; }
 /* table d'une base : schéma puis table, côte à côte */
 .pg-table { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 6px; }
+/* « Gérer des attributs » : tableau entrée / sortie / valeur / action, agrandissable en surcouche */
+.attr-manager { display: grid; gap: 6px; min-width: 0; }
+.attr-manager-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.attr-table-wrap { display: grid; gap: 6px; min-width: 0; overflow-x: auto; }
+.attr-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; min-width: 420px; }
+.attr-table th { text-align: left; font-weight: 600; color: var(--text-2); background: var(--surface-2); padding: 3px 5px; border-bottom: 1px solid var(--line); }
+.attr-table th:nth-child(1) { width: 24%; } .attr-table th:nth-child(2) { width: 24%; } .attr-table th:nth-child(4) { width: 25%; }
+.attr-table td { padding: 2px 4px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+.attr-table td input { padding: 2px 4px; }
+.attr-table input.invalid { border-color: var(--danger); }
+.attr-table .attr-in { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.attr-table .attr-value { font-family: ui-monospace, Consolas, monospace; }
+.attr-table .attr-action { display: flex; align-items: center; justify-content: space-between; gap: 4px; white-space: nowrap; }
+.attr-table .attr-action span { overflow: hidden; text-overflow: ellipsis; color: var(--primary); }
+.attr-table .attr-action button { padding: 1px 6px; font-size: 11px; }
+.attr-table tr.remove td { opacity: .6; } .attr-table tr.remove .attr-in { text-decoration: line-through; }
+.attr-table tr.remove .attr-action span { color: var(--danger); }
+.attr-table tr.absent .attr-in { color: var(--danger); font-weight: 600; }
+.attr-filter { max-width: 260px; }
+.modal.attr-manager-modal { width: min(1100px, 96vw); max-height: 88vh; }
+.attr-manager-modal .attr-table { font-size: 13px; }
 /* écriture dans une table existante : attributs reçus face aux colonnes */
 .table-fields h3 { margin: 14px 0 4px; font-size: 13px; }
 .field-match { list-style: none; margin: 4px 0; padding: 0; border: 1px solid var(--line); border-radius: 5px; max-height: 260px; overflow: auto; font-size: 12px; }
