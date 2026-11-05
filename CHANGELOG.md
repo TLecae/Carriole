@@ -26,6 +26,13 @@
 - Inspector map: a simplified merged polygon whose rings cross no longer draws filled rectangles outside the data
   ([ADR 0046](docs/decisions/0046-carte-polygones-fusionnes-decoupes.md)); clicking a feature on the map no longer
   moves the map; the layers menu is no longer covered by the minimap button.
+- Editors: the SQL and expression editor has a side panel with the attributes (tables and columns of the database,
+  inputs of the node, columns of the file a reader reads) and their most frequent values, inserted at the cursor in
+  a click; it opens from every expression field and from the values of *Manage attributes*.
+- Run parameters: the launch dialog proposes the values of the last run; going back to the defaults changed the
+  fingerprint of the nodes using a parameter, so the cache was not used.
+- Inspector map: the selection of a huge entity is read at the level of the tiles of the current zoom, within the
+  displayed extent; it was generalized over the whole entity, coarse once zoomed.
 
 ## 0.1.5
 
