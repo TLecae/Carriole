@@ -291,6 +291,8 @@ class Modifier:
             "outputs": list(outputs),
             "params_schema": cls.Params.model_json_schema(),
             "hidden": cls.hidden,
+            # décrit dans docs/catalogue.md (modificateurs livrés, hors plugins) : l'éditeur y renvoie
+            "documented": not cls.hidden and cls.__module__.startswith("etl_engine.modifiers."),
         }
 
 

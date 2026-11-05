@@ -8,6 +8,7 @@ import { PublishVersions, VersionPicker } from "./ComponentVersions";
 import { SchemaForm, type FormCtx } from "./SchemaForm";
 import { formatNumber, t } from "../i18n";
 import { buildHints } from "../model/variables";
+import { catalogueUrl } from "../model/docs";
 
 export function RightPanel() {
   const nodes = useEditor((s) => s.nodes);
@@ -61,6 +62,7 @@ function NodePanel({ id }: { id: string }) {
             ),
             parameters: published.map((p) => p.name),
             variables: buildHints(meta, allNodes),
+            doc: info.documented ? (param: string) => catalogueUrl(info.name, param) : undefined,
           }
         : null,
     [info, id, edges, analysis, published, meta, allNodes],
@@ -73,6 +75,11 @@ function NodePanel({ id }: { id: string }) {
     <div className="node-panel">
       <h2>{info.label}</h2>
       <p className="muted">{info.description}</p>
+      {info.documented && (
+        <a className="node-doc" href={catalogueUrl(info.name)} target="_blank" rel="noreferrer">
+          {t("Documentation de {{name}}", { name: info.name })} ↗
+        </a>
+      )}
       <label className="field">
         <span className="field-label">{t("Nom du nœud")}</span>
         <input type="text" value={node.data.label} placeholder={info.label} onChange={(e) => updateNodeData(id, { label: e.target.value }, "label")} />

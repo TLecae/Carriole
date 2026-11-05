@@ -249,6 +249,9 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .field-head .info-pop { top: 18px; }
 .info-tip:hover .info-pop, .info-tip:focus .info-pop, .info-tip:focus-within .info-pop { display: block; }
 .info-pop a { color: var(--primary); }
+.info-doc { display: block; width: fit-content; }
+.info-pop:has(.info-doc) .info-doc:not(:first-child) { margin-top: 4px; }
+.node-doc { display: inline-block; margin: -4px 0 6px; font-size: 12px; color: var(--primary); }
 .inline-fields { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: end; margin: 8px 0; }
 .expression-tools { display: flex; gap: 6px; margin-top: 3px; }
 .expression-tools select { width: auto; }

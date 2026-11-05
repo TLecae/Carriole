@@ -18,7 +18,9 @@ Page générée par `etl modifiers doc` : ne pas la modifier à la main.
 
 ## Attributs
 
-### Construire une liste — `BuildList` {#buildlist}
+<a id="buildlist"></a>
+
+### Construire une liste — `BuildList`
 
 Regroupe les valeurs d'un attribut dans une liste : une entité par groupe, avec la liste des valeurs.
 
@@ -28,14 +30,16 @@ Les entités sont regroupées par « Regrouper par » (vide = un seul groupe) ; 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Regrouper par | Vide = un seul groupe pour toutes les entités. |  |
-| Attribut des valeurs | Les valeurs qui vont dans la liste. |  |
-| Attribut liste | Nom de la liste créée (vide = `attribut` + _liste). |  |
-| Sans doublon | Une seule fois chaque valeur. | false |
-| Trier | Valeurs triées ; sinon dans l'ordre d'arrivée. | false |
-| Géométrie | none : aucune ; first : celle de la première entité du groupe. | `none` |
+| <a id="buildlist-group_by"></a>Regrouper par | Vide = un seul groupe pour toutes les entités. |  |
+| <a id="buildlist-attribute"></a>Attribut des valeurs | Les valeurs qui vont dans la liste. |  |
+| <a id="buildlist-list_name"></a>Attribut liste | Nom de la liste créée (vide = `attribut` + _liste). |  |
+| <a id="buildlist-distinct"></a>Sans doublon | Une seule fois chaque valeur. | false |
+| <a id="buildlist-sort"></a>Trier | Valeurs triées ; sinon dans l'ordre d'arrivée. | false |
+| <a id="buildlist-geometry"></a>Géométrie | none : aucune ; first : celle de la première entité du groupe. | `none` |
 
-### Convertir le type d'attributs — `CastAttributes` {#castattributes}
+<a id="castattributes"></a>
+
+### Convertir le type d'attributs — `CastAttributes`
 
 Change le type de plusieurs attributs à la fois : texte, entier, décimal, booléen, date.
 
@@ -45,10 +49,12 @@ Chaque ligne convertit un attribut en place. Une valeur impossible à convertir 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Conversions | Une ligne par attribut converti. |  |
-| Valeur non convertible | reject : l'entité part sur « Rejected » ; null : la valeur devient vide. | `reject` |
+| <a id="castattributes-conversions"></a>Conversions | Une ligne par attribut converti. |  |
+| <a id="castattributes-on_error"></a>Valeur non convertible | reject : l'entité part sur « Rejected » ; null : la valeur devient vide. | `reject` |
 
-### Convertir une date — `ConvertDate` {#convertdate}
+<a id="convertdate"></a>
+
+### Convertir une date — `ConvertDate`
 
 Lit une date écrite en texte (ou un horodatage) et la convertit : date, date-heure, texte formaté, secondes Unix.
 
@@ -58,14 +64,16 @@ Lit une date écrite en texte (ou un horodatage) et la convertit : date, date-he
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut | Attribut qui contient la date. |  |
-| Format de lecture | Format strptime du texte, ex. %d/%m/%Y ; vide = ISO automatique. |  |
-| Résultat | date, datetime, text ou epoch (secondes Unix, UTC). | `date` |
-| Format d'écriture | Pour « text » : format strftime, ex. %d/%m/%Y. | `%Y-%m-%d` |
-| Attribut résultat | Vide = remplace l'attribut d'origine. |  |
-| Valeur illisible | reject : l'entité part sur « Rejected » ; null : la valeur devient vide. | `reject` |
+| <a id="convertdate-attribute"></a>Attribut | Attribut qui contient la date. |  |
+| <a id="convertdate-from_format"></a>Format de lecture | Format strptime du texte, ex. %d/%m/%Y ; vide = ISO automatique. |  |
+| <a id="convertdate-to"></a>Résultat | date, datetime, text ou epoch (secondes Unix, UTC). | `date` |
+| <a id="convertdate-to_format"></a>Format d'écriture | Pour « text » : format strftime, ex. %d/%m/%Y. | `%Y-%m-%d` |
+| <a id="convertdate-destination"></a>Attribut résultat | Vide = remplace l'attribut d'origine. |  |
+| <a id="convertdate-on_error"></a>Valeur illisible | reject : l'entité part sur « Rejected » ; null : la valeur devient vide. | `reject` |
 
-### Créer des attributs — `AddAttributes` {#addattributes}
+<a id="addattributes"></a>
+
+### Créer des attributs — `AddAttributes`
 
 Ajoute ou remplace des attributs calculés par des expressions SQL.
 
@@ -75,10 +83,12 @@ Chaque attribut est calculé par une expression SQL DuckDB, dans l'ordre : une e
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs à créer | Calculés dans l'ordre : chacun peut utiliser les précédents. |  |
-| En cas d'échec | reject : l'entité part sur « Rejected » avec le motif ; null : l'attribut reste vide. | `reject` |
+| <a id="addattributes-attributes"></a>Attributs à créer | Calculés dans l'ordre : chacun peut utiliser les précédents. |  |
+| <a id="addattributes-on_error"></a>En cas d'échec | reject : l'entité part sur « Rejected » avec le motif ; null : l'attribut reste vide. | `reject` |
 
-### Découper un texte — `SplitText` {#splittext}
+<a id="splittext"></a>
+
+### Découper un texte — `SplitText`
 
 Découpe un attribut texte selon un séparateur, en plusieurs attributs ou en une liste.
 
@@ -88,14 +98,16 @@ Découpe un attribut texte selon un séparateur, en plusieurs attributs ou en un
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut à découper | Attribut texte à découper. |  |
-| Séparateur | Texte exact (pas une expression régulière). | `,` |
-| Résultat | columns : une colonne par morceau (préfixe_1, préfixe_2…) ; list : une seule colonne de type liste, à éclater ensuite avec « Éclater une liste ». | `columns` |
-| Préfixe des attributs créés | Vide = nom de l'attribut d'origine. |  |
-| Nombre de colonnes (mode columns) | Nombre de colonnes créées : le surplus reste dans la dernière, les colonnes en trop sont vides. | `2` |
-| Retirer les espaces autour de chaque morceau | Retire les espaces au début et à la fin de chaque morceau. | true |
+| <a id="splittext-attribute"></a>Attribut à découper | Attribut texte à découper. |  |
+| <a id="splittext-separator"></a>Séparateur | Texte exact (pas une expression régulière). | `,` |
+| <a id="splittext-mode"></a>Résultat | columns : une colonne par morceau (préfixe_1, préfixe_2…) ; list : une seule colonne de type liste, à éclater ensuite avec « Éclater une liste ». | `columns` |
+| <a id="splittext-prefix"></a>Préfixe des attributs créés | Vide = nom de l'attribut d'origine. |  |
+| <a id="splittext-parts"></a>Nombre de colonnes (mode columns) | Nombre de colonnes créées : le surplus reste dans la dernière, les colonnes en trop sont vides. | `2` |
+| <a id="splittext-trim"></a>Retirer les espaces autour de chaque morceau | Retire les espaces au début et à la fin de chaque morceau. | true |
 
-### Dépivoter (colonnes en lignes) — `PivotLonger` {#pivotlonger}
+<a id="pivotlonger"></a>
+
+### Dépivoter (colonnes en lignes) — `PivotLonger`
 
 Transforme des colonnes en lignes : une entité par colonne choisie, avec son nom et sa valeur.
 
@@ -105,12 +117,14 @@ Chaque entité reçue donne une entité par attribut de « Attributs à dépivot
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs à dépivoter | Les colonnes qui deviennent des lignes. |  |
-| Attribut du nom | Reçoit le nom de la colonne d'origine. | `attribute` |
-| Attribut de la valeur | Reçoit la valeur de la colonne. | `value` |
-| Garder les valeurs vides | Décoché : une valeur vide ne donne pas d'entité. | false |
+| <a id="pivotlonger-attributes"></a>Attributs à dépivoter | Les colonnes qui deviennent des lignes. |  |
+| <a id="pivotlonger-name_attribute"></a>Attribut du nom | Reçoit le nom de la colonne d'origine. | `attribute` |
+| <a id="pivotlonger-value_attribute"></a>Attribut de la valeur | Reçoit la valeur de la colonne. | `value` |
+| <a id="pivotlonger-keep_nulls"></a>Garder les valeurs vides | Décoché : une valeur vide ne donne pas d'entité. | false |
 
-### Extraire du JSON — `ExtractJson` {#extractjson}
+<a id="extractjson"></a>
+
+### Extraire du JSON — `ExtractJson`
 
 Lit un attribut qui contient du JSON : extrait des valeurs dans de nouveaux attributs, ou éclate un tableau.
 
@@ -120,13 +134,15 @@ Chaque ligne de « Valeurs à extraire » lit un chemin (a.b, a[0].b, $.a.b) et 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut JSON | Attribut texte qui contient le JSON. |  |
-| Valeurs à extraire | Un chemin et l'attribut qui le reçoit. |  |
-| Tableau à éclater | Chemin d'un tableau : une entité par élément ; vide = une entité par ligne. |  |
-| Retirer l'attribut JSON | Retire l'attribut d'origine du résultat. | false |
-| JSON invalide | null : les valeurs extraites sont vides ; reject : l'entité part sur « Rejected ». | `null` |
+| <a id="extractjson-attribute"></a>Attribut JSON | Attribut texte qui contient le JSON. |  |
+| <a id="extractjson-fields"></a>Valeurs à extraire | Un chemin et l'attribut qui le reçoit. |  |
+| <a id="extractjson-explode"></a>Tableau à éclater | Chemin d'un tableau : une entité par élément ; vide = une entité par ligne. |  |
+| <a id="extractjson-drop_source"></a>Retirer l'attribut JSON | Retire l'attribut d'origine du résultat. | false |
+| <a id="extractjson-on_error"></a>JSON invalide | null : les valeurs extraites sont vides ; reject : l'entité part sur « Rejected ». | `null` |
 
-### Extraire du texte — `ExtractText` {#extracttext}
+<a id="extracttext"></a>
+
+### Extraire du texte — `ExtractText`
 
 Extrait une partie d'un attribut texte : sous-chaîne, avant/après un séparateur, ou captures d'une expression régulière.
 
@@ -136,16 +152,18 @@ Extrait une partie d'un attribut texte : sous-chaîne, avant/après un séparate
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut | Attribut texte à analyser. |  |
-| Extraction | substring, before, after ou regex. | `substring` |
-| Début (substring) | Position du premier caractère (1 = premier ; négatif depuis la fin). | `1` |
-| Longueur (substring) | Nombre de caractères ; vide = jusqu'à la fin. |  |
-| Séparateur (before / after) | Texte exact (pas une expression régulière). |  |
-| Expression (regex) | Expression régulière RE2 avec des groupes nommés (?P<nom>…). |  |
-| Attribut créé | substring / before / after : nom du résultat (vide = `attribut` + _extrait). |  |
-| Préfixe (regex) | Ajouté devant le nom de chaque groupe. |  |
+| <a id="extracttext-attribute"></a>Attribut | Attribut texte à analyser. |  |
+| <a id="extracttext-mode"></a>Extraction | substring, before, after ou regex. | `substring` |
+| <a id="extracttext-start"></a>Début (substring) | Position du premier caractère (1 = premier ; négatif depuis la fin). | `1` |
+| <a id="extracttext-length"></a>Longueur (substring) | Nombre de caractères ; vide = jusqu'à la fin. |  |
+| <a id="extracttext-separator"></a>Séparateur (before / after) | Texte exact (pas une expression régulière). |  |
+| <a id="extracttext-pattern"></a>Expression (regex) | Expression régulière RE2 avec des groupes nommés (?P<nom>…). |  |
+| <a id="extracttext-destination"></a>Attribut créé | substring / before / after : nom du résultat (vide = `attribut` + _extrait). |  |
+| <a id="extracttext-prefix"></a>Préfixe (regex) | Ajouté devant le nom de chaque groupe. |  |
 
-### Garder des attributs — `RetainAttributes` {#retainattributes}
+<a id="retainattributes"></a>
+
+### Garder des attributs — `RetainAttributes`
 
 Ne conserve que les attributs choisis, dans l'ordre indiqué.
 
@@ -155,10 +173,12 @@ La géométrie est conservée sauf si on la retire explicitement. Un attribut ab
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs à garder | Dans cet ordre. |  |
-| Garder la géométrie | Décocher pour retirer aussi la géométrie. | true |
+| <a id="retainattributes-attributes"></a>Attributs à garder | Dans cet ordre. |  |
+| <a id="retainattributes-keep_geometry"></a>Garder la géométrie | Décocher pour retirer aussi la géométrie. | true |
 
-### Gérer des attributs — `RefactorAttributes` {#refactorattributes}
+<a id="refactorattributes"></a>
+
+### Gérer des attributs — `RefactorAttributes`
 
 Crée (expression), renomme ou supprime des attributs, règle après règle.
 
@@ -168,9 +188,11 @@ Les règles s'appliquent dans l'ordre. « set » : calcule l'attribut par une ex
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Règles | Appliquées dans l'ordre. |  |
+| <a id="refactorattributes-rules"></a>Règles | Appliquées dans l'ordre. |  |
 
-### Pivoter (lignes en colonnes) — `PivotWider` {#pivotwider}
+<a id="pivotwider"></a>
+
+### Pivoter (lignes en colonnes) — `PivotWider`
 
 Transforme les valeurs d'un attribut en colonnes : une ligne par groupe, une colonne par valeur.
 
@@ -180,14 +202,16 @@ Les entités sont regroupées par « Regrouper par » ; chaque valeur de « Attr
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Regrouper par | Attributs qui identifient une ligne du résultat. |  |
-| Attribut à pivoter | Ses valeurs deviennent les noms des colonnes. |  |
-| Attribut des valeurs | Valeur placée dans chaque colonne (inutile avec count). |  |
-| Fonction | Comment combiner plusieurs lignes d'un même groupe et d'une même valeur. | `first` |
-| Préfixe des colonnes | Ajouté devant chaque valeur pivotée. |  |
-| Colonnes | Valeurs attendues (donnent le schéma avant l'exécution) ; vide = découvertes dans les données. |  |
+| <a id="pivotwider-group_by"></a>Regrouper par | Attributs qui identifient une ligne du résultat. |  |
+| <a id="pivotwider-pivot_attribute"></a>Attribut à pivoter | Ses valeurs deviennent les noms des colonnes. |  |
+| <a id="pivotwider-value_attribute"></a>Attribut des valeurs | Valeur placée dans chaque colonne (inutile avec count). |  |
+| <a id="pivotwider-function"></a>Fonction | Comment combiner plusieurs lignes d'un même groupe et d'une même valeur. | `first` |
+| <a id="pivotwider-prefix"></a>Préfixe des colonnes | Ajouté devant chaque valeur pivotée. |  |
+| <a id="pivotwider-columns"></a>Colonnes | Valeurs attendues (donnent le schéma avant l'exécution) ; vide = découvertes dans les données. |  |
 
-### Remplacer du texte — `ReplaceText` {#replacetext}
+<a id="replacetext"></a>
+
+### Remplacer du texte — `ReplaceText`
 
 Remplace du texte dans des attributs : texte exact ou expression régulière, en place ou dans un nouvel attribut.
 
@@ -197,15 +221,17 @@ Chaque attribut choisi est converti en texte puis traité. Texte exact : toutes 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs | Attributs à traiter. |  |
-| Chercher | Texte exact, ou expression régulière si « Expression régulière » est coché. |  |
-| Remplacer par | Vide = supprimer le texte trouvé. |  |
-| Expression régulière | « Chercher » est une expression régulière (RE2). | false |
-| Valeur entière | Remplace seulement les valeurs entières égales à « Chercher ». | false |
-| Ignorer la casse | Ne distingue pas majuscules et minuscules. | false |
-| Suffixe du nouvel attribut | Vide = remplace l'attribut ; sinon crée `nom` + suffixe. |  |
+| <a id="replacetext-attributes"></a>Attributs | Attributs à traiter. |  |
+| <a id="replacetext-find"></a>Chercher | Texte exact, ou expression régulière si « Expression régulière » est coché. |  |
+| <a id="replacetext-replace"></a>Remplacer par | Vide = supprimer le texte trouvé. |  |
+| <a id="replacetext-regex"></a>Expression régulière | « Chercher » est une expression régulière (RE2). | false |
+| <a id="replacetext-whole_value"></a>Valeur entière | Remplace seulement les valeurs entières égales à « Chercher ». | false |
+| <a id="replacetext-ignore_case"></a>Ignorer la casse | Ne distingue pas majuscules et minuscules. | false |
+| <a id="replacetext-suffix"></a>Suffixe du nouvel attribut | Vide = remplace l'attribut ; sinon crée `nom` + suffixe. |  |
 
-### Renommer des attributs — `RenameAttributes` {#renameattributes}
+<a id="renameattributes"></a>
+
+### Renommer des attributs — `RenameAttributes`
 
 Renomme des attributs : ancien nom, nouveau nom.
 
@@ -215,9 +241,11 @@ Les renommages s'appliquent ensemble (on peut échanger deux noms). Le nouveau n
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Renommages |  |  |
+| <a id="renameattributes-renamings"></a>Renommages |  |  |
 
-### Renommer en masse — `RenameAttributesByPattern` {#renameattributesbypattern}
+<a id="renameattributesbypattern"></a>
+
+### Renommer en masse — `RenameAttributesByPattern`
 
 Renomme tous les attributs (ou une sélection) : préfixe, suffixe, remplacement, casse, accents.
 
@@ -227,18 +255,20 @@ Les opérations s'appliquent dans cet ordre au nom de chaque attribut : remplace
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs | Vide = tous les attributs (hors géométrie). |  |
-| Remplacer | Texte (ou expression régulière) à remplacer dans les noms. |  |
-| Par | Texte de remplacement (\1 pour un groupe de l'expression). |  |
-| Expression régulière | « Remplacer » est une expression régulière. | false |
-| Retirer les accents | é devient e, ç devient c… | false |
-| Nettoyer | Remplace espaces et caractères spéciaux par _ (« Code INSEE » devient Code_INSEE). | false |
-| Casse | none : inchangée ; lower / upper ; snake : minuscules_avec_tirets_bas (CodeInsee devient code_insee). | `none` |
-| Préfixe | Ajouté devant chaque nom. |  |
-| Suffixe | Ajouté derrière chaque nom. |  |
-| Longueur maximale | Coupe les noms trop longs (0 = pas de limite ; 10 pour un Shapefile). | `0` |
+| <a id="renameattributesbypattern-attributes"></a>Attributs | Vide = tous les attributs (hors géométrie). |  |
+| <a id="renameattributesbypattern-find"></a>Remplacer | Texte (ou expression régulière) à remplacer dans les noms. |  |
+| <a id="renameattributesbypattern-replace"></a>Par | Texte de remplacement (\1 pour un groupe de l'expression). |  |
+| <a id="renameattributesbypattern-regex"></a>Expression régulière | « Remplacer » est une expression régulière. | false |
+| <a id="renameattributesbypattern-strip_accents"></a>Retirer les accents | é devient e, ç devient c… | false |
+| <a id="renameattributesbypattern-clean"></a>Nettoyer | Remplace espaces et caractères spéciaux par _ (« Code INSEE » devient Code_INSEE). | false |
+| <a id="renameattributesbypattern-case"></a>Casse | none : inchangée ; lower / upper ; snake : minuscules_avec_tirets_bas (CodeInsee devient code_insee). | `none` |
+| <a id="renameattributesbypattern-prefix"></a>Préfixe | Ajouté devant chaque nom. |  |
+| <a id="renameattributesbypattern-suffix"></a>Suffixe | Ajouté derrière chaque nom. |  |
+| <a id="renameattributesbypattern-max_length"></a>Longueur maximale | Coupe les noms trop longs (0 = pas de limite ; 10 pour un Shapefile). | `0` |
 
-### Retirer des attributs — `DropAttributes` {#dropattributes}
+<a id="dropattributes"></a>
+
+### Retirer des attributs — `DropAttributes`
 
 Supprime les attributs choisis ; tous les autres sont conservés.
 
@@ -248,11 +278,13 @@ Un attribut absent est une erreur de configuration (sauf si « Ignorer les absen
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs à retirer | Attributs à supprimer ; vide = rien n'est retiré. |  |
-| Retirer aussi la géométrie | Retire aussi la géométrie des entités. | false |
-| Ignorer les attributs absents | Décoché : un attribut absent des données est une erreur ; coché : il est ignoré. | false |
+| <a id="dropattributes-attributes"></a>Attributs à retirer | Attributs à supprimer ; vide = rien n'est retiré. |  |
+| <a id="dropattributes-remove_geometry"></a>Retirer aussi la géométrie | Retire aussi la géométrie des entités. | false |
+| <a id="dropattributes-ignore_missing"></a>Ignorer les attributs absents | Décoché : un attribut absent des données est une erreur ; coché : il est ignoré. | false |
 
-### Table de correspondance — `MapValues` {#mapvalues}
+<a id="mapvalues"></a>
+
+### Table de correspondance — `MapValues`
 
 Remplace les valeurs d'un attribut selon une table « valeur d'origine → valeur ».
 
@@ -262,14 +294,16 @@ La comparaison se fait sur le texte de la valeur (1 et « 1 » sont égaux). Pou
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut à traduire | Attribut dont les valeurs sont traduites. |  |
-| Attribut résultat | Vide = remplace l'attribut d'origine. |  |
-| Correspondances | Une ligne par valeur à traduire. Le résultat est du texte. |  |
-| Valeur absente de la table | Pour une valeur absente de la table — keep : on la garde ; default : on met la valeur par défaut ; null : on la vide ; reject : l'entité part sur « Rejected ». | `keep` |
-| Valeur par défaut | Utilisée quand « Valeur absente de la table » vaut default. |  |
-| Ignorer la casse | Ne distingue pas majuscules et minuscules. | false |
+| <a id="mapvalues-attribute"></a>Attribut à traduire | Attribut dont les valeurs sont traduites. |  |
+| <a id="mapvalues-destination"></a>Attribut résultat | Vide = remplace l'attribut d'origine. |  |
+| <a id="mapvalues-mappings"></a>Correspondances | Une ligne par valeur à traduire. Le résultat est du texte. |  |
+| <a id="mapvalues-unmatched"></a>Valeur absente de la table | Pour une valeur absente de la table — keep : on la garde ; default : on met la valeur par défaut ; null : on la vide ; reject : l'entité part sur « Rejected ». | `keep` |
+| <a id="mapvalues-default"></a>Valeur par défaut | Utilisée quand « Valeur absente de la table » vaut default. |  |
+| <a id="mapvalues-ignore_case"></a>Ignorer la casse | Ne distingue pas majuscules et minuscules. | false |
 
-### Valeurs vides — `ReplaceNulls` {#replacenulls}
+<a id="replacenulls"></a>
+
+### Valeurs vides — `ReplaceNulls`
 
 Remplace les valeurs vides (NULL) par une valeur, ou transforme une valeur donnée en vide.
 
@@ -279,12 +313,14 @@ Remplace les valeurs vides (NULL) par une valeur, ou transforme une valeur donn�
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs | Vide = tous (hors géométrie). |  |
-| Action | fill : remplace les valeurs vides par « Valeur » ; to_null : vide les valeurs égales à « Valeur » (ex. -1, N/A). | `fill` |
-| Valeur | fill : valeur écrite à la place des vides ; to_null : valeur à considérer comme vide. |  |
-| Compter le texte vide comme vide | Traite aussi le texte vide et les espaces comme des valeurs vides. | false |
+| <a id="replacenulls-attributes"></a>Attributs | Vide = tous (hors géométrie). |  |
+| <a id="replacenulls-mode"></a>Action | fill : remplace les valeurs vides par « Valeur » ; to_null : vide les valeurs égales à « Valeur » (ex. -1, N/A). | `fill` |
+| <a id="replacenulls-value"></a>Valeur | fill : valeur écrite à la place des vides ; to_null : valeur à considérer comme vide. |  |
+| <a id="replacenulls-blank_is_null"></a>Compter le texte vide comme vide | Traite aussi le texte vide et les espaces comme des valeurs vides. | false |
 
-### Éclater une liste — `ExplodeList` {#explodelist}
+<a id="explodelist"></a>
+
+### Éclater une liste — `ExplodeList`
 
 Produit une entité par élément d'un attribut de type liste (les autres attributs sont recopiés).
 
@@ -294,14 +330,16 @@ L'attribut doit être une liste (ex. issue d'un tableau PostgreSQL ou de « Déc
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut liste | Attribut de type liste à éclater (une entité par élément). |  |
-| Attribut élément | Vide = remplace l'attribut liste. |  |
-| Attribut indice | Facultatif. |  |
-| Garder les listes vides | Une liste vide ou nulle donne quand même une entité (élément vide) au lieu de disparaître. | false |
+| <a id="explodelist-attribute"></a>Attribut liste | Attribut de type liste à éclater (une entité par élément). |  |
+| <a id="explodelist-element"></a>Attribut élément | Vide = remplace l'attribut liste. |  |
+| <a id="explodelist-index"></a>Attribut indice | Facultatif. |  |
+| <a id="explodelist-keep_empty"></a>Garder les listes vides | Une liste vide ou nulle donne quand même une entité (élément vide) au lieu de disparaître. | false |
 
 ## Calculs
 
-### Agréger — `Aggregate` {#aggregate}
+<a id="aggregate"></a>
+
+### Agréger — `Aggregate`
 
 Regroupe les entités par clé : une entité par groupe, avec le nombre d'entités et des sommes.
 
@@ -311,12 +349,14 @@ Les attributs de l'entité agrégée sont ceux de la première entité du groupe
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Regrouper par | Vide = tout dans un seul groupe. |  |
-| Attribut du nombre d'entités | Vide = pas de comptage. | `_count` |
-| Attributs à additionner | Créent `attribut_sum`. |  |
-| Géométrie | collect : réunit les géométries du groupe sans les fusionner ; first : celle de la première entité ; none : aucune géométrie. | `collect` |
+| <a id="aggregate-group_by"></a>Regrouper par | Vide = tout dans un seul groupe. |  |
+| <a id="aggregate-count_attribute"></a>Attribut du nombre d'entités | Vide = pas de comptage. | `_count` |
+| <a id="aggregate-sum_attributes"></a>Attributs à additionner | Créent `attribut_sum`. |  |
+| <a id="aggregate-geometry"></a>Géométrie | collect : réunit les géométries du groupe sans les fusionner ; first : celle de la première entité ; none : aucune géométrie. | `collect` |
 
-### Calculer des statistiques — `StatisticsByGroup` {#statisticsbygroup}
+<a id="statisticsbygroup"></a>
+
+### Calculer des statistiques — `StatisticsByGroup`
 
 Calcule des statistiques par groupe : somme, moyenne, min, max, médiane, comptage…
 
@@ -326,13 +366,15 @@ Les entités sortent sur « output » (avec les statistiques de leur groupe si �
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Regrouper par | Vide = un seul groupe pour toutes les entités. |  |
-| Attributs à analyser | Attributs sur lesquels calculer les statistiques (les colonnes s'appellent attribut_fonction, ex. pop_sum). |  |
-| Statistiques | Calculées pour chaque attribut. | `['count', 'sum', 'mean', 'min', 'max']` |
-| Compter les entités (_count) | Ajoute _count : le nombre d'entités du groupe. | true |
-| Ajouter aux entités | Recopie les statistiques sur chaque entité. | true |
+| <a id="statisticsbygroup-group_by"></a>Regrouper par | Vide = un seul groupe pour toutes les entités. |  |
+| <a id="statisticsbygroup-attributes"></a>Attributs à analyser | Attributs sur lesquels calculer les statistiques (les colonnes s'appellent attribut_fonction, ex. pop_sum). |  |
+| <a id="statisticsbygroup-functions"></a>Statistiques | Calculées pour chaque attribut. | `['count', 'sum', 'mean', 'min', 'max']` |
+| <a id="statisticsbygroup-count_rows"></a>Compter les entités (_count) | Ajoute _count : le nombre d'entités du groupe. | true |
+| <a id="statisticsbygroup-attach"></a>Ajouter aux entités | Recopie les statistiques sur chaque entité. | true |
 
-### Code Python — `PythonScript` {#pythonscript}
+<a id="pythonscript"></a>
+
+### Code Python — `PythonScript`
 
 Exécute une fonction Python `process(table, ctx)` sur chaque lot d'entités.
 
@@ -342,13 +384,15 @@ Exécute une fonction Python `process(table, ctx)` sur chaque lot d'entités.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Code | Définit `process(table, ctx)`. | `def process(table, ctx):
+| <a id="pythonscript-code"></a>Code | Définit `process(table, ctx)`. | `def process(table, ctx):
     """table : un lot d'entités (pyarrow.Table, géométrie WKB dans la colonne "geometry").
     Renvoyer une table, ou {"output": table, "Rejected": autre_table}."""
     return table
 ` |
 
-### Compteur — `Counter` {#counter}
+<a id="counter"></a>
+
+### Compteur — `Counter`
 
 Ajoute un numéro d'ordre à chaque entité, dans l'ordre d'arrivée (par groupe si demandé).
 
@@ -358,12 +402,14 @@ Sans groupe : 1, 2, 3… Avec « Regrouper par » : la numérotation repart de �
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut créé | Nom de l'attribut qui reçoit le numéro. | `_count` |
-| Début | Premier numéro attribué. | `1` |
-| Pas | Écart entre deux numéros successifs. | `1` |
-| Regrouper par | Vide : une seule numérotation ; sinon elle repart de « Début » pour chaque valeur. |  |
+| <a id="counter-attribute"></a>Attribut créé | Nom de l'attribut qui reçoit le numéro. | `_count` |
+| <a id="counter-start"></a>Début | Premier numéro attribué. | `1` |
+| <a id="counter-step"></a>Pas | Écart entre deux numéros successifs. | `1` |
+| <a id="counter-group_by"></a>Regrouper par | Vide : une seule numérotation ; sinon elle repart de « Début » pour chaque valeur. |  |
 
-### Requête SQL sur les entrées — `ExecuteSql` {#executesql}
+<a id="executesql"></a>
+
+### Requête SQL sur les entrées — `ExecuteSql`
 
 Exécute une requête SQL DuckDB sur une ou plusieurs entrées du flux (jointures, agrégats, fenêtres, spatial).
 
@@ -373,10 +419,12 @@ Chaque entrée est une table dont le nom est celui du port : `SELECT p.nom, COUN
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Entrées | Noms des ports d'entrée (lettres, chiffres et _) ; chacun est une table de la requête. | `['input']` |
-| Requête SQL | Une instruction SELECT (ou WITH … SELECT) DuckDB. | `SELECT * FROM input` |
+| <a id="executesql-inputs"></a>Entrées | Noms des ports d'entrée (lettres, chiffres et _) ; chacun est une table de la requête. | `['input']` |
+| <a id="executesql-sql"></a>Requête SQL | Une instruction SELECT (ou WITH … SELECT) DuckDB. | `SELECT * FROM input` |
 
-### Trier — `OrderBy` {#orderby}
+<a id="orderby"></a>
+
+### Trier — `OrderBy`
 
 Trie les entités selon un ou plusieurs attributs (valeurs vides à la fin).
 
@@ -386,11 +434,13 @@ Le tri est stable : à clés égales, l'ordre d'arrivée est conservé. « numbe
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Clés de tri | Le premier attribut prime, les suivants départagent les égalités. |  |
+| <a id="orderby-keys"></a>Clés de tri | Le premier attribut prime, les suivants départagent les égalités. |  |
 
 ## Composants
 
-### Entrée du composant — `ComponentInput` {#componentinput}
+<a id="componentinput"></a>
+
+### Entrée du composant — `ComponentInput`
 
 Définit une entrée du composant : les entités reçues par ce port arrivent ici.
 
@@ -400,10 +450,12 @@ Définit une entrée du composant : les entités reçues par ce port arrivent ic
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Nom du port |  | `input` |
-| Fichier d'exemple | Pour tester le composant seul. |  |
+| <a id="componentinput-port"></a>Nom du port |  | `input` |
+| <a id="componentinput-sample"></a>Fichier d'exemple | Pour tester le composant seul. |  |
 
-### Sortie du composant — `ComponentOutput` {#componentoutput}
+<a id="componentoutput"></a>
+
+### Sortie du composant — `ComponentOutput`
 
 Définit une sortie du composant : les entités reçues ici sortent par ce port.
 
@@ -413,11 +465,13 @@ Définit une sortie du composant : les entités reçues ici sortent par ce port.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Nom du port |  | `output` |
+| <a id="componentoutput-port"></a>Nom du port |  | `output` |
 
 ## Entrées / sorties
 
-### Appeler une API web — `HttpRequest` {#httprequest}
+<a id="httprequest"></a>
+
+### Appeler une API web — `HttpRequest`
 
 Appelle une adresse web (GET, POST…) pour chaque entité et range la réponse dans un attribut.
 
@@ -427,19 +481,21 @@ L'adresse, les en-têtes et le corps peuvent citer des attributs de l'entité av
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Adresse | http:// ou https:// ; {attribut} pour une valeur de l'entité. |  |
-| Méthode | Méthode HTTP. | `GET` |
-| En-têtes | En-têtes ajoutés à chaque appel. |  |
-| Corps | Corps de la requête (POST, PUT, PATCH) ; {attribut} accepté. |  |
-| Attribut de la réponse | Reçoit le corps de la réponse (texte). | `_http_body` |
-| Attribut du code | Reçoit le code HTTP (vide pour les erreurs réseau). | `_http_status` |
-| Délai (s) | Délai maximal d'un appel. | `30.0` |
-| Reprises | Nouvelles tentatives après une erreur réseau, un code 429 ou 5xx. | `2` |
-| Appels simultanés | Nombre d'appels en parallèle. | `4` |
-| Débit maximal (appels/s) | 0 = pas de limite. | `0.0` |
-| Taille maximale de la réponse (Mo) | Au-delà, l'entité part sur « Rejected » : la réponse n'est pas gardée tronquée. | `50.0` |
+| <a id="httprequest-url"></a>Adresse | http:// ou https:// ; {attribut} pour une valeur de l'entité. |  |
+| <a id="httprequest-method"></a>Méthode | Méthode HTTP. | `GET` |
+| <a id="httprequest-headers"></a>En-têtes | En-têtes ajoutés à chaque appel. |  |
+| <a id="httprequest-body"></a>Corps | Corps de la requête (POST, PUT, PATCH) ; {attribut} accepté. |  |
+| <a id="httprequest-body_attribute"></a>Attribut de la réponse | Reçoit le corps de la réponse (texte). | `_http_body` |
+| <a id="httprequest-status_attribute"></a>Attribut du code | Reçoit le code HTTP (vide pour les erreurs réseau). | `_http_status` |
+| <a id="httprequest-timeout"></a>Délai (s) | Délai maximal d'un appel. | `30.0` |
+| <a id="httprequest-retries"></a>Reprises | Nouvelles tentatives après une erreur réseau, un code 429 ou 5xx. | `2` |
+| <a id="httprequest-concurrency"></a>Appels simultanés | Nombre d'appels en parallèle. | `4` |
+| <a id="httprequest-rate"></a>Débit maximal (appels/s) | 0 = pas de limite. | `0.0` |
+| <a id="httprequest-max_size"></a>Taille maximale de la réponse (Mo) | Au-delà, l'entité part sur « Rejected » : la réponse n'est pas gardée tronquée. | `50.0` |
 
-### Créer des entités — `CreateFeatures` {#createfeatures}
+<a id="createfeatures"></a>
+
+### Créer des entités — `CreateFeatures`
 
 Crée une ou plusieurs entités de toutes pièces : attributs calculés et géométrie facultative.
 
@@ -449,15 +505,17 @@ Point de départ d'un flux qui n'a pas de fichier à lire : une seule entité po
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Nombre d'entités | Combien d'entités créer. | `1` |
-| Attributs | Calculés dans l'ordre, pour chaque entité. |  |
-| Géométrie | none, point ou wkt. | `none` |
-| X (point) | Expression SQL de X, ex. 1.5 ou 600000 + "_index". | `0` |
-| Y (point) | Expression SQL de Y. | `0` |
-| WKT | Géométrie WKT, identique pour toutes les entités. |  |
-| Système de coordonnées | Celui de la géométrie. |  |
+| <a id="createfeatures-count"></a>Nombre d'entités | Combien d'entités créer. | `1` |
+| <a id="createfeatures-attributes"></a>Attributs | Calculés dans l'ordre, pour chaque entité. |  |
+| <a id="createfeatures-geometry"></a>Géométrie | none, point ou wkt. | `none` |
+| <a id="createfeatures-x"></a>X (point) | Expression SQL de X, ex. 1.5 ou 600000 + "_index". | `0` |
+| <a id="createfeatures-y"></a>Y (point) | Expression SQL de Y. | `0` |
+| <a id="createfeatures-wkt"></a>WKT | Géométrie WKT, identique pour toutes les entités. |  |
+| <a id="createfeatures-crs"></a>Système de coordonnées | Celui de la géométrie. |  |
 
-### SQL (créateur) — `DatabaseQuery` {#databasequery}
+<a id="databasequery"></a>
+
+### SQL (créateur) — `DatabaseQuery`
 
 Exécute un ordre SQL sur une base (PostgreSQL, Oracle) et envoie les lignes qu'il renvoie.
 
@@ -467,14 +525,16 @@ Le SQL est celui de la base de la connexion. Par défaut il est exécuté en **l
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Connexion | Connexion nommée (menu Connexions). |  |
-| SQL | Un seul ordre. |  |
-| Autoriser l'écriture | Décoché : lecture seule (SELECT). Coché : UPDATE, CREATE TABLE… autorisés, validés à la fin. | false |
-| Système de coordonnées | Si le résultat contient « geometry ». |  |
+| <a id="databasequery-connection"></a>Connexion | Connexion nommée (menu Connexions). |  |
+| <a id="databasequery-sql"></a>SQL | Un seul ordre. |  |
+| <a id="databasequery-allow_write"></a>Autoriser l'écriture | Décoché : lecture seule (SELECT). Coché : UPDATE, CREATE TABLE… autorisés, validés à la fin. | false |
+| <a id="databasequery-crs"></a>Système de coordonnées | Si le résultat contient « geometry ». |  |
 
 ## Filtres
 
-### Filtre par type de géométrie — `SplitByGeometryType` {#splitbygeometrytype}
+<a id="splitbygeometrytype"></a>
+
+### Filtre par type de géométrie — `SplitByGeometryType`
 
 Sépare les entités par type de géométrie : points, lignes, surfaces, collections, sans géométrie.
 
@@ -482,7 +542,9 @@ Sépare les entités par type de géométrie : points, lignes, surfaces, collect
 
 Les multi-géométries suivent leur famille (MultiPolygon → Area). Une géométrie vide compte comme « NoGeometry ».
 
-### Filtre spatial — `ExtractByLocation` {#extractbylocation}
+<a id="extractbylocation"></a>
+
+### Filtre spatial — `ExtractByLocation`
 
 Sépare les entités « candidate » selon leur relation spatiale avec les entités « filter ».
 
@@ -492,11 +554,13 @@ Une entité candidate sort sur « Passed » si elle vérifie la relation (inters
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Relation | candidate <relation> filter (« within » : candidate est dans filter). | `intersects` |
-| Distance (dwithin) | Unités du système de coordonnées. | `0.0` |
-| Inverser Passed et Failed | Échange les sorties Passed et Failed. | false |
+| <a id="extractbylocation-predicate"></a>Relation | candidate <relation> filter (« within » : candidate est dans filter). | `intersects` |
+| <a id="extractbylocation-distance"></a>Distance (dwithin) | Unités du système de coordonnées. | `0.0` |
+| <a id="extractbylocation-invert"></a>Inverser Passed et Failed | Échange les sorties Passed et Failed. | false |
 
-### Filtre à plusieurs sorties — `RouteByExpression` {#routebyexpression}
+<a id="routebyexpression"></a>
+
+### Filtre à plusieurs sorties — `RouteByExpression`
 
 Répartit les entités sur plusieurs sorties selon des conditions ordonnées.
 
@@ -506,10 +570,12 @@ Chaque ligne donne une sortie et sa condition (expression SQL booléenne). Avec 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Conditions | Une sortie par ligne, dans l'ordre d'évaluation. | `[{'output': 'Passed', 'condition': ''}]` |
-| Entité vérifiant plusieurs conditions | first : première sortie seulement ; all : toutes les sorties (l'entité est dupliquée). | `first` |
+| <a id="routebyexpression-tests"></a>Conditions | Une sortie par ligne, dans l'ordre d'évaluation. | `[{'output': 'Passed', 'condition': ''}]` |
+| <a id="routebyexpression-mode"></a>Entité vérifiant plusieurs conditions | first : première sortie seulement ; all : toutes les sorties (l'entité est dupliquée). | `first` |
 
-### Filtrer les doublons — `FindDuplicates` {#findduplicates}
+<a id="findduplicates"></a>
+
+### Filtrer les doublons — `FindDuplicates`
 
 Envoie la première entité de chaque clé sur « Unique », les suivantes sur « Duplicate ».
 
@@ -519,9 +585,11 @@ Deux entités sont des doublons si toutes les clés sont égales (deux valeurs v
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Clés | Vide = tous les attributs hors géométrie. |  |
+| <a id="findduplicates-keys"></a>Clés | Vide = tous les attributs hors géométrie. |  |
 
-### Filtrer par expression — `ExtractByExpression` {#extractbyexpression}
+<a id="extractbyexpression"></a>
+
+### Filtrer par expression — `ExtractByExpression`
 
 Envoie les entités sur « Passed » si elles vérifient les conditions, sinon sur « Failed ».
 
@@ -531,10 +599,12 @@ Chaque condition est une expression SQL booléenne : "pop" >= 1000 ; "nom" LIKE 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Conditions | Expressions SQL booléennes, ex. "pop" >= 1000. |  |
-| Combiner par | AND : toutes les conditions ; OR : au moins une. | `AND` |
+| <a id="extractbyexpression-conditions"></a>Conditions | Expressions SQL booléennes, ex. "pop" >= 1000. |  |
+| <a id="extractbyexpression-combine"></a>Combiner par | AND : toutes les conditions ; OR : au moins une. | `AND` |
 
-### Échantillonner — `Sample` {#sample}
+<a id="sample"></a>
+
+### Échantillonner — `Sample`
 
 Prélève un échantillon : les N premières, les N dernières, une entité sur N ou N entités au hasard.
 
@@ -544,13 +614,15 @@ Prélève un échantillon : les N premières, les N dernières, une entité sur 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Méthode | first, last, every (une sur N) ou random (au hasard). | `first` |
-| N | Nombre d'entités (first, last, random) ou pas (every). | `100` |
-| Graine (random) | Même graine, même tirage. | `0` |
+| <a id="sample-mode"></a>Méthode | first, last, every (une sur N) ou random (au hasard). | `first` |
+| <a id="sample-count"></a>N | Nombre d'entités (first, last, random) ou pas (every). | `100` |
+| <a id="sample-seed"></a>Graine (random) | Même graine, même tirage. | `0` |
 
 ## Géométrie
 
-### Attribut vers géométrie — `GeometryFromAttribute` {#geometryfromattribute}
+<a id="geometryfromattribute"></a>
+
+### Attribut vers géométrie — `GeometryFromAttribute`
 
 Construit la géométrie de chaque entité à partir d'un attribut texte (WKT, GeoJSON, WKB hexadécimal).
 
@@ -560,12 +632,14 @@ Une valeur vide donne une entité sans géométrie ; une valeur illisible envoie
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut contenant la géométrie | Attribut texte qui contient la géométrie. |  |
-| Format | Format du texte : wkt, geojson ou wkb_hex (WKB en hexadécimal). | `wkt` |
-| Système de coordonnées | Système de coordonnées de la géométrie lue ; vide = celui des données. |  |
-| Retirer l'attribut texte | Retire l'attribut texte une fois la géométrie créée. | false |
+| <a id="geometryfromattribute-attribute"></a>Attribut contenant la géométrie | Attribut texte qui contient la géométrie. |  |
+| <a id="geometryfromattribute-format"></a>Format | Format du texte : wkt, geojson ou wkb_hex (WKB en hexadécimal). | `wkt` |
+| <a id="geometryfromattribute-crs"></a>Système de coordonnées | Système de coordonnées de la géométrie lue ; vide = celui des données. |  |
+| <a id="geometryfromattribute-remove_attribute"></a>Retirer l'attribut texte | Retire l'attribut texte une fois la géométrie créée. | false |
 
-### Carroyage — `CreateGrid` {#creategrid}
+<a id="creategrid"></a>
+
+### Carroyage — `CreateGrid`
 
 Génère une grille de carrés ou d'hexagones sur une emprise (saisie, ou celle des entités reçues).
 
@@ -575,17 +649,19 @@ L'emprise est saisie (X min, Y min, X max, Y max, dans le système de coordonné
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Emprise des entités reçues | Prend l'emprise sur les géométries de l'entrée. | false |
-| X min | Bord gauche (emprise saisie). | `0.0` |
-| Y min | Bord bas. | `0.0` |
-| X max | Bord droit. | `1000.0` |
-| Y max | Bord haut. | `1000.0` |
-| Taille | Largeur d'une cellule, dans l'unité du système de coordonnées. | `100.0` |
-| Forme | square ou hexagon. | `square` |
-| Système de coordonnées | Celui de l'emprise saisie. |  |
-| Ne garder que les cellules qui touchent les entités | Avec l'emprise des entités : écarte les cellules qui n'en rencontrent aucune. | false |
+| <a id="creategrid-from_input"></a>Emprise des entités reçues | Prend l'emprise sur les géométries de l'entrée. | false |
+| <a id="creategrid-xmin"></a>X min | Bord gauche (emprise saisie). | `0.0` |
+| <a id="creategrid-ymin"></a>Y min | Bord bas. | `0.0` |
+| <a id="creategrid-xmax"></a>X max | Bord droit. | `1000.0` |
+| <a id="creategrid-ymax"></a>Y max | Bord haut. | `1000.0` |
+| <a id="creategrid-size"></a>Taille | Largeur d'une cellule, dans l'unité du système de coordonnées. | `100.0` |
+| <a id="creategrid-shape"></a>Forme | square ou hexagon. | `square` |
+| <a id="creategrid-crs"></a>Système de coordonnées | Celui de l'emprise saisie. |  |
+| <a id="creategrid-only_touching"></a>Ne garder que les cellules qui touchent les entités | Avec l'emprise des entités : écarte les cellules qui n'en rencontrent aucune. | false |
 
-### Créer un point / un sommet — `PointFromXY` {#pointfromxy}
+<a id="pointfromxy"></a>
+
+### Créer un point / un sommet — `PointFromXY`
 
 Crée un point depuis des attributs X/Y (Z), ou ajoute ce point comme sommet d'une ligne.
 
@@ -595,13 +671,15 @@ Crée un point depuis des attributs X/Y (Z), ou ajoute ce point comme sommet d'u
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut X (ou longitude) | Attribut contenant X (ou la longitude). |  |
-| Attribut Y (ou latitude) | Attribut contenant Y (ou la latitude). |  |
-| Attribut Z | Facultatif. |  |
-| Action | point : la géométrie devient le point ; append : le point est ajouté à la fin de la ligne existante. | `point` |
-| Système de coordonnées | Vide = celui des données. |  |
+| <a id="pointfromxy-x"></a>Attribut X (ou longitude) | Attribut contenant X (ou la longitude). |  |
+| <a id="pointfromxy-y"></a>Attribut Y (ou latitude) | Attribut contenant Y (ou la latitude). |  |
+| <a id="pointfromxy-z"></a>Attribut Z | Facultatif. |  |
+| <a id="pointfromxy-mode"></a>Action | point : la géométrie devient le point ; append : le point est ajouté à la fin de la ligne existante. | `point` |
+| <a id="pointfromxy-crs"></a>Système de coordonnées | Vide = celui des données. |  |
 
-### Découper — `Clip` {#clip}
+<a id="clip"></a>
+
+### Découper — `Clip`
 
 Découpe les entités « input » par les polygones « overlay » : parties dedans et dehors.
 
@@ -611,11 +689,13 @@ Découpe les entités « input » par les polygones « overlay » : parties deda
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Polygones de découpe | union : les polygones de découpe sont fusionnés (au plus une partie Inside par entité) ; each : une partie Inside par polygone de découpe qui recouvre l'entité. | `union` |
-| Attributs des polygones à copier | Mode « each ». |  |
-| Préfixe des attributs copiés | Ajouté devant le nom des attributs copiés du polygone de découpe (mode each). | `overlay_` |
+| <a id="clip-mode"></a>Polygones de découpe | union : les polygones de découpe sont fusionnés (au plus une partie Inside par entité) ; each : une partie Inside par polygone de découpe qui recouvre l'entité. | `union` |
+| <a id="clip-overlay_attributes"></a>Attributs des polygones à copier | Mode « each ». |  |
+| <a id="clip-prefix"></a>Préfixe des attributs copiés | Ajouté devant le nom des attributs copiés du polygone de découpe (mode each). | `overlay_` |
 
-### Enveloppe des géométries — `Hull` {#hull}
+<a id="hull"></a>
+
+### Enveloppe des géométries — `Hull`
 
 Remplace la géométrie par son enveloppe : convexe, concave, emprise, rectangle orienté ou cercle englobant.
 
@@ -625,13 +705,15 @@ Remplace la géométrie par son enveloppe : convexe, concave, emprise, rectangle
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Enveloppe | convex, concave, envelope, rectangle ou circle. | `convex` |
-| Portée | feature : une par entité ; group : une par groupe ; all : une pour toutes les entités. | `feature` |
-| Regrouper par | Pour la portée « group ». |  |
-| Finesse (concave) | 1 = convexe, 0 = très creusée. | `0.3` |
-| Trous autorisés (concave) | L'enveloppe concave peut avoir des trous. | false |
+| <a id="hull-method"></a>Enveloppe | convex, concave, envelope, rectangle ou circle. | `convex` |
+| <a id="hull-scope"></a>Portée | feature : une par entité ; group : une par groupe ; all : une pour toutes les entités. | `feature` |
+| <a id="hull-group_by"></a>Regrouper par | Pour la portée « group ». |  |
+| <a id="hull-ratio"></a>Finesse (concave) | 1 = convexe, 0 = très creusée. | `0.3` |
+| <a id="hull-allow_holes"></a>Trous autorisés (concave) | L'enveloppe concave peut avoir des trous. | false |
 
-### Extraire des coordonnées — `ExtractCoordinates` {#extractcoordinates}
+<a id="extractcoordinates"></a>
+
+### Extraire des coordonnées — `ExtractCoordinates`
 
 Écrit X, Y (et Z) d'un point caractéristique de la géométrie dans des attributs.
 
@@ -641,12 +723,14 @@ Point utilisé : le point lui-même, le centre de gravité, un point garanti à 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Point | Quel point lire : point (le point lui-même), centroid (centre de gravité), point_on_surface (toujours dedans), start / end (premier / dernier sommet), bbox_center (centre de l'emprise). | `centroid` |
-| Préfixe des attributs | Ex. « pt_ » donne pt_x, pt_y. |  |
-| Extraire aussi Z | Ajoute aussi l'altitude (z). | false |
-| Ajouter l'emprise | Ajoute l'emprise : minx, miny, maxx, maxy (avec le préfixe). | false |
+| <a id="extractcoordinates-source"></a>Point | Quel point lire : point (le point lui-même), centroid (centre de gravité), point_on_surface (toujours dedans), start / end (premier / dernier sommet), bbox_center (centre de l'emprise). | `centroid` |
+| <a id="extractcoordinates-prefix"></a>Préfixe des attributs | Ex. « pt_ » donne pt_x, pt_y. |  |
+| <a id="extractcoordinates-z"></a>Extraire aussi Z | Ajoute aussi l'altitude (z). | false |
+| <a id="extractcoordinates-bounds"></a>Ajouter l'emprise | Ajoute l'emprise : minx, miny, maxx, maxy (avec le préfixe). | false |
 
-### Fusionner (dissoudre) — `Dissolve` {#dissolve}
+<a id="dissolve"></a>
+
+### Fusionner (dissoudre) — `Dissolve`
 
 Fusionne les polygones (ou lignes) de chaque groupe en une seule géométrie, sans frontières internes.
 
@@ -656,10 +740,12 @@ Une entité par groupe, avec les attributs de la première entité du groupe. Le
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Regrouper par | Vide = tout fusionner. |  |
-| Attribut du nombre d'entités | Vide = pas de comptage. | `_count` |
+| <a id="dissolve-group_by"></a>Regrouper par | Vide = tout fusionner. |  |
+| <a id="dissolve-count_attribute"></a>Attribut du nombre d'entités | Vide = pas de comptage. | `_count` |
 
-### Géométrie vers attribut — `GeometryToAttribute` {#geometrytoattribute}
+<a id="geometrytoattribute"></a>
+
+### Géométrie vers attribut — `GeometryToAttribute`
 
 Copie la géométrie de chaque entité dans un attribut texte (WKT, GeoJSON ou WKB hexadécimal).
 
@@ -669,12 +755,14 @@ Utile pour écrire une géométrie dans un CSV ou une colonne texte. « Retirer 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut créé | Nom de l'attribut texte qui reçoit la géométrie. | `geometry_text` |
-| Format | wkt, geojson ou wkb_hex (WKB en hexadécimal). | `wkt` |
-| Décimales (WKT, GeoJSON) | Décimales conservées dans les coordonnées ; vide = précision complète. |  |
-| Retirer la géométrie | Retire la géométrie de l'entité une fois copiée dans l'attribut. | false |
+| <a id="geometrytoattribute-attribute"></a>Attribut créé | Nom de l'attribut texte qui reçoit la géométrie. | `geometry_text` |
+| <a id="geometrytoattribute-format"></a>Format | wkt, geojson ou wkb_hex (WKB en hexadécimal). | `wkt` |
+| <a id="geometrytoattribute-precision"></a>Décimales (WKT, GeoJSON) | Décimales conservées dans les coordonnées ; vide = précision complète. |  |
+| <a id="geometrytoattribute-remove_geometry"></a>Retirer la géométrie | Retire la géométrie de l'entité une fois copiée dans l'attribut. | false |
 
-### Longueur de lignes — `MeasureLength` {#measurelength}
+<a id="measurelength"></a>
+
+### Longueur de lignes — `MeasureLength`
 
 Ajoute la longueur de chaque ligne.
 
@@ -684,12 +772,14 @@ Ajoute la longueur de chaque ligne.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut longueur | Reçoit la longueur. | `_length` |
-| Unité | Mètres ou kilomètres. | `m` |
-| Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, coordonnées en longitude/latitude. | `planar` |
-| Décimales | Nombre de décimales conservées (0 à 15). | `2` |
+| <a id="measurelength-attribute"></a>Attribut longueur | Reçoit la longueur. | `_length` |
+| <a id="measurelength-unit"></a>Unité | Mètres ou kilomètres. | `m` |
+| <a id="measurelength-method"></a>Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, coordonnées en longitude/latitude. | `planar` |
+| <a id="measurelength-decimals"></a>Décimales | Nombre de décimales conservées (0 à 15). | `2` |
 
-### Remplacer par un point central — `Centroids` {#centroids}
+<a id="centroids"></a>
+
+### Remplacer par un point central — `Centroids`
 
 Remplace chaque géométrie par un point : centre de gravité, point intérieur ou centre de l'emprise.
 
@@ -699,9 +789,11 @@ Remplace chaque géométrie par un point : centre de gravité, point intérieur 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Méthode | centroid : centre de gravité (peut sortir d'un polygone en croissant) ; point_on_surface : un point toujours à l'intérieur ; bbox_center : centre de l'emprise. | `centroid` |
+| <a id="centroids-method"></a>Méthode | centroid : centre de gravité (peut sortir d'un polygone en croissant) ; point_on_surface : un point toujours à l'intérieur ; bbox_center : centre de l'emprise. | `centroid` |
 
-### Reprojeter — `Reproject` {#reproject}
+<a id="reproject"></a>
+
+### Reprojeter — `Reproject`
 
 Transforme les géométries dans un autre système de coordonnées.
 
@@ -711,10 +803,12 @@ Le système d'origine est celui des données ; on peut le forcer si les données
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Système cible | Ex. EPSG:2154. |  |
-| Système source | Vide = celui des données. |  |
+| <a id="reproject-target"></a>Système cible | Ex. EPSG:2154. |  |
+| <a id="reproject-source"></a>Système source | Vide = celui des données. |  |
 
-### Réparer les géométries — `FixGeometries` {#fixgeometries}
+<a id="fixgeometries"></a>
+
+### Réparer les géométries — `FixGeometries`
 
 Rend valides les géométries invalides (auto-intersection, anneau non fermé…) ; les autres sont intactes.
 
@@ -724,11 +818,13 @@ Toutes les entités ressortent sur « output » avec une géométrie valide. Les
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Méthode | linework : les lignes sont découpées aux intersections (comportement classique, rapide). structure : reconstruit les surfaces d'après leurs anneaux (trous mieux respectés, plus lent). | `linework` |
-| Garder le type de géométrie | Écarte les morceaux de dimension inférieure (lignes ou points nés d'un polygone aplati). | true |
-| Attribut du motif de réparation | Reçoit le défaut d'origine pour les géométries réparées, vide pour les autres. Vide = pas d'attribut. | `_repaired_reason` |
+| <a id="fixgeometries-method"></a>Méthode | linework : les lignes sont découpées aux intersections (comportement classique, rapide). structure : reconstruit les surfaces d'après leurs anneaux (trous mieux respectés, plus lent). | `linework` |
+| <a id="fixgeometries-keep_type"></a>Garder le type de géométrie | Écarte les morceaux de dimension inférieure (lignes ou points nés d'un polygone aplati). | true |
+| <a id="fixgeometries-report_attribute"></a>Attribut du motif de réparation | Reçoit le défaut d'origine pour les géométries réparées, vide pour les autres. Vide = pas d'attribut. | `_repaired_reason` |
 
-### Simplifier les géométries — `Simplify` {#simplify}
+<a id="simplify"></a>
+
+### Simplifier les géométries — `Simplify`
 
 Réduit le nombre de sommets en gardant la forme à la tolérance près (Douglas-Peucker).
 
@@ -738,10 +834,12 @@ La tolérance est dans l'unité du système de coordonnées. « Préserver la to
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Tolérance | Écart maximal toléré, dans l'unité du système de coordonnées (mètres en Lambert-93). | `1.0` |
-| Préserver la topologie | Évite les auto-intersections et les polygones qui disparaissent (un peu plus lent). | true |
+| <a id="simplify-tolerance"></a>Tolérance | Écart maximal toléré, dans l'unité du système de coordonnées (mètres en Lambert-93). | `1.0` |
+| <a id="simplify-preserve_topology"></a>Préserver la topologie | Évite les auto-intersections et les polygones qui disparaissent (un peu plus lent). | true |
 
-### Superposition de polygones — `OverlayPolygons` {#overlaypolygons}
+<a id="overlaypolygons"></a>
+
+### Superposition de polygones — `OverlayPolygons`
 
 Découpe des polygones qui se chevauchent en morceaux disjoints, avec le nombre de polygones qui les recouvrent.
 
@@ -751,12 +849,14 @@ Tous les polygones reçus sont superposés : leurs contours découpent le plan e
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs à lister | Pour chaque morceau : la liste des valeurs de ces attributs sur les polygones qui le recouvrent. |  |
-| Recouvrement minimal | Ne garde que les morceaux recouverts au moins ce nombre de fois. | `1` |
-| Attribut du nombre | Nombre de polygones qui recouvrent le morceau. | `_overlap_count` |
-| Attribut des origines | Numéros (de 0) des polygones qui recouvrent le morceau ; vide = aucun. | `_origins` |
+| <a id="overlaypolygons-attributes"></a>Attributs à lister | Pour chaque morceau : la liste des valeurs de ces attributs sur les polygones qui le recouvrent. |  |
+| <a id="overlaypolygons-min_overlap"></a>Recouvrement minimal | Ne garde que les morceaux recouverts au moins ce nombre de fois. | `1` |
+| <a id="overlaypolygons-count_attribute"></a>Attribut du nombre | Nombre de polygones qui recouvrent le morceau. | `_overlap_count` |
+| <a id="overlaypolygons-origins_attribute"></a>Attribut des origines | Numéros (de 0) des polygones qui recouvrent le morceau ; vide = aucun. | `_origins` |
 
-### Surface et périmètre — `MeasureArea` {#measurearea}
+<a id="measurearea"></a>
+
+### Surface et périmètre — `MeasureArea`
 
 Ajoute la surface (et au choix le périmètre) de chaque polygone.
 
@@ -766,14 +866,16 @@ Ajoute la surface (et au choix le périmètre) de chaque polygone.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut surface | Vide = pas de surface. | `_area` |
-| Attribut périmètre | Vide = pas de périmètre. |  |
-| Unité de surface | Unité de la surface écrite : m² (m2), hectares (ha) ou km² (km2). | `m2` |
-| Unité de périmètre | Unité du périmètre écrit : mètres ou kilomètres. | `m` |
-| Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, les coordonnées doivent être en longitude/latitude. | `planar` |
-| Décimales | Nombre de décimales conservées (0 à 15). | `2` |
+| <a id="measurearea-area"></a>Attribut surface | Vide = pas de surface. | `_area` |
+| <a id="measurearea-perimeter"></a>Attribut périmètre | Vide = pas de périmètre. |  |
+| <a id="measurearea-area_unit"></a>Unité de surface | Unité de la surface écrite : m² (m2), hectares (ha) ou km² (km2). | `m2` |
+| <a id="measurearea-length_unit"></a>Unité de périmètre | Unité du périmètre écrit : mètres ou kilomètres. | `m` |
+| <a id="measurearea-method"></a>Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, les coordonnées doivent être en longitude/latitude. | `planar` |
+| <a id="measurearea-decimals"></a>Décimales | Nombre de décimales conservées (0 à 15). | `2` |
 
-### Valider les géométries — `CheckValidity` {#checkvalidity}
+<a id="checkvalidity"></a>
+
+### Valider les géométries — `CheckValidity`
 
 Sépare les géométries valides des invalides (auto-intersection, anneau non fermé…).
 
@@ -783,9 +885,11 @@ Les entités valides sortent sur « Valid », les autres sur « Invalid » avec 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Refuser les géométries vides ou absentes | Coché : une géométrie vide ou absente va sur « Invalid » ; décoché : elle passe sur « Valid ». | true |
+| <a id="checkvalidity-reject_empty"></a>Refuser les géométries vides ou absentes | Coché : une géométrie vide ou absente va sur « Invalid » ; décoché : elle passe sur « Valid ». | true |
 
-### Zone tampon — `Buffer` {#buffer}
+<a id="buffer"></a>
+
+### Zone tampon — `Buffer`
 
 Remplace chaque géométrie par une zone tampon (buffer) de la distance indiquée.
 
@@ -795,13 +899,15 @@ La distance est dans l'unité du système de coordonnées (des mètres en Lamber
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Distance | Dans l'unité du système de coordonnées (mètres en Lambert-93). Négative : rétrécit un polygone. | `10.0` |
-| Distance depuis un attribut | Remplace la distance fixe. |  |
-| Extrémités | Forme du bout des lignes : round (arrondi), flat (plat), square (carré). | `round` |
-| Angles | Forme des angles : round (arrondi), mitre (angle vif), bevel (coupé). | `round` |
-| Segments par quart de cercle | Finesse des arrondis : segments par quart de cercle. | `16` |
+| <a id="buffer-distance"></a>Distance | Dans l'unité du système de coordonnées (mètres en Lambert-93). Négative : rétrécit un polygone. | `10.0` |
+| <a id="buffer-distance_attribute"></a>Distance depuis un attribut | Remplace la distance fixe. |  |
+| <a id="buffer-end_cap"></a>Extrémités | Forme du bout des lignes : round (arrondi), flat (plat), square (carré). | `round` |
+| <a id="buffer-join"></a>Angles | Forme des angles : round (arrondi), mitre (angle vif), bevel (coupé). | `round` |
+| <a id="buffer-quad_segs"></a>Segments par quart de cercle | Finesse des arrondis : segments par quart de cercle. | `16` |
 
-### Éclater les géométries multiples — `MultipartToSingleparts` {#multiparttosingleparts}
+<a id="multiparttosingleparts"></a>
+
+### Éclater les géométries multiples — `MultipartToSingleparts`
 
 Sépare chaque géométrie multiple (MultiPolygon, MultiLineString…) en une entité par partie.
 
@@ -811,13 +917,15 @@ Une entité dont la géométrie a N parties donne N entités qui recopient les a
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut du numéro | Rang de la partie, de 0 ; vide = aucun. | `_part` |
-| Attribut du nombre | Nombre de parties de l'entité d'origine ; vide = aucun. |  |
-| Éclater aussi les collections imbriquées | Descend dans les collections de collections. | true |
+| <a id="multiparttosingleparts-part_attribute"></a>Attribut du numéro | Rang de la partie, de 0 ; vide = aucun. | `_part` |
+| <a id="multiparttosingleparts-count_attribute"></a>Attribut du nombre | Nombre de parties de l'entité d'origine ; vide = aucun. |  |
+| <a id="multiparttosingleparts-recursive"></a>Éclater aussi les collections imbriquées | Descend dans les collections de collections. | true |
 
 ## Jointures
 
-### Jointure attributaire — `JoinByField` {#joinbyfield}
+<a id="joinbyfield"></a>
+
+### Jointure attributaire — `JoinByField`
 
 Ajoute aux entités de « base » les attributs des entités de « join » qui ont la même clé.
 
@@ -827,16 +935,18 @@ Les entités de « base » avec correspondance sortent sur « Joined » ; les au
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Clés de « base » | Attributs de « base » qui font le lien avec « join », dans le même ordre que les clés de « join ». |  |
-| Clés de « join » | Dans le même ordre que « base ». |  |
-| Attributs à ajouter | Vide = tous ceux de « join » hors clés. |  |
-| Préfixe des attributs ajoutés | Évite les conflits de noms. |  |
-| Si le nom existe déjà | other : la valeur de « join » ; base : on garde l'existante. | `other` |
-| Plusieurs correspondances | all : une entité par correspondance ; first ; error. | `all` |
-| Garder les non-appariées dans Joined | Jointure « gauche » : attributs vides. | false |
-| Géométrie du résultat | Celle de « base », celle de « join » (vide pour une entité gardée sans correspondance), ou aucune. | `base` |
+| <a id="joinbyfield-base_keys"></a>Clés de « base » | Attributs de « base » qui font le lien avec « join », dans le même ordre que les clés de « join ». |  |
+| <a id="joinbyfield-join_keys"></a>Clés de « join » | Dans le même ordre que « base ». |  |
+| <a id="joinbyfield-attributes"></a>Attributs à ajouter | Vide = tous ceux de « join » hors clés. |  |
+| <a id="joinbyfield-prefix"></a>Préfixe des attributs ajoutés | Évite les conflits de noms. |  |
+| <a id="joinbyfield-conflict"></a>Si le nom existe déjà | other : la valeur de « join » ; base : on garde l'existante. | `other` |
+| <a id="joinbyfield-on_multiple"></a>Plusieurs correspondances | all : une entité par correspondance ; first ; error. | `all` |
+| <a id="joinbyfield-keep_unjoined"></a>Garder les non-appariées dans Joined | Jointure « gauche » : attributs vides. | false |
+| <a id="joinbyfield-geometry"></a>Géométrie du résultat | Celle de « base », celle de « join » (vide pour une entité gardée sans correspondance), ou aucune. | `base` |
 
-### Plus proches voisines — `JoinByNearest` {#joinbynearest}
+<a id="joinbynearest"></a>
+
+### Plus proches voisines — `JoinByNearest`
 
 Pour chaque entité « base », trouve ses k plus proches entités parmi les « candidate » et recopie leurs attributs.
 
@@ -846,14 +956,16 @@ Chaque « base » donne au plus k entités sur « Matched » (une par voisine, d
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Nombre de voisines (k) | Combien de plus proches voisines chercher. | `1` |
-| Distance maximale | Dans l'unité du système de coordonnées ; 0 = sans limite. | `0.0` |
-| Attributs de la voisine | Vide = tous ceux de « candidate » hors géométrie. |  |
-| Préfixe | Ajouté devant les attributs de la voisine. | `near_` |
-| Attribut du rang | Rang de la voisine, de 1. | `_rank` |
-| Attribut de la distance | Distance à la voisine. | `_distance` |
+| <a id="joinbynearest-count"></a>Nombre de voisines (k) | Combien de plus proches voisines chercher. | `1` |
+| <a id="joinbynearest-max_distance"></a>Distance maximale | Dans l'unité du système de coordonnées ; 0 = sans limite. | `0.0` |
+| <a id="joinbynearest-attributes"></a>Attributs de la voisine | Vide = tous ceux de « candidate » hors géométrie. |  |
+| <a id="joinbynearest-prefix"></a>Préfixe | Ajouté devant les attributs de la voisine. | `near_` |
+| <a id="joinbynearest-rank_attribute"></a>Attribut du rang | Rang de la voisine, de 1. | `_rank` |
+| <a id="joinbynearest-distance_attribute"></a>Attribut de la distance | Distance à la voisine. | `_distance` |
 
-### Point dans polygone — `PointsInPolygons` {#pointsinpolygons}
+<a id="pointsinpolygons"></a>
+
+### Point dans polygone — `PointsInPolygons`
 
 Ajoute à chaque point les attributs du polygone qui le contient (jointure spatiale).
 
@@ -863,11 +975,13 @@ Les points dans un polygone sortent sur « Inside » avec les attributs choisis 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attributs du polygone à copier | Vide = tous hors géométrie. |  |
-| Préfixe des attributs copiés | Ajouté devant le nom des attributs copiés du polygone. |  |
-| Plusieurs polygones | Si plusieurs polygones contiennent le point — first : le premier ; all : une entité par polygone ; error : refus. | `first` |
+| <a id="pointsinpolygons-attributes"></a>Attributs du polygone à copier | Vide = tous hors géométrie. |  |
+| <a id="pointsinpolygons-prefix"></a>Préfixe des attributs copiés | Ajouté devant le nom des attributs copiés du polygone. |  |
+| <a id="pointsinpolygons-on_multiple"></a>Plusieurs polygones | Si plusieurs polygones contiennent le point — first : le premier ; all : une entité par polygone ; error : refus. | `first` |
 
-### Relateur spatial — `JoinByLocation` {#joinbylocation}
+<a id="joinbylocation"></a>
+
+### Relateur spatial — `JoinByLocation`
 
 Ajoute à chaque entité « base » le nombre d'entités « related » en relation avec elle, et au choix la somme ou la liste de leurs attributs, ou leurs attributs eux-mêmes.
 
@@ -877,20 +991,22 @@ Pour chaque entité de « base », on compte les entités de « related » qui v
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Relation | base <relation> related. | `intersects` |
-| Distance (dwithin) | Distance maximale pour la relation dwithin, dans l'unité du système de coordonnées. | `0.0` |
-| Attribut du nombre d'entités liées | Nom de l'attribut qui reçoit le nombre d'entités de « related » vérifiant la relation. | `_related_count` |
-| Attributs à additionner | Attributs numériques de « related » : leur somme par entité « base » dans « <attribut>_sum ». |  |
-| Entité liée à plusieurs entités « base » | all : comptée pour chacune ; first : pour la première seulement (la somme des comptes égale alors le nombre d'entités liées). | `all` |
-| Lister cet attribut des entités liées | Vide = pas de liste. |  |
-| Nom de l'attribut de liste | Nom de l'attribut qui reçoit la liste (si « Lister cet attribut » est renseigné). | `_related_values` |
-| Séparateur | Texte placé entre deux valeurs de la liste. | `, ` |
-| Attributs à récupérer | Attributs de « related » ajoutés à l'entité « base », comme une jointure attributaire. Vide = aucun. |  |
-| Plusieurs entités liées | Pour les attributs récupérés. first : ceux de la première entité liée (ordre de « related ») ; all : une entité « base » par entité liée ; list : les valeurs distinctes de chaque attribut, jointes par le séparateur. | `first` |
-| Préfixe des attributs récupérés | Évite les conflits de noms. |  |
-| Si le nom existe déjà | other : la valeur de « related » ; base : on garde celle de « base ». | `other` |
+| <a id="joinbylocation-predicate"></a>Relation | base <relation> related. | `intersects` |
+| <a id="joinbylocation-distance"></a>Distance (dwithin) | Distance maximale pour la relation dwithin, dans l'unité du système de coordonnées. | `0.0` |
+| <a id="joinbylocation-count_attribute"></a>Attribut du nombre d'entités liées | Nom de l'attribut qui reçoit le nombre d'entités de « related » vérifiant la relation. | `_related_count` |
+| <a id="joinbylocation-sum_attributes"></a>Attributs à additionner | Attributs numériques de « related » : leur somme par entité « base » dans « <attribut>_sum ». |  |
+| <a id="joinbylocation-on_multiple"></a>Entité liée à plusieurs entités « base » | all : comptée pour chacune ; first : pour la première seulement (la somme des comptes égale alors le nombre d'entités liées). | `all` |
+| <a id="joinbylocation-list_attribute"></a>Lister cet attribut des entités liées | Vide = pas de liste. |  |
+| <a id="joinbylocation-list_name"></a>Nom de l'attribut de liste | Nom de l'attribut qui reçoit la liste (si « Lister cet attribut » est renseigné). | `_related_values` |
+| <a id="joinbylocation-separator"></a>Séparateur | Texte placé entre deux valeurs de la liste. | `, ` |
+| <a id="joinbylocation-attributes"></a>Attributs à récupérer | Attributs de « related » ajoutés à l'entité « base », comme une jointure attributaire. Vide = aucun. |  |
+| <a id="joinbylocation-merge"></a>Plusieurs entités liées | Pour les attributs récupérés. first : ceux de la première entité liée (ordre de « related ») ; all : une entité « base » par entité liée ; list : les valeurs distinctes de chaque attribut, jointes par le séparateur. | `first` |
+| <a id="joinbylocation-prefix"></a>Préfixe des attributs récupérés | Évite les conflits de noms. |  |
+| <a id="joinbylocation-conflict"></a>Si le nom existe déjà | other : la valeur de « related » ; base : on garde celle de « base ». | `other` |
 
-### SQL (par entité) — `DatabaseQueryPerFeature` {#databasequeryperfeature}
+<a id="databasequeryperfeature"></a>
+
+### SQL (par entité) — `DatabaseQueryPerFeature`
 
 Exécute un ordre SQL pour chaque entité, en y injectant ses attributs ; ajoute le résultat.
 
@@ -900,15 +1016,17 @@ Exécute un ordre SQL pour chaque entité, en y injectant ses attributs ; ajoute
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Connexion | Connexion nommée (menu Connexions). |  |
-| SQL | Avec {{attribut}} pour les valeurs de l'entité. |  |
-| Lignes du résultat | first : les colonnes de la première ligne du résultat sont ajoutées à l'entité ; all : une entité par ligne du résultat. | `first` |
-| Préfixe des colonnes ajoutées | Ajouté devant le nom des colonnes ajoutées. |  |
-| Autoriser l'écriture | Décoché : lecture seule (SELECT). Coché : UPDATE, INSERT… autorisés, validés à la fin. | false |
+| <a id="databasequeryperfeature-connection"></a>Connexion | Connexion nommée (menu Connexions). |  |
+| <a id="databasequeryperfeature-sql"></a>SQL | Avec {{attribut}} pour les valeurs de l'entité. |  |
+| <a id="databasequeryperfeature-rows"></a>Lignes du résultat | first : les colonnes de la première ligne du résultat sont ajoutées à l'entité ; all : une entité par ligne du résultat. | `first` |
+| <a id="databasequeryperfeature-prefix"></a>Préfixe des colonnes ajoutées | Ajouté devant le nom des colonnes ajoutées. |  |
+| <a id="databasequeryperfeature-allow_write"></a>Autoriser l'écriture | Décoché : lecture seule (SELECT). Coché : UPDATE, INSERT… autorisés, validés à la fin. | false |
 
 ## Lecture
 
-### Lecture CSV — `CsvReader` {#csvreader}
+<a id="csvreader"></a>
+
+### Lecture CSV — `CsvReader`
 
 Lit un fichier CSV (ou texte délimité) ; une colonne WKT ou des colonnes X/Y donnent la géométrie.
 
@@ -918,20 +1036,22 @@ Les colonnes sont lues comme du texte (les codes à zéro initial sont conservé
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Séparateur | Vide = détection automatique. |  |
-| Encodage | Vide = détection automatique (utf-8, sinon latin-1). |  |
-| Première ligne = en-têtes | Décocher si le fichier n'a pas de ligne d'en-têtes. | true |
-| Détecter les types | Sinon tout est lu en texte : les codes à zéro initial sont conservés. | false |
-| Colonne WKT | Colonne contenant la géométrie en WKT. |  |
-| Colonne X | Colonne des X (ou longitudes), avec la colonne Y. |  |
-| Colonne Y | Colonne des Y (ou latitudes), avec la colonne X. |  |
-| Système de coordonnées | Celui de la colonne WKT ou des X/Y. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="csvreader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="csvreader-delimiter"></a>Séparateur | Vide = détection automatique. |  |
+| <a id="csvreader-encoding"></a>Encodage | Vide = détection automatique (utf-8, sinon latin-1). |  |
+| <a id="csvreader-header"></a>Première ligne = en-têtes | Décocher si le fichier n'a pas de ligne d'en-têtes. | true |
+| <a id="csvreader-detect_types"></a>Détecter les types | Sinon tout est lu en texte : les codes à zéro initial sont conservés. | false |
+| <a id="csvreader-wkt_column"></a>Colonne WKT | Colonne contenant la géométrie en WKT. |  |
+| <a id="csvreader-x_column"></a>Colonne X | Colonne des X (ou longitudes), avec la colonne Y. |  |
+| <a id="csvreader-y_column"></a>Colonne Y | Colonne des Y (ou latitudes), avec la colonne X. |  |
+| <a id="csvreader-crs"></a>Système de coordonnées | Celui de la colonne WKT ou des X/Y. |  |
+| <a id="csvreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="csvreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="csvreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture Excel — `ExcelReader` {#excelreader}
+<a id="excelreader"></a>
+
+### Lecture Excel — `ExcelReader`
 
 Lit une feuille d'un classeur Excel (.xlsx).
 
@@ -941,15 +1061,17 @@ La première ligne de la plage donne les noms de colonnes (sauf si décoché). V
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Feuille | Nom de la feuille ; vide = la première. |  |
-| Plage | Ex. A1:F200 ; vide = toute la feuille. |  |
-| Première ligne = en-têtes | Décocher si la plage n'a pas de ligne d'en-têtes. | true |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="excelreader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="excelreader-sheet"></a>Feuille | Nom de la feuille ; vide = la première. |  |
+| <a id="excelreader-cell_range"></a>Plage | Ex. A1:F200 ; vide = toute la feuille. |  |
+| <a id="excelreader-header"></a>Première ligne = en-têtes | Décocher si la plage n'a pas de ligne d'en-têtes. | true |
+| <a id="excelreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="excelreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="excelreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture FlatGeobuf — `FlatGeobufReader` {#flatgeobufreader}
+<a id="flatgeobufreader"></a>
+
+### Lecture FlatGeobuf — `FlatGeobufReader`
 
 Lit un fichier FlatGeobuf (.fgb).
 
@@ -959,13 +1081,15 @@ Format vecteur compact et indexé, rapide à lire.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="flatgeobufreader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="flatgeobufreader-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
+| <a id="flatgeobufreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="flatgeobufreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="flatgeobufreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture GeoJSON — `GeoJsonReader` {#geojsonreader}
+<a id="geojsonreader"></a>
+
+### Lecture GeoJSON — `GeoJsonReader`
 
 Lit un fichier GeoJSON.
 
@@ -975,13 +1099,15 @@ Le GeoJSON est en WGS 84 (EPSG:4326) selon la norme ; un autre système déclar�
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="geojsonreader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="geojsonreader-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
+| <a id="geojsonreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="geojsonreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="geojsonreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture GeoPackage — `GeoPackageReader` {#geopackagereader}
+<a id="geopackagereader"></a>
+
+### Lecture GeoPackage — `GeoPackageReader`
 
 Lit une couche d'un GeoPackage (.gpkg).
 
@@ -991,14 +1117,16 @@ Indiquer la couche si le GeoPackage en contient plusieurs (vide : la première).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Couche | Nom de la couche ; vide = la première. |  |
-| Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="geopackagereader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="geopackagereader-layer"></a>Couche | Nom de la couche ; vide = la première. |  |
+| <a id="geopackagereader-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
+| <a id="geopackagereader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="geopackagereader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="geopackagereader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture (Geo)Parquet — `GeoParquetReader` {#geoparquetreader}
+<a id="geoparquetreader"></a>
+
+### Lecture (Geo)Parquet — `GeoParquetReader`
 
 Lit un fichier Parquet, avec ou sans géométrie (GeoParquet), sur le disque ou à une adresse web (https://).
 
@@ -1008,12 +1136,14 @@ Un Parquet sans géométrie est lu tel quel. Pour un GeoParquet, la géométrie 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier, motif (*.ext, dossier/**/*.ext : tous les fichiers trouvés) ou adresse web https://. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="geoparquetreader-path"></a>Fichier | Chemin du fichier, motif (*.ext, dossier/**/*.ext : tous les fichiers trouvés) ou adresse web https://. |  |
+| <a id="geoparquetreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="geoparquetreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="geoparquetreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture MapInfo — `MapInfoReader` {#mapinforeader}
+<a id="mapinforeader"></a>
+
+### Lecture MapInfo — `MapInfoReader`
 
 Lit une table MapInfo (.tab) ou un fichier MIF/MID (.mif).
 
@@ -1023,14 +1153,16 @@ Le format (TAB ou MIF) est déduit de l'extension.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Encodage | Vide = détection automatique (utf-8, sinon latin-1). |  |
-| Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="mapinforeader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="mapinforeader-encoding"></a>Encodage | Vide = détection automatique (utf-8, sinon latin-1). |  |
+| <a id="mapinforeader-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
+| <a id="mapinforeader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="mapinforeader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="mapinforeader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
 
-### Lecture Oracle — `OracleReader` {#oraclereader}
+<a id="oraclereader"></a>
+
+### Lecture Oracle — `OracleReader`
 
 Lit une table, une vue ou une requête Oracle ; la colonne SDO_GEOMETRY devient la géométrie du flux.
 
@@ -1040,15 +1172,17 @@ Choisir une table (schéma puis table) **ou** écrire une requête SQL. Le filtr
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Connexion | Connexion nommée (menu Connexions). |  |
-| Table ou vue | Table ou vue lue en entier. Ignorée si une requête est renseignée. |  |
-| Requête SQL | Facultatif : remplace la table ; un seul SELECT. |  |
-| Filtre (WHERE) | Condition SQL ajoutée en WHERE, évaluée par le serveur ; vide = aucun filtre. |  |
-| Colonne géométrique | Vide = la première trouvée. |  |
-| Système de coordonnées | Vide = SRID de la colonne. |  |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="oraclereader-connection"></a>Connexion | Connexion nommée (menu Connexions). |  |
+| <a id="oraclereader-table"></a>Table ou vue | Table ou vue lue en entier. Ignorée si une requête est renseignée. |  |
+| <a id="oraclereader-query"></a>Requête SQL | Facultatif : remplace la table ; un seul SELECT. |  |
+| <a id="oraclereader-where"></a>Filtre (WHERE) | Condition SQL ajoutée en WHERE, évaluée par le serveur ; vide = aucun filtre. |  |
+| <a id="oraclereader-geometry_column"></a>Colonne géométrique | Vide = la première trouvée. |  |
+| <a id="oraclereader-crs"></a>Système de coordonnées | Vide = SRID de la colonne. |  |
+| <a id="oraclereader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture PostgreSQL / PostGIS — `PostgresReader` {#postgresreader}
+<a id="postgresreader"></a>
+
+### Lecture PostgreSQL / PostGIS — `PostgresReader`
 
 Lit une table, une vue ou une requête PostgreSQL ; la géométrie PostGIS devient la géométrie du flux.
 
@@ -1058,15 +1192,17 @@ Choisir une table (schéma puis table, dans les listes lues sur la connexion) **
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Connexion | Connexion nommée (menu Connexions). |  |
-| Table ou vue | Table ou vue à lire en entier (équivaut à SELECT * FROM table). Ignorée si une requête est renseignée. |  |
-| Requête SQL | Facultatif. Vide : la table est lue en entier (SELECT * FROM table). Renseignée : remplace la table ; un seul SELECT (un « ; » final est toléré). |  |
-| Filtre (WHERE) | Condition SQL ajoutée en WHERE, évaluée par le serveur ; vide = aucun filtre. |  |
-| Colonne géométrique | Vide = la première trouvée. |  |
-| Système de coordonnées | Vide = SRID de la colonne. |  |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="postgresreader-connection"></a>Connexion | Connexion nommée (menu Connexions). |  |
+| <a id="postgresreader-table"></a>Table ou vue | Table ou vue à lire en entier (équivaut à SELECT * FROM table). Ignorée si une requête est renseignée. |  |
+| <a id="postgresreader-query"></a>Requête SQL | Facultatif. Vide : la table est lue en entier (SELECT * FROM table). Renseignée : remplace la table ; un seul SELECT (un « ; » final est toléré). |  |
+| <a id="postgresreader-where"></a>Filtre (WHERE) | Condition SQL ajoutée en WHERE, évaluée par le serveur ; vide = aucun filtre. |  |
+| <a id="postgresreader-geometry_column"></a>Colonne géométrique | Vide = la première trouvée. |  |
+| <a id="postgresreader-crs"></a>Système de coordonnées | Vide = SRID de la colonne. |  |
+| <a id="postgresreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture SQLite / SpatiaLite — `SpatiaLiteReader` {#spatialitereader}
+<a id="spatialitereader"></a>
+
+### Lecture SQLite / SpatiaLite — `SpatiaLiteReader`
 
 Lit une table d'une base SQLite ou SpatiaLite (.sqlite, .db), ou le résultat d'une requête SQL.
 
@@ -1076,15 +1212,17 @@ Indiquer la table (vide : la première) **ou** une requête SQL (dialecte SQLite
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Table | Nom de la table ; vide = la première. |  |
-| Requête SQL | Facultatif : remplace la table (dialecte SQLite) ; un seul SELECT. |  |
-| Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="spatialitereader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="spatialitereader-layer"></a>Table | Nom de la table ; vide = la première. |  |
+| <a id="spatialitereader-sql"></a>Requête SQL | Facultatif : remplace la table (dialecte SQLite) ; un seul SELECT. |  |
+| <a id="spatialitereader-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
+| <a id="spatialitereader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="spatialitereader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="spatialitereader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
-### Lecture Shapefile — `ShapefileReader` {#shapefilereader}
+<a id="shapefilereader"></a>
+
+### Lecture Shapefile — `ShapefileReader`
 
 Lit un Shapefile (.shp et ses fichiers compagnons).
 
@@ -1094,16 +1232,18 @@ L'encodage est lu dans le fichier .cpg s'il existe ; sinon utf-8, puis latin-1.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
-| Encodage | Vide = détection automatique (utf-8, sinon latin-1). |  |
-| Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
-| Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
-| Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="shapefilereader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="shapefilereader-encoding"></a>Encodage | Vide = détection automatique (utf-8, sinon latin-1). |  |
+| <a id="shapefilereader-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
+| <a id="shapefilereader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="shapefilereader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+| <a id="shapefilereader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
 ## Lots et variables
 
-### Lancer un flux — `RunFlow` {#runflow}
+<a id="runflow"></a>
+
+### Lancer un flux — `RunFlow`
 
 Exécute un autre flux pour chaque entité reçue, avec des paramètres tirés de ses attributs.
 
@@ -1113,13 +1253,15 @@ Chaque entité reçue lance une exécution du flux indiqué (`etl run` dans un p
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Flux à lancer | Fichier .json du flux. |  |
-| Paramètres | Valeur de chaque paramètre publié du flux lancé. |  |
-| En parallèle | Exécutions simultanées (1 à 16). | `1` |
-| S'arrêter au premier échec | Coché : les exécutions restantes ne sont pas lancées après un échec. | false |
-| Garder les données | Garde le cache de chaque exécution (consomme du disque). | false |
+| <a id="runflow-flow"></a>Flux à lancer | Fichier .json du flux. |  |
+| <a id="runflow-parameters"></a>Paramètres | Valeur de chaque paramètre publié du flux lancé. |  |
+| <a id="runflow-parallel"></a>En parallèle | Exécutions simultanées (1 à 16). | `1` |
+| <a id="runflow-stop_on_error"></a>S'arrêter au premier échec | Coché : les exécutions restantes ne sont pas lancées après un échec. | false |
+| <a id="runflow-cache"></a>Garder les données | Garde le cache de chaque exécution (consomme du disque). | false |
 
-### Lire les fichiers listés — `ReadListedFiles` {#readlistedfiles}
+<a id="readlistedfiles"></a>
+
+### Lire les fichiers listés — `ReadListedFiles`
 
 Lit le fichier désigné par chaque entité reçue et envoie leurs entités.
 
@@ -1129,25 +1271,27 @@ Chaque entité reçue donne un chemin de fichier (attribut « Chemin ») ; le fi
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Chemin | Attribut qui contient le chemin du fichier à lire. | `path` |
-| Fichier d'exemple | Facultatif : donne le schéma avant l'exécution, pour les formulaires des nœuds suivants. |  |
-| Attributs à recopier | Attributs de l'entité reçue ajoutés à chaque entité lue (un nom déjà présent est refusé). |  |
-| Format | Déduit de l'extension si « auto ». | `auto` |
-| Couche / feuille | Vide = la première. |  |
-| Plage (Excel) | Ex. A1:F200. |  |
-| Encodage | Vide = détection automatique. |  |
-| Filtre attributaire | Condition SQL appliquée à la lecture (GDAL). |  |
-| Séparateur (CSV) | Vide = détection automatique. |  |
-| Première ligne = en-têtes (CSV, Excel) | Décocher si pas de ligne d'en-têtes. | true |
-| Détecter les types (CSV) | Sinon tout est lu en texte. | false |
-| Ajouter le nom du fichier | Ajoute la colonne « filename ». | false |
-| Colonne WKT (CSV) | Colonne qui contient la géométrie en WKT. |  |
-| Colonne X (CSV) | À renseigner avec la colonne Y. |  |
-| Colonne Y (CSV) | À renseigner avec la colonne X. |  |
-| Système de coordonnées (CSV) | Celui de la colonne WKT ou de X/Y. |  |
-| Fichier illisible | error : arrête le flux ; skip : ignore le fichier avec un avertissement. | `error` |
+| <a id="readlistedfiles-path_attribute"></a>Chemin | Attribut qui contient le chemin du fichier à lire. | `path` |
+| <a id="readlistedfiles-sample"></a>Fichier d'exemple | Facultatif : donne le schéma avant l'exécution, pour les formulaires des nœuds suivants. |  |
+| <a id="readlistedfiles-copy_attributes"></a>Attributs à recopier | Attributs de l'entité reçue ajoutés à chaque entité lue (un nom déjà présent est refusé). |  |
+| <a id="readlistedfiles-format"></a>Format | Déduit de l'extension si « auto ». | `auto` |
+| <a id="readlistedfiles-layer"></a>Couche / feuille | Vide = la première. |  |
+| <a id="readlistedfiles-cell_range"></a>Plage (Excel) | Ex. A1:F200. |  |
+| <a id="readlistedfiles-encoding"></a>Encodage | Vide = détection automatique. |  |
+| <a id="readlistedfiles-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture (GDAL). |  |
+| <a id="readlistedfiles-delimiter"></a>Séparateur (CSV) | Vide = détection automatique. |  |
+| <a id="readlistedfiles-header"></a>Première ligne = en-têtes (CSV, Excel) | Décocher si pas de ligne d'en-têtes. | true |
+| <a id="readlistedfiles-detect_types"></a>Détecter les types (CSV) | Sinon tout est lu en texte. | false |
+| <a id="readlistedfiles-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename ». | false |
+| <a id="readlistedfiles-wkt_column"></a>Colonne WKT (CSV) | Colonne qui contient la géométrie en WKT. |  |
+| <a id="readlistedfiles-x_column"></a>Colonne X (CSV) | À renseigner avec la colonne Y. |  |
+| <a id="readlistedfiles-y_column"></a>Colonne Y (CSV) | À renseigner avec la colonne X. |  |
+| <a id="readlistedfiles-crs"></a>Système de coordonnées (CSV) | Celui de la colonne WKT ou de X/Y. |  |
+| <a id="readlistedfiles-on_error"></a>Fichier illisible | error : arrête le flux ; skip : ignore le fichier avec un avertissement. | `error` |
 
-### Lister des fichiers — `ListFiles` {#listfiles}
+<a id="listfiles"></a>
+
+### Lister des fichiers — `ListFiles`
 
 Une entité par fichier d'un dossier (ou d'un fichier liste) : chemin, nom, taille, date.
 
@@ -1157,16 +1301,18 @@ Sert à traiter des dossiers : relier à « Lire les fichiers listés » (ReadLi
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Source | folder : un dossier ; list_file : un fichier qui liste les chemins. | `folder` |
-| Dossier | Dossier à parcourir (source folder). |  |
-| Motifs | Motifs de nom de fichier, ex. *.shp ; vide = tous les fichiers. | `['*']` |
-| Parcourir les sous-dossiers | Descend dans les sous-dossiers. | false |
-| Lister aussi les dossiers | Ajoute une entité par dossier (is_dir = vrai). | false |
-| Fichier liste | Fichier .txt (un chemin par ligne) ou .csv (colonne path). |  |
-| Fichier introuvable dans la liste | error : arrête le flux ; skip : l'ignore avec un avertissement. | `error` |
-| Trier par | Ordre des entités : chemin, date de modification ou taille. | `path` |
+| <a id="listfiles-source"></a>Source | folder : un dossier ; list_file : un fichier qui liste les chemins. | `folder` |
+| <a id="listfiles-folder"></a>Dossier | Dossier à parcourir (source folder). |  |
+| <a id="listfiles-patterns"></a>Motifs | Motifs de nom de fichier, ex. *.shp ; vide = tous les fichiers. | `['*']` |
+| <a id="listfiles-recursive"></a>Parcourir les sous-dossiers | Descend dans les sous-dossiers. | false |
+| <a id="listfiles-include_dirs"></a>Lister aussi les dossiers | Ajoute une entité par dossier (is_dir = vrai). | false |
+| <a id="listfiles-list_file"></a>Fichier liste | Fichier .txt (un chemin par ligne) ou .csv (colonne path). |  |
+| <a id="listfiles-missing"></a>Fichier introuvable dans la liste | error : arrête le flux ; skip : l'ignore avec un avertissement. | `error` |
+| <a id="listfiles-sort"></a>Trier par | Ordre des entités : chemin, date de modification ou taille. | `path` |
 
-### Poser des variables — `SetVariables` {#setvariables}
+<a id="setvariables"></a>
+
+### Poser des variables — `SetVariables`
 
 Lit une valeur dans les données (un attribut, ou le nombre d'entités) et la pose en variable.
 
@@ -1176,9 +1322,11 @@ Les entités passent sans changement. Les variables posées ici s'utilisent dans
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Variables | Une ligne par variable posée. |  |
+| <a id="setvariables-variables"></a>Variables | Une ligne par variable posée. |  |
 
-### Écrire un fichier par groupe — `SplitToFiles` {#splittofiles}
+<a id="splittofiles"></a>
+
+### Écrire un fichier par groupe — `SplitToFiles`
 
 Écrit les entités dans plusieurs fichiers : le chemin se compose avec les valeurs d'attributs.
 
@@ -1188,18 +1336,20 @@ Les entités passent sans changement. Les variables posées ici s'utilisent dans
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Chemin du fichier | Chemin avec des {attributs} entre accolades ; dossiers créés si besoin. |  |
-| Format | Déduit de l'extension si « auto ». | `auto` |
-| Couche / feuille | GeoPackage, MapInfo… : couche ; Excel : feuille. |  |
-| Mode | create : échoue si un fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
-| Encodage | Vide = celui du format (utf-8). |  |
-| Séparateur (CSV) | Séparateur de colonnes du CSV écrit. | `,` |
-| Compression ((Geo)Parquet) | Compression des fichiers (Geo)Parquet. | `zstd` |
-| Partitionner par ((Geo)Parquet) | Colonnes dont chaque valeur donne un sous-dossier de chaque fichier. |  |
+| <a id="splittofiles-path"></a>Chemin du fichier | Chemin avec des {attributs} entre accolades ; dossiers créés si besoin. |  |
+| <a id="splittofiles-format"></a>Format | Déduit de l'extension si « auto ». | `auto` |
+| <a id="splittofiles-layer"></a>Couche / feuille | GeoPackage, MapInfo… : couche ; Excel : feuille. |  |
+| <a id="splittofiles-mode"></a>Mode | create : échoue si un fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="splittofiles-encoding"></a>Encodage | Vide = celui du format (utf-8). |  |
+| <a id="splittofiles-delimiter"></a>Séparateur (CSV) | Séparateur de colonnes du CSV écrit. | `,` |
+| <a id="splittofiles-compression"></a>Compression ((Geo)Parquet) | Compression des fichiers (Geo)Parquet. | `zstd` |
+| <a id="splittofiles-partition_by"></a>Partitionner par ((Geo)Parquet) | Colonnes dont chaque valeur donne un sous-dossier de chaque fichier. |  |
 
 ## Rasters
 
-### Analyse de terrain (pente, exposition, ombrage) — `TerrainAnalysis` {#terrainanalysis}
+<a id="terrainanalysis"></a>
+
+### Analyse de terrain (pente, exposition, ombrage) — `TerrainAnalysis`
 
 Calcule la pente, l'exposition, l'ombrage ou la rugosité d'un modèle numérique de terrain.
 
@@ -1209,14 +1359,16 @@ Le raster d'entrée est un MNT (altitudes). Produits : slope (pente, en degrés 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Produits | slope, aspect, hillshade ou roughness : une bande chacun. | `['slope']` |
-| Bande | Bande des altitudes (à partir de 1). | `1` |
-| Unité de pente | degrees ou percent. | `degrees` |
-| Facteur Z | Multiplie les altitudes (1 si tout est en mètres). | `1.0` |
-| Azimut (ombrage) | Direction du soleil, en degrés depuis le nord. | `315.0` |
-| Hauteur du soleil (ombrage) | Angle du soleil au-dessus de l'horizon. | `45.0` |
+| <a id="terrainanalysis-products"></a>Produits | slope, aspect, hillshade ou roughness : une bande chacun. | `['slope']` |
+| <a id="terrainanalysis-band"></a>Bande | Bande des altitudes (à partir de 1). | `1` |
+| <a id="terrainanalysis-slope_unit"></a>Unité de pente | degrees ou percent. | `degrees` |
+| <a id="terrainanalysis-z_factor"></a>Facteur Z | Multiplie les altitudes (1 si tout est en mètres). | `1.0` |
+| <a id="terrainanalysis-azimuth"></a>Azimut (ombrage) | Direction du soleil, en degrés depuis le nord. | `315.0` |
+| <a id="terrainanalysis-altitude"></a>Hauteur du soleil (ombrage) | Angle du soleil au-dessus de l'horizon. | `45.0` |
 
-### Calculatrice de rasters — `RasterCalculator` {#rastercalculator}
+<a id="rastercalculator"></a>
+
+### Calculatrice de rasters — `RasterCalculator`
 
 Calcule de nouvelles bandes par expressions sur les bandes d'un ou plusieurs rasters (NDVI, masques, seuils).
 
@@ -1226,13 +1378,15 @@ Chaque ligne crée une bande du raster résultat. Dans l'expression, les bandes 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Entrées | Noms des ports d'entrée (lettres, chiffres et _). | `['input']` |
-| Bandes calculées | Une ligne par bande du résultat. |  |
-| Type du résultat | Type des pixels du résultat. | `float32` |
-| Valeur sans donnée | Vide = NaN pour un résultat décimal, le maximum du type sinon. |  |
-| Rééchantillonnage | Pour aligner les entrées suivantes sur la première. | `bilinear` |
+| <a id="rastercalculator-inputs"></a>Entrées | Noms des ports d'entrée (lettres, chiffres et _). | `['input']` |
+| <a id="rastercalculator-calculations"></a>Bandes calculées | Une ligne par bande du résultat. |  |
+| <a id="rastercalculator-dtype"></a>Type du résultat | Type des pixels du résultat. | `float32` |
+| <a id="rastercalculator-nodata"></a>Valeur sans donnée | Vide = NaN pour un résultat décimal, le maximum du type sinon. |  |
+| <a id="rastercalculator-resampling"></a>Rééchantillonnage | Pour aligner les entrées suivantes sur la première. | `bilinear` |
 
-### Courbes de niveau — `Contour` {#contour}
+<a id="contour"></a>
+
+### Courbes de niveau — `Contour`
 
 Trace les courbes de niveau d'un modèle numérique de terrain : une ligne par courbe, avec son altitude.
 
@@ -1242,14 +1396,16 @@ Une courbe est tracée tous les « Équidistance » (10 m : 100, 110, 120…), �
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Bande | Bande des altitudes (à partir de 1). | `1` |
-| Équidistance | Écart d'altitude entre deux courbes. | `10.0` |
-| Altitude de base | Altitude à laquelle la série de courbes est ancrée. | `0.0` |
-| Niveaux | Altitudes précises (remplacent l'équidistance). |  |
-| Longueur minimale | Écarte les courbes plus courtes (unité du système). | `0.0` |
-| Attribut de l'altitude | Reçoit l'altitude de la courbe. | `elevation` |
+| <a id="contour-band"></a>Bande | Bande des altitudes (à partir de 1). | `1` |
+| <a id="contour-interval"></a>Équidistance | Écart d'altitude entre deux courbes. | `10.0` |
+| <a id="contour-base"></a>Altitude de base | Altitude à laquelle la série de courbes est ancrée. | `0.0` |
+| <a id="contour-levels"></a>Niveaux | Altitudes précises (remplacent l'équidistance). |  |
+| <a id="contour-min_length"></a>Longueur minimale | Écarte les courbes plus courtes (unité du système). | `0.0` |
+| <a id="contour-elevation_attribute"></a>Attribut de l'altitude | Reçoit l'altitude de la courbe. | `elevation` |
 
-### Découpe de rasters — `ClipRasterByMask` {#cliprasterbymask}
+<a id="cliprasterbymask"></a>
+
+### Découpe de rasters — `ClipRasterByMask`
 
 Découpe chaque raster par des polygones (communes, parcelles) ou par une emprise ; les pixels hors du polygone sont masqués.
 
@@ -1259,14 +1415,16 @@ Par polygones : la deuxième entrée (« mask ») donne les polygones, dans n'im
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Découper par | features : polygones (entrée « mask ») ; extent : une emprise saisie. | `features` |
-| Polygones | union : un résultat par raster ; each : un résultat par polygone. | `union` |
-| Emprise | Ouest, Sud, Est, Nord dans le système du raster (par emprise). |  |
-| Recadrer | Réduit le raster à l'emprise de la découpe. | true |
-| Pixels touchés | Garde tout pixel que le polygone touche. | false |
-| Attributs du masque à copier | Mode « each » : ajoutés aux rasters produits. |  |
+| <a id="cliprasterbymask-by"></a>Découper par | features : polygones (entrée « mask ») ; extent : une emprise saisie. | `features` |
+| <a id="cliprasterbymask-mode"></a>Polygones | union : un résultat par raster ; each : un résultat par polygone. | `union` |
+| <a id="cliprasterbymask-extent"></a>Emprise | Ouest, Sud, Est, Nord dans le système du raster (par emprise). |  |
+| <a id="cliprasterbymask-crop"></a>Recadrer | Réduit le raster à l'emprise de la découpe. | true |
+| <a id="cliprasterbymask-all_touched"></a>Pixels touchés | Garde tout pixel que le polygone touche. | false |
+| <a id="cliprasterbymask-mask_attributes"></a>Attributs du masque à copier | Mode « each » : ajoutés aux rasters produits. |  |
 
-### Empiler des bandes — `StackBands` {#stackbands}
+<a id="stackbands"></a>
+
+### Empiler des bandes — `StackBands`
 
 Réunit plusieurs rasters (une bande B04, une bande B08…) en un seul raster multibande.
 
@@ -1276,13 +1434,15 @@ Les rasters reçus (par groupe, avec « Regrouper par ») deviennent les bandes 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Regrouper par | Un raster multibande par valeur ; vide = un seul pour tous. |  |
-| Bande retenue | first : la première bande de chaque raster ; all : toutes ses bandes. | `first` |
-| Attribut du nom | Attribut dont la valeur nomme la bande. |  |
-| Noms | Noms des bandes dans l'ordre (sans attribut du nom). |  |
-| Rééchantillonnage | Si les grilles diffèrent. | `bilinear` |
+| <a id="stackbands-group_by"></a>Regrouper par | Un raster multibande par valeur ; vide = un seul pour tous. |  |
+| <a id="stackbands-which"></a>Bande retenue | first : la première bande de chaque raster ; all : toutes ses bandes. | `first` |
+| <a id="stackbands-name_attribute"></a>Attribut du nom | Attribut dont la valeur nomme la bande. |  |
+| <a id="stackbands-names"></a>Noms | Noms des bandes dans l'ordre (sans attribut du nom). |  |
+| <a id="stackbands-resampling"></a>Rééchantillonnage | Si les grilles diffèrent. | `bilinear` |
 
-### Entités vers raster — `Rasterize` {#rasterize}
+<a id="rasterize"></a>
+
+### Entités vers raster — `Rasterize`
 
 Transforme des polygones, lignes ou points en raster : valeur d'un attribut ou valeur fixe.
 
@@ -1292,17 +1452,19 @@ Les entités sont dessinées dans un raster de pixels de « Taille du pixel » (
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Attribut de la valeur | Vide = valeur fixe. |  |
-| Valeur fixe | Valeur des pixels recouverts si aucun attribut n'est choisi. | `1.0` |
-| Taille du pixel | Dans l'unité du système de coordonnées des entités. | `10.0` |
-| Emprise | Ouest, Sud, Est, Nord ; vide = l'emprise des entités. |  |
-| Système de coordonnées | Vide = celui des entités. |  |
-| Type | Type des pixels. | `float32` |
-| Valeur de fond | Vide = sans donnée. |  |
-| Pixels touchés | Dessine tout pixel touché par l'entité. | false |
-| Recouvrements | replace : la dernière l'emporte ; add : somme. | `replace` |
+| <a id="rasterize-value_attribute"></a>Attribut de la valeur | Vide = valeur fixe. |  |
+| <a id="rasterize-burn_value"></a>Valeur fixe | Valeur des pixels recouverts si aucun attribut n'est choisi. | `1.0` |
+| <a id="rasterize-cell_size"></a>Taille du pixel | Dans l'unité du système de coordonnées des entités. | `10.0` |
+| <a id="rasterize-extent"></a>Emprise | Ouest, Sud, Est, Nord ; vide = l'emprise des entités. |  |
+| <a id="rasterize-crs"></a>Système de coordonnées | Vide = celui des entités. |  |
+| <a id="rasterize-dtype"></a>Type | Type des pixels. | `float32` |
+| <a id="rasterize-background"></a>Valeur de fond | Vide = sans donnée. |  |
+| <a id="rasterize-all_touched"></a>Pixels touchés | Dessine tout pixel touché par l'entité. | false |
+| <a id="rasterize-merge"></a>Recouvrements | replace : la dernière l'emporte ; add : somme. | `replace` |
 
-### Lecture de rasters — `RasterReader` {#rasterreader}
+<a id="rasterreader"></a>
+
+### Lecture de rasters — `RasterReader`
 
 Référence un ou plusieurs fichiers raster (GeoTIFF, COG, ASC, JP2, VRT…) : une entité par raster.
 
@@ -1312,13 +1474,15 @@ Les pixels ne sont pas copiés : chaque entité décrit un raster (fichier, tail
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Fichier, motif (*.tif, **/*.asc) ou adresse https://. |  |
-| Autres fichiers | Fichiers ou motifs lus en plus de « Fichier ». |  |
-| Bandes | Numéros (à partir de 1) ou noms des bandes à garder ; vide = toutes. |  |
-| Noms des bandes | Noms donnés aux bandes du résultat, dans l'ordre. |  |
-| Ajouter le nom du fichier | Ajoute l'attribut « filename ». | true |
+| <a id="rasterreader-path"></a>Fichier | Fichier, motif (*.tif, **/*.asc) ou adresse https://. |  |
+| <a id="rasterreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier ». |  |
+| <a id="rasterreader-bands"></a>Bandes | Numéros (à partir de 1) ou noms des bandes à garder ; vide = toutes. |  |
+| <a id="rasterreader-band_names"></a>Noms des bandes | Noms donnés aux bandes du résultat, dans l'ordre. |  |
+| <a id="rasterreader-add_filename"></a>Ajouter le nom du fichier | Ajoute l'attribut « filename ». | true |
 
-### Mosaïque et composite de rasters — `MergeRasters` {#mergerasters}
+<a id="mergerasters"></a>
+
+### Mosaïque et composite de rasters — `MergeRasters`
 
 Assemble des rasters côte à côte (dalles d'un MNT), ou en fait un composite temporel (médiane de plusieurs dates).
 
@@ -1328,13 +1492,15 @@ Assemble des rasters côte à côte (dalles d'un MNT), ou en fait un composite t
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Mode | spatial : mosaïque d'emprises ; composite : même emprise, dates différentes. | `spatial` |
-| Regrouper par | Un résultat par valeur ; vide = un seul résultat. |  |
-| Trier par | Attribut qui ordonne les rasters (le dernier recouvre les autres). |  |
-| Méthode (composite) | Valeur retenue pour chaque pixel. | `median` |
-| Écrire en GeoTIFF | Spatial : écrit un vrai fichier au lieu d'un raster virtuel (toujours vrai pour un composite). | false |
+| <a id="mergerasters-mode"></a>Mode | spatial : mosaïque d'emprises ; composite : même emprise, dates différentes. | `spatial` |
+| <a id="mergerasters-group_by"></a>Regrouper par | Un résultat par valeur ; vide = un seul résultat. |  |
+| <a id="mergerasters-sort_by"></a>Trier par | Attribut qui ordonne les rasters (le dernier recouvre les autres). |  |
+| <a id="mergerasters-method"></a>Méthode (composite) | Valeur retenue pour chaque pixel. | `median` |
+| <a id="mergerasters-write"></a>Écrire en GeoTIFF | Spatial : écrit un vrai fichier au lieu d'un raster virtuel (toujours vrai pour un composite). | false |
 
-### Raster vers polygones — `Polygonize` {#polygonize}
+<a id="polygonize"></a>
+
+### Raster vers polygones — `Polygonize`
 
 Transforme un raster en polygones : un polygone par ensemble de pixels voisins de même valeur.
 
@@ -1344,13 +1510,15 @@ Pour un raster de classes (occupation du sol, résultat d'un seuil ou d'un recla
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Bande | Bande à vectoriser (à partir de 1). | `1` |
-| Attribut de la valeur | Reçoit la valeur des pixels. | `value` |
-| Connexité | 4 ou 8 voisins. | `4` |
-| Arrondir | Décimales conservées avant de regrouper ; vide = valeurs exactes. |  |
-| Surface minimale | Ignore les polygones plus petits. | `0.0` |
+| <a id="polygonize-band"></a>Bande | Bande à vectoriser (à partir de 1). | `1` |
+| <a id="polygonize-value_attribute"></a>Attribut de la valeur | Reçoit la valeur des pixels. | `value` |
+| <a id="polygonize-connectivity"></a>Connexité | 4 ou 8 voisins. | `4` |
+| <a id="polygonize-round_decimals"></a>Arrondir | Décimales conservées avant de regrouper ; vide = valeurs exactes. |  |
+| <a id="polygonize-min_area"></a>Surface minimale | Ignore les polygones plus petits. | `0.0` |
 
-### Recherche STAC — `STACSearch` {#stacsearch}
+<a id="stacsearch"></a>
+
+### Recherche STAC — `STACSearch`
 
 Cherche des images dans un catalogue STAC (Sentinel-2, Landsat, MNT…) et les référence sans les télécharger.
 
@@ -1360,20 +1528,22 @@ Interroge l'API STAC « Adresse du catalogue » (Earth Search d'Element 84 par d
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Adresse du catalogue | Racine de l'API STAC. | `https://earth-search.aws.element84.com/v1` |
-| Collections | Collections à chercher. | `['sentinel-2-l2a']` |
-| Emprise (WGS84) | Ouest, sud, est, nord en degrés ; vide = pas de filtre (ou géométries reçues). |  |
-| Géométries reçues | Une recherche par entité de l'entrée, sur son emprise. | false |
-| Attributs à recopier | Attributs de l'entité reçue ajoutés aux scènes trouvées. |  |
-| Dates | Une date ou un intervalle : 2024-06-01/2024-06-30 ; vide = toutes. |  |
-| Propriétés (JSON) | Filtre sur les propriétés, ex. {"eo:cloud_cover": {"lt": 20}}. |  |
-| Nombre maximal de scènes | Par recherche. | `50` |
-| Tri | Champ de tri, précédé de - pour décroissant. | `-properties.datetime` |
-| Assets (bandes) | Noms des assets à garder, dans l'ordre : ils deviennent les bandes du raster. |  |
-| Propriétés à recopier | Propriétés de la scène ajoutées comme attributs (eo:cloud_cover devient cloud_cover). | `['eo:cloud_cover']` |
-| Signature | planetary_computer : signe les adresses (jeton de lecture temporaire). | `none` |
+| <a id="stacsearch-api_url"></a>Adresse du catalogue | Racine de l'API STAC. | `https://earth-search.aws.element84.com/v1` |
+| <a id="stacsearch-collections"></a>Collections | Collections à chercher. | `['sentinel-2-l2a']` |
+| <a id="stacsearch-bbox"></a>Emprise (WGS84) | Ouest, sud, est, nord en degrés ; vide = pas de filtre (ou géométries reçues). |  |
+| <a id="stacsearch-from_input"></a>Géométries reçues | Une recherche par entité de l'entrée, sur son emprise. | false |
+| <a id="stacsearch-copy_attributes"></a>Attributs à recopier | Attributs de l'entité reçue ajoutés aux scènes trouvées. |  |
+| <a id="stacsearch-datetime"></a>Dates | Une date ou un intervalle : 2024-06-01/2024-06-30 ; vide = toutes. |  |
+| <a id="stacsearch-query"></a>Propriétés (JSON) | Filtre sur les propriétés, ex. {"eo:cloud_cover": {"lt": 20}}. |  |
+| <a id="stacsearch-max_items"></a>Nombre maximal de scènes | Par recherche. | `50` |
+| <a id="stacsearch-sortby"></a>Tri | Champ de tri, précédé de - pour décroissant. | `-properties.datetime` |
+| <a id="stacsearch-assets"></a>Assets (bandes) | Noms des assets à garder, dans l'ordre : ils deviennent les bandes du raster. |  |
+| <a id="stacsearch-properties"></a>Propriétés à recopier | Propriétés de la scène ajoutées comme attributs (eo:cloud_cover devient cloud_cover). | `['eo:cloud_cover']` |
+| <a id="stacsearch-sign"></a>Signature | planetary_computer : signe les adresses (jeton de lecture temporaire). | `none` |
 
-### Reclasser un raster — `ReclassifyRaster` {#reclassifyraster}
+<a id="reclassifyraster"></a>
+
+### Reclasser un raster — `ReclassifyRaster`
 
 Remplace des plages de valeurs d'un raster par des classes (pente en 4 classes, NDVI en eau/sol/végétation).
 
@@ -1383,14 +1553,16 @@ Chaque règle donne une plage [De ; À[ et la classe correspondante ; les règle
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Bande | Bande à reclasser (à partir de 1). | `1` |
-| Règles | Plages et classes, examinées dans l'ordre. |  |
-| Autres pixels | nodata : sans donnée ; keep : valeur d'origine ; default : « Valeur par défaut ». | `nodata` |
-| Valeur par défaut | Pour « Autres pixels » = default. | `0.0` |
-| Type du résultat | Type des pixels du résultat. | `uint8` |
-| Valeur sans donnée | Vide = 255 pour uint8, convention du type sinon. |  |
+| <a id="reclassifyraster-band"></a>Bande | Bande à reclasser (à partir de 1). | `1` |
+| <a id="reclassifyraster-rules"></a>Règles | Plages et classes, examinées dans l'ordre. |  |
+| <a id="reclassifyraster-others"></a>Autres pixels | nodata : sans donnée ; keep : valeur d'origine ; default : « Valeur par défaut ». | `nodata` |
+| <a id="reclassifyraster-default_value"></a>Valeur par défaut | Pour « Autres pixels » = default. | `0.0` |
+| <a id="reclassifyraster-dtype"></a>Type du résultat | Type des pixels du résultat. | `uint8` |
+| <a id="reclassifyraster-nodata"></a>Valeur sans donnée | Vide = 255 pour uint8, convention du type sinon. |  |
 
-### Reprojection de rasters — `WarpRaster` {#warpraster}
+<a id="warpraster"></a>
+
+### Reprojection de rasters — `WarpRaster`
 
 Change le système de coordonnées d'un raster, avec choix de la résolution et du rééchantillonnage.
 
@@ -1400,12 +1572,14 @@ Le raster est recalculé dans le « Système cible » (EPSG:2154, EPSG:4326…).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Système cible | Ex. EPSG:2154. |  |
-| Résolution | Taille du pixel, dans l'unité du système cible ; 0 = automatique. | `0.0` |
-| Rééchantillonnage | Méthode de calcul des nouveaux pixels. | `bilinear` |
-| Valeur sans donnée | Vide = celle du raster, sinon la convention du type. |  |
+| <a id="warpraster-crs"></a>Système cible | Ex. EPSG:2154. |  |
+| <a id="warpraster-resolution"></a>Résolution | Taille du pixel, dans l'unité du système cible ; 0 = automatique. | `0.0` |
+| <a id="warpraster-resampling"></a>Rééchantillonnage | Méthode de calcul des nouveaux pixels. | `bilinear` |
+| <a id="warpraster-nodata"></a>Valeur sans donnée | Vide = celle du raster, sinon la convention du type. |  |
 
-### Rééchantillonner / aligner — `ResampleRaster` {#resampleraster}
+<a id="resampleraster"></a>
+
+### Rééchantillonner / aligner — `ResampleRaster`
 
 Change la taille des pixels d'un raster, ou l'aligne sur la grille d'un autre raster (même pixels, même emprise).
 
@@ -1415,13 +1589,15 @@ Sans « Aligner sur un raster de référence » : le raster garde son système e
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Aligner sur un raster de référence | Ajoute une entrée « reference » dont la grille est reprise. | false |
-| Taille du pixel | Dans l'unité du système ; 0 = ne pas fixer. | `0.0` |
-| Facteur | Multiplie la taille du pixel (2 = deux fois plus grand). | `1.0` |
-| Rééchantillonnage | Méthode de calcul des nouveaux pixels. | `bilinear` |
-| Valeur sans donnée | Vide = celle du raster. |  |
+| <a id="resampleraster-align"></a>Aligner sur un raster de référence | Ajoute une entrée « reference » dont la grille est reprise. | false |
+| <a id="resampleraster-cell_size"></a>Taille du pixel | Dans l'unité du système ; 0 = ne pas fixer. | `0.0` |
+| <a id="resampleraster-factor"></a>Facteur | Multiplie la taille du pixel (2 = deux fois plus grand). | `1.0` |
+| <a id="resampleraster-resampling"></a>Rééchantillonnage | Méthode de calcul des nouveaux pixels. | `bilinear` |
+| <a id="resampleraster-nodata"></a>Valeur sans donnée | Vide = celle du raster. |  |
 
-### Statistiques de rasters — `RasterStatistics` {#rasterstatistics}
+<a id="rasterstatistics"></a>
+
+### Statistiques de rasters — `RasterStatistics`
 
 Calcule le minimum, le maximum, la moyenne, l'écart-type et des percentiles de chaque raster, en attributs.
 
@@ -1431,10 +1607,12 @@ Chaque raster reçoit, pour chaque bande choisie, les statistiques demandées da
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Bandes | Numéros (de 1) ou noms ; vide = toutes les bandes. |  |
-| Statistiques | min, max, mean, std, count, nodata_count, p05, p25, p50, p75, p95. | `['min', 'max', 'mean']` |
+| <a id="rasterstatistics-bands"></a>Bandes | Numéros (de 1) ou noms ; vide = toutes les bandes. |  |
+| <a id="rasterstatistics-stats"></a>Statistiques | min, max, mean, std, count, nodata_count, p05, p25, p50, p75, p95. | `['min', 'max', 'mean']` |
 
-### Statistiques zonales — `ZonalStatistics` {#zonalstatistics}
+<a id="zonalstatistics"></a>
+
+### Statistiques zonales — `ZonalStatistics`
 
 Calcule des statistiques d'un raster sous chaque polygone : moyenne, somme, minimum, maximum, majoritaire…
 
@@ -1444,13 +1622,15 @@ Chaque polygone de « zones » reçoit les statistiques des pixels du raster qu'
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Bandes | Numéros (de 1) ou noms des bandes ; vide = la première. |  |
-| Statistiques | count, sum, mean, min, max, std, median, majority, unique ou area. | `['mean']` |
-| Pixels touchés | Compte tout pixel que le polygone touche. | false |
-| Attributs du raster à ajouter | Recopiés sur chaque ligne (la date d'une scène…). |  |
-| Préfixe | Ajouté devant le nom de chaque colonne de statistique. |  |
+| <a id="zonalstatistics-bands"></a>Bandes | Numéros (de 1) ou noms des bandes ; vide = la première. |  |
+| <a id="zonalstatistics-stats"></a>Statistiques | count, sum, mean, min, max, std, median, majority, unique ou area. | `['mean']` |
+| <a id="zonalstatistics-all_touched"></a>Pixels touchés | Compte tout pixel que le polygone touche. | false |
+| <a id="zonalstatistics-raster_attributes"></a>Attributs du raster à ajouter | Recopiés sur chaque ligne (la date d'une scène…). |  |
+| <a id="zonalstatistics-prefix"></a>Préfixe | Ajouté devant le nom de chaque colonne de statistique. |  |
 
-### Valeur du raster sous des points — `SampleRasterValues` {#samplerastervalues}
+<a id="samplerastervalues"></a>
+
+### Valeur du raster sous des points — `SampleRasterValues`
 
 Ajoute à chaque point la valeur d'un raster à cet endroit (altitude d'un point, occupation du sol d'une parcelle).
 
@@ -1460,10 +1640,12 @@ Chaque entité de « points » reçoit, pour chaque bande choisie, la valeur du 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Bandes | Numéros (de 1) ou noms des bandes ; vide = toutes. |  |
-| Préfixe | Ajouté devant le nom de chaque bande dans les attributs. |  |
+| <a id="samplerastervalues-bands"></a>Bandes | Numéros (de 1) ou noms des bandes ; vide = toutes. |  |
+| <a id="samplerastervalues-prefix"></a>Préfixe | Ajouté devant le nom de chaque bande dans les attributs. |  |
 
-### Écriture de rasters — `RasterWriter` {#rasterwriter}
+<a id="rasterwriter"></a>
+
+### Écriture de rasters — `RasterWriter`
 
 Écrit chaque raster dans un fichier GeoTIFF ou COG (cloud optimized), avec vues d'ensemble.
 
@@ -1473,15 +1655,17 @@ Le chemin est un fichier, ou un modèle avec des {attributs} (un fichier par ras
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier ou dossier | Fichier .tif, modèle avec {attributs}, ou dossier. |  |
-| Format | cog : cloud optimized GeoTIFF ; gtiff : GeoTIFF tuilé. | `cog` |
-| Compression | Compression sans perte. | `deflate` |
-| Vues d'ensemble | Ajoute les vues d'ensemble (pyramide) : affichage rapide. | true |
-| Mode | create : échoue si le fichier existe ; overwrite : le remplace. | `overwrite` |
+| <a id="rasterwriter-path"></a>Fichier ou dossier | Fichier .tif, modèle avec {attributs}, ou dossier. |  |
+| <a id="rasterwriter-format"></a>Format | cog : cloud optimized GeoTIFF ; gtiff : GeoTIFF tuilé. | `cog` |
+| <a id="rasterwriter-compression"></a>Compression | Compression sans perte. | `deflate` |
+| <a id="rasterwriter-overviews"></a>Vues d'ensemble | Ajoute les vues d'ensemble (pyramide) : affichage rapide. | true |
+| <a id="rasterwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace. | `overwrite` |
 
 ## Écriture
 
-### Écriture CSV — `CsvWriter` {#csvwriter}
+<a id="csvwriter"></a>
+
+### Écriture CSV — `CsvWriter`
 
 Écrit les entités dans un fichier CSV (la géométrie en WKT).
 
@@ -1491,11 +1675,13 @@ Encodage utf-8. Sur un partage réseau, le fichier est écrit en local puis publ
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Séparateur | Séparateur de colonnes. | `,` |
-| Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="csvwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="csvwriter-delimiter"></a>Séparateur | Séparateur de colonnes. | `,` |
+| <a id="csvwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
 
-### Écriture Excel — `ExcelWriter` {#excelwriter}
+<a id="excelwriter"></a>
+
+### Écriture Excel — `ExcelWriter`
 
 Écrit les entités dans une feuille d'un classeur Excel (.xlsx).
 
@@ -1505,11 +1691,13 @@ Plusieurs écritures Excel peuvent viser des feuilles différentes du même clas
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Feuille | Nom de la feuille ; vide = « Feuil1 ». |  |
-| Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
+| <a id="excelwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="excelwriter-sheet"></a>Feuille | Nom de la feuille ; vide = « Feuil1 ». |  |
+| <a id="excelwriter-mode"></a>Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
 
-### Écriture FlatGeobuf — `FlatGeobufWriter` {#flatgeobufwriter}
+<a id="flatgeobufwriter"></a>
+
+### Écriture FlatGeobuf — `FlatGeobufWriter`
 
 Écrit les entités dans un fichier FlatGeobuf (.fgb), avec index spatial.
 
@@ -1519,10 +1707,12 @@ Sur un partage réseau, le fichier est écrit en local puis publié d'un bloc : 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="flatgeobufwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="flatgeobufwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
 
-### Écriture GeoJSON — `GeoJsonWriter` {#geojsonwriter}
+<a id="geojsonwriter"></a>
+
+### Écriture GeoJSON — `GeoJsonWriter`
 
 Écrit les entités dans un fichier GeoJSON.
 
@@ -1532,10 +1722,12 @@ Pour suivre la norme, reprojeter avant en WGS 84 (EPSG:4326). Sur un partage ré
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="geojsonwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="geojsonwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
 
-### Écriture GeoPackage — `GeoPackageWriter` {#geopackagewriter}
+<a id="geopackagewriter"></a>
+
+### Écriture GeoPackage — `GeoPackageWriter`
 
 Écrit les entités dans une couche d'un GeoPackage (.gpkg).
 
@@ -1545,11 +1737,13 @@ Plusieurs écritures GeoPackage peuvent viser des couches différentes du même 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Couche | Nom de la couche ; vide = le nom du fichier. |  |
-| Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
+| <a id="geopackagewriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="geopackagewriter-layer"></a>Couche | Nom de la couche ; vide = le nom du fichier. |  |
+| <a id="geopackagewriter-mode"></a>Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
 
-### Écriture (Geo)Parquet — `GeoParquetWriter` {#geoparquetwriter}
+<a id="geoparquetwriter"></a>
+
+### Écriture (Geo)Parquet — `GeoParquetWriter`
 
 Écrit les entités dans un fichier Parquet (GeoParquet s'il y a une géométrie) ou un dossier partitionné.
 
@@ -1559,12 +1753,14 @@ Plusieurs écritures GeoPackage peuvent viser des couches différentes du même 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
-| Compression | zstd : compact et rapide ; none : aucune. | `zstd` |
-| Partitionner par | Colonnes dont chaque valeur donne un sous-dossier ; vide = un seul fichier. |  |
+| <a id="geoparquetwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="geoparquetwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="geoparquetwriter-compression"></a>Compression | zstd : compact et rapide ; none : aucune. | `zstd` |
+| <a id="geoparquetwriter-partition_by"></a>Partitionner par | Colonnes dont chaque valeur donne un sous-dossier ; vide = un seul fichier. |  |
 
-### Écriture MapInfo — `MapInfoWriter` {#mapinfowriter}
+<a id="mapinfowriter"></a>
+
+### Écriture MapInfo — `MapInfoWriter`
 
 Écrit les entités dans une table MapInfo (.tab) ou un fichier MIF/MID (.mif).
 
@@ -1574,11 +1770,13 @@ Le format (TAB ou MIF) est déduit de l'extension. Sur un partage réseau, le fi
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Encodage | Vide = celui du format. |  |
-| Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="mapinfowriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="mapinfowriter-encoding"></a>Encodage | Vide = celui du format. |  |
+| <a id="mapinfowriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
 
-### Écriture Oracle — `OracleWriter` {#oraclewriter}
+<a id="oraclewriter"></a>
+
+### Écriture Oracle — `OracleWriter`
 
 Écrit les entités dans une table Oracle (créée si besoin), en une seule transaction.
 
@@ -1588,15 +1786,17 @@ Modes : create : échoue si la table existe ; overwrite : la recrée ; append : 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Connexion | Connexion nommée (menu Connexions). |  |
-| Table | Schéma puis table (existante, ou nouvelle à créer : taper son nom). |  |
-| Mode | create : échoue si la table existe ; overwrite : la recrée ; append : ajoute ; truncate : vide puis insère ; upsert : met à jour les lignes de même clé et insère les autres. | `append` |
-| Clé (upsert / clé primaire) | Colonnes identifiant une ligne. |  |
-| Colonne géométrique créée | Nom de la colonne géométrique, utilisé quand la table est créée. | `geom` |
-| Index spatial | Crée un index spatial avec la table. | true |
-| Système de coordonnées | Vide = celui des données. |  |
+| <a id="oraclewriter-connection"></a>Connexion | Connexion nommée (menu Connexions). |  |
+| <a id="oraclewriter-table"></a>Table | Schéma puis table (existante, ou nouvelle à créer : taper son nom). |  |
+| <a id="oraclewriter-mode"></a>Mode | create : échoue si la table existe ; overwrite : la recrée ; append : ajoute ; truncate : vide puis insère ; upsert : met à jour les lignes de même clé et insère les autres. | `append` |
+| <a id="oraclewriter-key"></a>Clé (upsert / clé primaire) | Colonnes identifiant une ligne. |  |
+| <a id="oraclewriter-geometry_column"></a>Colonne géométrique créée | Nom de la colonne géométrique, utilisé quand la table est créée. | `geom` |
+| <a id="oraclewriter-create_spatial_index"></a>Index spatial | Crée un index spatial avec la table. | true |
+| <a id="oraclewriter-crs"></a>Système de coordonnées | Vide = celui des données. |  |
 
-### Écriture PostgreSQL / PostGIS — `PostgresWriter` {#postgreswriter}
+<a id="postgreswriter"></a>
+
+### Écriture PostgreSQL / PostGIS — `PostgresWriter`
 
 Écrit les entités dans une table PostgreSQL (créée si besoin), en une seule transaction.
 
@@ -1606,16 +1806,18 @@ Modes : « create » échoue si la table existe ; « overwrite » la recrée ; �
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Connexion | Connexion nommée (menu Connexions). |  |
-| Table | Schéma puis table (existante, ou nouvelle à créer : taper son nom). |  |
-| Mode | create : échoue si la table existe ; overwrite : la recrée ; append : ajoute ; truncate : vide puis insère ; upsert : met à jour les lignes de même clé et insère les autres. | `append` |
-| Clé (upsert / clé primaire) | Colonnes identifiant une ligne. |  |
-| Colonne géométrique créée | Nom de la colonne géométrique, utilisé quand la table est créée. | `geom` |
-| Type de géométrie (création) | Type de la colonne créée. auto : multi-surfaces et multi-lignes pour les polygones et les lignes, sinon le type du premier lot. | `auto` |
-| Index spatial (GIST) | Crée un index spatial GIST avec la table. | true |
-| Système de coordonnées | Vide = celui des données. |  |
+| <a id="postgreswriter-connection"></a>Connexion | Connexion nommée (menu Connexions). |  |
+| <a id="postgreswriter-table"></a>Table | Schéma puis table (existante, ou nouvelle à créer : taper son nom). |  |
+| <a id="postgreswriter-mode"></a>Mode | create : échoue si la table existe ; overwrite : la recrée ; append : ajoute ; truncate : vide puis insère ; upsert : met à jour les lignes de même clé et insère les autres. | `append` |
+| <a id="postgreswriter-key"></a>Clé (upsert / clé primaire) | Colonnes identifiant une ligne. |  |
+| <a id="postgreswriter-geometry_column"></a>Colonne géométrique créée | Nom de la colonne géométrique, utilisé quand la table est créée. | `geom` |
+| <a id="postgreswriter-geometry_type"></a>Type de géométrie (création) | Type de la colonne créée. auto : multi-surfaces et multi-lignes pour les polygones et les lignes, sinon le type du premier lot. | `auto` |
+| <a id="postgreswriter-create_spatial_index"></a>Index spatial (GIST) | Crée un index spatial GIST avec la table. | true |
+| <a id="postgreswriter-crs"></a>Système de coordonnées | Vide = celui des données. |  |
 
-### Écriture SQLite / SpatiaLite — `SpatiaLiteWriter` {#spatialitewriter}
+<a id="spatialitewriter"></a>
+
+### Écriture SQLite / SpatiaLite — `SpatiaLiteWriter`
 
 Écrit les entités dans une table d'une base SpatiaLite (.sqlite), créée si besoin.
 
@@ -1625,11 +1827,13 @@ Plusieurs écritures peuvent viser des tables différentes de la même base : en
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Table | Nom de la table ; vide = le nom du fichier. |  |
-| Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
+| <a id="spatialitewriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="spatialitewriter-layer"></a>Table | Nom de la table ; vide = le nom du fichier. |  |
+| <a id="spatialitewriter-mode"></a>Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
 
-### Écriture Shapefile — `ShapefileWriter` {#shapefilewriter}
+<a id="shapefilewriter"></a>
+
+### Écriture Shapefile — `ShapefileWriter`
 
 Écrit les entités dans un Shapefile (.shp).
 
@@ -1639,6 +1843,6 @@ Noms de colonnes limités à 10 caractères (les renommages sont journalisés), 
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
-| Encodage | Vide = utf-8 (écrit dans le .cpg). |  |
-| Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="shapefilewriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="shapefilewriter-encoding"></a>Encodage | Vide = utf-8 (écrit dans le .cpg). |  |
+| <a id="shapefilewriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |

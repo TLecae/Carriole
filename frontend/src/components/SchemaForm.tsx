@@ -17,6 +17,7 @@ export interface FormCtx {
   inputAttributes: Record<string, string[]>; // ceux de chaque entrée : un champ qui désigne la sienne (`x-etl-input`)
   parameters: string[]; // paramètres publiés du flux
   variables: VariableHint[]; // tout ce qui peut s'écrire entre ${ et }
+  doc?: (param: string) => string; // page du catalogue sur un paramètre (modificateurs livrés)
 }
 
 /** Attributs proposés par un champ : ceux de son entrée s'il en désigne une, sinon ceux de toutes les entrées. */
@@ -68,6 +69,7 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
             hidden={!shown.has(key)}
             label={labelOf(key, s)}
             hint={s.description}
+            doc={props.ctx.doc?.(key)}
             inline={typeOf(s) === "boolean"}
             simple={typeOf(s) !== "array" && widgetOf(s) !== "expression" && connection === null}
           >
@@ -84,18 +86,27 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
 }
 
 /** Un champ simple est un `<label>` (le clic sur le libellé active le champ) ; un champ composé est un groupe. */
-function Field({ label, hint, inline, simple, hidden, children }: { label: string; hint?: string; inline?: boolean; simple: boolean; hidden?: boolean; children: ReactNode }) {
+function Field({ label, hint, doc, inline, simple, hidden, children }: { label: string; hint?: string; doc?: string; inline?: boolean; simple: boolean; hidden?: boolean; children: ReactNode }) {
+  const tip = (
+    <InfoTip text={hint}>
+      {doc && (
+        <a className="info-doc" href={doc} target="_blank" rel="noreferrer">
+          {t("Documentation du paramètre")} ↗
+        </a>
+      )}
+    </InfoTip>
+  );
   const body = inline ? (
     <>
       <span className="field-label">{label}</span>
       {children}
-      <InfoTip text={hint} />
+      {tip}
     </>
   ) : (
     <>
       <span className="field-head">
         <span className="field-label">{label}</span>
-        <InfoTip text={hint} />
+        {tip}
       </span>
       {children}
     </>

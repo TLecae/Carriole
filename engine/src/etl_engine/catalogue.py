@@ -8,13 +8,19 @@ from etl_engine import i18n
 from etl_engine.registry import Registry
 
 
-def _fields(schema: dict[str, Any]) -> list[tuple[str, str, str]]:
-    """(titre, description, valeur par défaut) de chaque paramètre, dans l'ordre de déclaration."""
+def anchor(modifier: str, param: str | None = None) -> str:
+    """Ancre d'un modificateur (`buffer`) ou d'un de ses paramètres (`buffer-distance`) : l'éditeur y renvoie."""
+    return modifier.lower() + (f"-{param.lower()}" if param else "")
+
+
+def _fields(schema: dict[str, Any]) -> list[tuple[str, str, str, str]]:
+    """(clé, titre, description, valeur par défaut) de chaque paramètre, dans l'ordre de déclaration."""
     rows = []
     for key, spec in schema.get("properties", {}).items():
         default = spec.get("default")
         rows.append(
             (
+                key,
                 spec.get("title", key),
                 spec.get("description", ""),
                 ""
@@ -43,12 +49,14 @@ def render(registry: Registry, lang: str = "fr") -> str:
     out.append(f"| {tr('Catégorie')} | Modificateurs |")
     out.append("| --- | --- |")
     for category, items in sorted(by_category.items()):
-        out.append(f"| {category} | " + ", ".join(f"[{i['label']}](#{i['name'].lower()})" for i in items) + " |")
+        out.append(f"| {category} | " + ", ".join(f"[{i['label']}](#{anchor(i['name'])})" for i in items) + " |")
     out.append("")
+    # ancres en HTML (`<a id>`) : GitHub, où l'éditeur renvoie, ignore la syntaxe `{#ancre}` des titres
     for category, items in sorted(by_category.items()):
         out += [f"## {category}", ""]
         for info in items:
-            out += [f"### {info['label']} — `{info['name']}` {{#{info['name'].lower()}}}", "", info["description"], ""]
+            name = info["name"]
+            out += [f'<a id="{anchor(name)}"></a>', "", f"### {info['label']} — `{name}`", "", info["description"], ""]
             ports_in = ", ".join(f"`{p}`" for p in info["inputs"]) or tr("aucune")
             ports_out = ", ".join(f"`{p}`" for p in info["outputs"]) or tr("aucune")
             mode = (
@@ -66,6 +74,6 @@ def render(registry: Registry, lang: str = "fr") -> str:
             rows = _fields(info["params_schema"])
             if rows:
                 out += [f"| {tr('Paramètre')} | {tr('Rôle')} | {tr('Défaut')} |", "| --- | --- | --- |"]
-                out += [f"| {t} | {d.replace('|', '/')} | {v} |" for t, d, v in rows]
+                out += [f'| <a id="{anchor(name, k)}"></a>{t} | {d.replace("|", "/")} | {v} |' for k, t, d, v in rows]
                 out.append("")
     return "\n".join(out).rstrip() + "\n"

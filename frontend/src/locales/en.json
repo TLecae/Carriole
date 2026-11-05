@@ -642,5 +642,7 @@
  "Sombre": "Dark",
  "Propriétés du flux": "Flow properties",
  "Description, paramètres publiés et variables du flux": "Description, published parameters and variables of the flow",
- "Replier les propriétés du flux": "Fold the flow properties"
+ "Replier les propriétés du flux": "Fold the flow properties",
+ "Documentation du paramètre": "Parameter documentation",
+ "Documentation de {{name}}": "{{name}} documentation"
 }
