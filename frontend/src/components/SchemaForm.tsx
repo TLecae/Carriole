@@ -8,6 +8,7 @@ import { kindLabel } from "../model/databases";
 import { useConnections } from "../store/connections";
 import { useUi } from "../store/ui";
 import { formatCount, t } from "../i18n";
+import { InfoTip } from "./InfoTip";
 import { Spinner } from "./Spinner";
 
 export interface FormCtx {
@@ -84,20 +85,28 @@ export function SchemaForm(props: { schema: JsonSchema; value: Record<string, un
 
 /** Un champ simple est un `<label>` (le clic sur le libellé active le champ) ; un champ composé est un groupe. */
 function Field({ label, hint, inline, simple, hidden, children }: { label: string; hint?: string; inline?: boolean; simple: boolean; hidden?: boolean; children: ReactNode }) {
-  const body = (
+  const body = inline ? (
     <>
       <span className="field-label">{label}</span>
       {children}
-      {hint && !inline && <span className="field-hint">{hint}</span>}
+      <InfoTip text={hint} />
+    </>
+  ) : (
+    <>
+      <span className="field-head">
+        <span className="field-label">{label}</span>
+        <InfoTip text={hint} />
+      </span>
+      {children}
     </>
   );
   const className = inline ? "field inline" : "field";
   return simple ? (
-    <label className={className} title={hint} hidden={hidden}>
+    <label className={className} hidden={hidden}>
       {body}
     </label>
   ) : (
-    <div className={className} role="group" aria-label={label} title={hint} hidden={hidden}>
+    <div className={className} role="group" aria-label={label} hidden={hidden}>
       {body}
     </div>
   );
@@ -389,7 +398,10 @@ function ObjectTable({ schema, rawItem, value, onChange, ctx }: { schema: JsonSc
             const s = resolveSchema(raw, ctx.defs);
             return (
               <div className="cell" key={key}>
-                <span className="cell-label">{labelOf(key, s)}</span>
+                <span className="field-head">
+                  <span className="cell-label">{labelOf(key, s)}</span>
+                  <InfoTip text={s.description} />
+                </span>
                 <Editor
                   label={labelOf(key, s)}
                   schema={raw}

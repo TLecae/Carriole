@@ -239,6 +239,16 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .field.inline { display: flex; align-items: center; gap: 6px; }
 .field-label, .cell-label { font-weight: 600; font-size: 12px; color: var(--text-2); }
 .field-hint { color: var(--muted); font-size: 11px; }
+/* aide d'un champ : « i » cerclé, texte au survol ou au focus, sur toute la largeur du champ */
+.field, .cell { position: relative; }
+.field-head { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.info-tip { position: static; display: inline-flex; flex: none; cursor: help; outline: none; }
+.info-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1px solid var(--muted); border-radius: 50%; color: var(--muted); font: italic 600 10px/1 Georgia, serif; }
+.info-tip:hover .info-icon, .info-tip:focus-visible .info-icon { border-color: var(--primary); color: var(--primary); }
+.info-pop { display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 2px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); box-shadow: 0 6px 18px rgba(15,23,42,.18); font: 400 12px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: normal; cursor: auto; }
+.field-head .info-pop { top: 18px; }
+.info-tip:hover .info-pop, .info-tip:focus .info-pop, .info-tip:focus-within .info-pop { display: block; }
+.info-pop a { color: var(--primary); }
 .inline-fields { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: end; margin: 8px 0; }
 .expression-tools { display: flex; gap: 6px; margin-top: 3px; }
 .expression-tools select { width: auto; }

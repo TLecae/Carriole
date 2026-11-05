@@ -8,6 +8,7 @@ import { useEditor } from "../store/editor";
 import { setThemeChoice, themeChoice, type ThemeChoice } from "../theme";
 import { AssistantSettings } from "./AssistantSettings";
 import { Modal } from "./Dialogs";
+import { InfoTip } from "./InfoTip";
 import { Loading } from "./Spinner";
 
 type TabId = "general" | "compute" | "network" | "components" | "variables" | "assistant";
@@ -98,9 +99,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="field">
-      <span className="field-label">{label}</span>
+      <span className="field-head">
+        <span className="field-label">{label}</span>
+        <InfoTip text={hint} />
+      </span>
       {children}
-      {hint && <small className="muted">{hint}</small>}
     </label>
   );
 }

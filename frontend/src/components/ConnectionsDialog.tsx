@@ -4,6 +4,7 @@ import type { ConnectionInfo, ConnectionInput, ConnectionTest, DbKind } from "..
 import { DB_KINDS, defaultPort, kindLabel } from "../model/databases";
 import { useConnections } from "../store/connections";
 import { t } from "../i18n";
+import { InfoTip } from "./InfoTip";
 
 const SSL_MODES = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"];
 const EMPTY: ConnectionInput = { kind: "postgres", host: "", port: 5432, dbname: "", user: "", sslmode: "prefer", options: {}, password: "" };
@@ -110,9 +111,11 @@ export function ConnectionsDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="conn-form">
             <label className="field">
-              <span className="field-label">{t("Nom")}</span>
+              <span className="field-head">
+                <span className="field-label">{t("Nom")}</span>
+                <InfoTip text={t("C'est ce nom qu'on choisit dans les modificateurs.")} />
+              </span>
               <input aria-label={t("Nom de la connexion")} value={name} disabled={!isNew} onChange={(e) => setName(e.target.value)} placeholder={t("ma_base")} />
-              <span className="field-hint">{t("C'est ce nom qu'on choisit dans les modificateurs.")}</span>
             </label>
             <label className="field">
               <span className="field-label">{t("Type de base")}</span>

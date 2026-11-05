@@ -5,6 +5,7 @@ import { toFlowDoc } from "../model/graph";
 import { pickPath } from "../platform";
 import { useEditor } from "../store/editor";
 import { Modal } from "./Dialogs";
+import { InfoTip } from "./InfoTip";
 
 type Mode = "pattern" | "values";
 
@@ -83,14 +84,16 @@ export function BatchDialog({ onClose, onStarted }: { onClose: () => void; onSta
       </div>
       {mode === "pattern" ? (
         <label className="field">
-          <span className="field-label">{t("Motif de fichiers")}</span>
+          <span className="field-head">
+            <span className="field-label">{t("Motif de fichiers")}</span>
+            <InfoTip text={t("* remplace des lettres, ** descend dans les sous-dossiers.")} />
+          </span>
           <div className="path-field">
             <input type="text" aria-label={t("Motif de fichiers")} value={pattern} placeholder={t("D:/dossier/*.shp")} onChange={(e) => setPattern(e.target.value)} />
             <button type="button" onClick={() => void browse()}>
               {t("Parcourir…")}
             </button>
           </div>
-          <span className="field-hint">{t("* remplace des lettres, ** descend dans les sous-dossiers.")}</span>
         </label>
       ) : (
         <label className="field">
