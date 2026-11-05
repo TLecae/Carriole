@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- *OverlayPolygons*: computed by tiles on all cores, sized from the memory budget of *Settings* and the number
+  of cores; pieces across tiles are joined exactly. A polygon with a very large extent (a network in one piece) no
+  longer keeps the whole computation on one core: 184 s to 32 s on 177,000 land-cover polygons
+  ([ADR 0049](docs/decisions/0049-superposition-par-carreaux.md)).
+
 ## 0.1.6
 
 - README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).

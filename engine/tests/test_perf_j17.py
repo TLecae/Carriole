@@ -92,22 +92,33 @@ def test_group_codes_on_list_columns_falls_back():
     assert codes.tolist() == [0, 1, 0] and count == 2
 
 
-# ------------------------------------------------------------------ superposition par paquets : exacte, sans doublon
-def test_overlay_by_chunks_equals_single_chunk(monkeypatch):
-    data = shapes(disks(240), kind=[f"k{i % 3}" for i in range(240)])
+# ------------------------------------------------------------------ superposition par carreaux : exacte, sans doublon
+def test_overlay_by_tiles_equals_a_single_tile(monkeypatch):
+    """Faces entières de chaque carreau, et faces à cheval recollées exactement : mêmes morceaux qu'en un seul carreau.
+    Un grand polygone qui traverse tous les carreaux (un réseau d'un seul tenant) redevient une face."""
+    cross = shapely.union_all(
+        [shapely.LineString([(0, 500), (1000, 520)]), shapely.LineString([(500, 0), (480, 1000)])]
+    ).buffer(8, quad_segs=16)
+    geoms = [*disks(240), cross]
+    data = shapes(geoms, kind=[f"k{i % 3}" for i in range(len(geoms))])
     params = {"attributes": ["kind"], "min_overlap": 1}
-    whole = run_modifier(OverlayPolygons, params, data, batch_rows=50)["output"]
-    monkeypatch.setattr(overlay_polygons, "CHUNK", 17)  # beaucoup de paquets, des morceaux à cheval
-    chunked = run_modifier(OverlayPolygons, params, data, batch_rows=50, ctx=Context(workers=4))["output"]
-    assert chunked.num_rows == whole.num_rows > 240
-    assert pieces_signature(chunked) == pieces_signature(whole)
+    whole = run_modifier(OverlayPolygons, params, data, batch_rows=50)["output"]  # un seul carreau
+    monkeypatch.setattr(overlay_polygons, "MIN_TILE_VERTICES", 100)  # beaucoup de carreaux, des faces à cheval
+    monkeypatch.setattr(overlay_polygons, "TILES_PER_WORKER", 64)
+    assert len(overlay_polygons._Overlay(np.asarray(geoms, dtype=object), 1, 4, None).tiles) > 20
+    tiled = run_modifier(OverlayPolygons, params, data, batch_rows=50, ctx=Context(workers=4))["output"]
+    assert tiled.num_rows == whole.num_rows > 240
+    assert pieces_signature(tiled) == pieces_signature(whole)
     # les listes d'attributs suivent les origines
     kinds = data.column("kind").to_pylist()
-    for origins, values in zip(chunked.column("_origins").to_pylist(), chunked.column("kind").to_pylist(), strict=True):
+    for origins, values in zip(tiled.column("_origins").to_pylist(), tiled.column("kind").to_pylist(), strict=True):
         assert values == [kinds[o] for o in origins]
-    # la somme des morceaux couvre exactement l'union des disques
-    pieces = shapely.from_wkb(chunked.column(GEOM).to_numpy(zero_copy_only=False))
-    assert shapely.area(pieces).sum() == pytest.approx(shapely.union_all(disks(240)).area, rel=1e-9)
+    # la somme des morceaux couvre exactement l'union des polygones, sans morceau invalide
+    pieces = shapely.from_wkb(tiled.column(GEOM).to_numpy(zero_copy_only=False))
+    assert shapely.is_valid(pieces).all()
+    assert shapely.area(pieces).sum() == pytest.approx(shapely.union_all(geoms).area, rel=1e-9)
+    alone = [o for o in tiled.column("_origins").to_pylist() if o == [len(geoms) - 1]]
+    assert len(alone) == len([o for o in whole.column("_origins").to_pylist() if o == [len(geoms) - 1]])
 
 
 # ------------------------------------------------------------------ Dissolve : union en arbre
@@ -168,3 +179,14 @@ def test_batches_take_their_share_of_the_run_budget(tmp_path, monkeypatch):
         assert duck.batch_bytes() == 16 * 2**20  # jamais de lots minuscules
     finally:
         duck.configure_run()
+
+
+def test_tile_pieces_whose_seam_does_not_match_are_joined_by_a_full_union():
+    """Un sommet de limite déplacé (calcul d'intersection difficile) : la réunion de couverture rendrait une géométrie
+    invalide sans erreur ; la réunion complète prend le relais."""
+    left = shapely.box(0, 0, 1, 1)
+    exact, moved = shapely.box(1, 0, 2, 1), shapely.Polygon([(1, 0), (2, 0), (2, 1), (1, 1.0000000001)])
+    for right in (exact, moved):
+        joined = overlay_polygons._join(np.array([left, right]), np.array([[0.0, 0, 1, 1], [1, 0, 2, 1]]))
+        assert joined.geom_type == "Polygon" and shapely.is_valid(joined)
+        assert joined.area == pytest.approx(2.0)
