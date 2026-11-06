@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Carriole</title>
-<meta name="description" content="Carriole: desktop ETL for geographic data, with a visual editor, Python modifiers and a table and map inspector. Windows and Linux, MIT license.">
+<meta name="description" content="Carriole: desktop ETL for geographic data, without writing code. 102 modifiers, GIS formats and databases, table and map inspector. Windows and Linux, MIT license.">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <meta property="og:title" content="Carriole">
-<meta property="og:description" content="Desktop ETL for geographic data. Windows and Linux, MIT license.">
-<meta property="og:image" content="https://tlecae.github.io/Carriole/img/inspecteur-en.webp">
+<meta property="og:description" content="Desktop ETL for geographic data, without writing code. Windows and Linux, MIT license.">
+<meta property="og:image" content="https://tlecae.github.io/Carriole/img/editeur-en.webp">
 <style>
   :root {
     --blue: #1f4e8c;
@@ -19,6 +19,7 @@
     --muted: #5b6573;
     --line: #dde2ea;
     --link: #1f4e8c;
+    --chip: #eef2f8;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -29,6 +30,7 @@
       --line: #2a3446;
       --amber-text: #ffc940;
       --link: #8db6ee;
+      --chip: #1d2738;
     }
   }
   * { box-sizing: border-box; }
@@ -37,7 +39,7 @@
     font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
   }
   a { color: var(--link); }
-  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
 
   header { border-bottom: 1px solid var(--line); }
   .bar { display: flex; align-items: center; gap: 18px; height: 56px; }
@@ -49,37 +51,80 @@
   nav a:hover { color: var(--text); }
   select { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 
-  main { padding: 36px 0 48px; }
-  h1 { font-size: 30px; margin: 0 0 8px; }
-  h2 { font-size: 22px; margin: 44px 0 12px; padding-top: 4px; }
+  main { padding: 32px 0 48px; }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 10px; }
+  h2 { font-size: 24px; margin: 0 0 6px; }
+  h3 { font-size: 17px; margin: 0 0 6px; }
   p { margin: 0 0 12px; }
   .muted { color: var(--muted); }
-  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 6px; }
+  .lead { font-size: 19px; max-width: 760px; }
+  section { padding-top: 44px; }
+  .sub { color: var(--muted); margin-bottom: 18px; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; }
   .btn {
     display: inline-block; padding: 9px 16px; border-radius: 6px; font-weight: 600; text-decoration: none;
     border: 1px solid var(--line); color: var(--text); background: var(--bg);
   }
   .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
   .btn small { font-weight: 400; opacity: .8; }
-  figure { margin: 24px 0 0; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 28px 0 0; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; background: var(--bg-soft); text-decoration: none; color: var(--text); }
+  a.stat:hover { border-color: var(--link); }
+  .stat .n { display: block; font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--blue); }
+  @media (prefers-color-scheme: dark) { .stat .n { color: var(--link); } }
+  .stat .n.os { font-size: 22px; line-height: 1.35; }
+  .stat .label { display: block; font-weight: 600; margin-top: 2px; }
+  .stat .detail { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+  figure { margin: 28px 0 0; }
   figure img, figure video { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
   figcaption { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .gallery figure { margin-top: 0; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; background: var(--bg); }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .formats { display: grid; grid-template-columns: 170px 1fr; gap: 10px 18px; align-items: baseline; }
+  .formats dt { font-weight: 600; }
+  .formats dd { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--chip); font-size: 14px; white-space: nowrap; }
+  .note { font-size: 13px; color: var(--muted); }
+
+  .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .cat { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .cat h3 { display: flex; justify-content: space-between; gap: 8px; font-size: 16px; margin: 0 0 4px; }
+  .cat h3 b { color: var(--blue); }
+  @media (prefers-color-scheme: dark) { .cat h3 b { color: var(--link); } }
+  .cat p { margin: 0; font-size: 14px; color: var(--muted); }
+  .more { margin-top: 12px; }
+
   ul { padding-left: 20px; margin: 0 0 12px; }
   li { margin: 4px 0; }
   table { border-collapse: collapse; width: 100%; font-size: 15px; }
   th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   th { font-weight: 600; white-space: nowrap; }
   code { font: 14px ui-monospace, Consolas, "Liberation Mono", monospace; background: var(--bg-soft); padding: 1px 5px; border-radius: 4px; }
-  pre { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 6px; padding: 14px; overflow-x: auto; margin: 0 0 12px; }
-  pre code { background: none; padding: 0; font-size: 13.5px; line-height: 1.5; }
-  dl { margin: 0; }
-  dt { font-weight: 600; margin-top: 10px; }
-  dd { margin: 2px 0 0; color: var(--muted); }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--muted); }
+  dl.libs { margin: 8px 0 0; }
+  dl.libs dt { font-weight: 600; margin-top: 8px; }
+  dl.libs dd { margin: 2px 0 0; color: var(--muted); }
   footer { border-top: 1px solid var(--line); padding: 20px 0 32px; color: var(--muted); font-size: 14px; }
 
+  @media (max-width: 820px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+    .cards, .gallery { grid-template-columns: 1fr; }
+    .formats { grid-template-columns: 1fr; gap: 4px; }
+    .formats dd { margin-bottom: 10px; }
+  }
   @media (max-width: 640px) {
     nav a.hide-sm { display: none; }
     th { white-space: normal; }
+    h1 { font-size: 28px; }
   }
 </style>
 </head>
@@ -88,8 +133,10 @@
   <div class="wrap bar">
     <a class="brand" href="#" aria-label="Carriole"><img src="logo.svg" alt=""><span>Carr<span class="io">i/o</span>le</span></a>
     <nav>
+      <a class="hide-sm" href="#formats" data-i18n="nav.formats">Formats</a>
+      <a class="hide-sm" href="#modifiers" data-i18n="nav.modifiers">Modifiers</a>
       <a class="hide-sm" href="#download" data-i18n="nav.download">Download</a>
-      <a class="hide-sm" href="https://github.com/TLecae/Carriole#readme" data-i18n="nav.docs">Documentation</a>
+      <a class="hide-sm" href="https://github.com/TLecae/Carriole/blob/main/docs/en/user_guide.md" data-doc="guide" data-i18n="nav.guide">User guide</a>
       <a href="https://github.com/TLecae/Carriole">GitHub</a>
       <select id="lang" aria-label="Language">
         <option value="en">English</option>
@@ -101,101 +148,172 @@
 </header>
 
 <main class="wrap">
-  <h1>Carriole</h1>
-  <p data-i18n="intro.1">Desktop ETL for geographic data. Flows are built in a visual editor from modifiers written in Python, and every intermediate result can be checked on a table and a map.</p>
-  <p class="muted" data-i18n="intro.2">Windows and Linux. Free software under the MIT license.</p>
+  <h1 data-i18n="hero.lead">Process geographic data without writing code</h1>
+  <p class="lead" data-i18n="hero.sub">Carriole is a desktop ETL for GIS: modifiers are assembled on a canvas, the flow is run, and every result can be checked on a table and a map.</p>
   <div class="actions">
     <a class="btn primary" id="cta-main" href="#download"><span data-i18n="cta.download">Download</span> <small id="cta-main-detail"></small></a>
+    <a class="btn" href="https://github.com/TLecae/Carriole/blob/main/docs/en/user_guide.md" data-doc="guide" data-i18n="cta.guide">User guide</a>
     <a class="btn" href="https://github.com/TLecae/Carriole" data-i18n="cta.source">Source code</a>
+  </div>
+
+  <div class="stats">
+    <a class="stat" href="#modifiers">
+      <span class="n" data-count="total">102</span>
+      <span class="label" data-i18n="stat.mod">modifiers</span>
+      <span class="detail" data-i18n="stat.mod.detail">geometry, attributes, joins, filters, statistics</span>
+    </a>
+    <a class="stat" href="#formats">
+      <span class="n">11</span>
+      <span class="label" data-i18n="stat.fmt">vector formats and databases</span>
+      <span class="detail" data-i18n="stat.fmt.detail">read and written: PostGIS, GeoPackage, Shapefile…</span>
+    </a>
+    <a class="stat" href="#modifiers">
+      <span class="n" data-count="Rasters">17</span>
+      <span class="label" data-i18n="stat.raster">raster modifiers</span>
+      <span class="detail" data-i18n="stat.raster.detail">GeoTIFF, COG, JPEG 2000, NetCDF, STAC</span>
+    </a>
+    <a class="stat" href="#download">
+      <span class="n os">Windows · Linux</span>
+      <span class="label" data-i18n="stat.os">free, MIT license</span>
+      <span class="detail" data-i18n="stat.os.detail">no server, nothing to set up</span>
+    </a>
   </div>
 
   <figure>
     <img id="shot-main" src="img/editeur-en.webp" width="1500" height="900" alt="" data-i18n-alt="shot.editor">
-    <figcaption data-i18n="shot.editor">A flow in the editor: communes read from a GeoParquet file, reprojected, population density computed. Below, its output on the table and the map.</figcaption>
+    <figcaption data-i18n="shot.editor">A flow in the editor; below, the output of its last node on the table and the map.</figcaption>
   </figure>
 
-  <h2 id="video" data-i18n="video.title">Video</h2>
-  <figure>
-    <video id="demo" controls preload="none" playsinline width="1280" height="800" src="media/demo-en.mp4" poster="img/demo-en.webp"></video>
-    <figcaption data-i18n="video.caption">The flow above, built from an empty canvas, run, then its result inspected: table sorted by density, map colored by density, selection shared between the two. 1 minute, no sound.</figcaption>
-  </figure>
+  <section>
+    <h2 data-i18n="how.title">Build, check, automate</h2>
+    <p class="sub" data-i18n="how.sub">Everything is done with the mouse and forms.</p>
+    <div class="cards">
+      <div class="card">
+        <h3 data-i18n="how.build.t">Build</h3>
+        <p data-i18n="how.build.d">Modifiers are dragged from the palette and connected output to input. Each parameter has its form, with help and a link to the documentation. Expressions and SQL are written with the list of attributes and their values a click away.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="how.check.t">Check</h3>
+        <p data-i18n="how.check.d">A click on a node shows its output on a table (filters, sorting) and a map (colors by attribute, OpenStreetMap or satellite basemap). Before running, warnings point out a missing attribute or parameter.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="how.auto.t">Automate</h3>
+        <p data-i18n="how.auto.d">Running again only recomputes what changed. A flow can run once per file of a folder or per value, and be scheduled. Flows are files the team shares.</p>
+      </div>
+    </div>
+  </section>
 
-  <h2 data-i18n="features.title">What it does</h2>
-  <ul>
-    <li data-i18n-html="features.1">Reads and writes PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT or X/Y) and Excel. Rasters: GeoTIFF, COG, JPEG 2000, NetCDF, STAC catalogs.</li>
-    <li data-i18n-html="features.2">About a hundred modifiers: attributes, filters, joins, statistics, geometry (buffer, clip, dissolve, polygon overlay, spatial joins, reprojection, validation…) and rasters. <a href="https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md">Catalogue</a>.</li>
-    <li data-i18n="features.3">The output of each port can be opened on a filterable table and a map, computed with DuckDB Spatial, including on millions of features.</li>
-    <li data-i18n="features.8">SQL and expression editors with completion, error checking, and the list of attributes with their most frequent values. A reader of CSV or Parquet files shows its read query: attributes to read, filter, number of features kept.</li>
-    <li data-i18n="features.4">Runs in the background, with a cache: on the next run, only the nodes that changed are recomputed. Runs can be scheduled.</li>
-    <li data-i18n="features.5">Flows are JSON files, stored wherever the team wants. Reusable components are shared through a folder.</li>
-    <li data-i18n="features.6">Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama), which proposes changes to the flow; what it may read is configurable.</li>
-    <li data-i18n="features.7">Runs on the user's computer, with their own file permissions, without a server. Internet is only used for basemaps and the assistant. Interface in English and French.</li>
-  </ul>
+  <section id="formats">
+    <h2 data-i18n="fmt.title">Formats</h2>
+    <p class="sub" data-i18n="fmt.sub">Read and written, unless stated otherwise.</p>
+    <dl class="formats">
+      <dt data-i18n="fmt.db">Databases</dt>
+      <dd><span class="chip">PostgreSQL / PostGIS</span><span class="chip">Oracle</span><span class="chip">SQLite / SpatiaLite</span></dd>
+      <dt data-i18n="fmt.vector">Vector files</dt>
+      <dd><span class="chip">GeoPackage</span><span class="chip">Shapefile</span><span class="chip">MapInfo TAB / MIF</span><span class="chip">GeoJSON</span><span class="chip">FlatGeobuf</span><span class="chip">(Geo)Parquet</span></dd>
+      <dt data-i18n="fmt.table">Tables</dt>
+      <dd><span class="chip" data-i18n="fmt.csv">CSV (WKT or X/Y)</span><span class="chip">Excel</span></dd>
+      <dt data-i18n="fmt.raster">Rasters</dt>
+      <dd><span class="chip">GeoTIFF</span><span class="chip">COG</span><span class="chip">JPEG 2000</span><span class="chip">ASCII Grid</span><span class="chip">VRT</span><span class="chip">NetCDF</span> <span class="note" data-i18n="fmt.raster.note">written as GeoTIFF or COG</span></dd>
+      <dt data-i18n="fmt.web">Web</dt>
+      <dd><span class="chip" data-i18n="fmt.web.parquet">(Geo)Parquet over https</span><span class="chip" data-i18n="fmt.web.stac">STAC search</span><span class="chip" data-i18n="fmt.web.api">Web APIs (JSON)</span> <span class="note" data-i18n="fmt.web.note">read</span></dd>
+    </dl>
+    <p class="more"><a href="https://github.com/TLecae/Carriole/blob/main/docs/formats.md" data-i18n="fmt.more">Format details</a></p>
+  </section>
 
-  <figure>
-    <img id="shot-inspector" src="img/inspecteur-en.webp" width="1500" height="900" loading="lazy" alt="" data-i18n-alt="shot.inspector">
-    <figcaption data-i18n="shot.inspector">Inspector in full page: communes colored by population density, table sorted by density, the selected commune highlighted on both.</figcaption>
-  </figure>
+  <section id="modifiers">
+    <h2><span data-count="total">102</span> <span data-i18n="mods.title">modifiers</span></h2>
+    <p class="sub" data-i18n="mods.sub">By category; the catalogue describes each parameter.</p>
+    <div class="cats">
+      <div class="cat"><h3><span data-i18n="cat.geom">Geometry</span> <b data-count="Géométrie">18</b></h3><p data-i18n="cat.geom.ex">buffer, clip, dissolve, polygon overlay, reprojection, repair…</p></div>
+      <div class="cat"><h3><span data-i18n="cat.attr">Attributes</span> <b data-count="Attributs">18</b></h3><p data-i18n="cat.attr.ex">create, rename, manage, convert, pivot, extract from JSON…</p></div>
+      <div class="cat"><h3><span data-i18n="cat.raster">Rasters</span> <b data-count="Rasters">17</b></h3><p data-i18n="cat.raster.ex">raster calculator, terrain analysis, contour lines, zonal statistics, mosaic, STAC search…</p></div>
+      <div class="cat"><h3><span data-i18n="cat.read">Reading</span> <b data-count="Lecture">11</b></h3><p data-i18n="cat.read.ex">one reader per format, files and databases</p></div>
+      <div class="cat"><h3><span data-i18n="cat.write">Writing</span> <b data-count="Écriture">11</b></h3><p data-i18n="cat.write.ex">one writer per format; append and update in databases</p></div>
+      <div class="cat"><h3><span data-i18n="cat.filter">Filters</span> <b data-count="Filtres">6</b></h3><p data-i18n="cat.filter.ex">by expression, spatial, by geometry type, duplicates, sample</p></div>
+      <div class="cat"><h3><span data-i18n="cat.join">Joins</span> <b data-count="Jointures">5</b></h3><p data-i18n="cat.join.ex">attribute join, point in polygon, nearest neighbors, spatial relator</p></div>
+      <div class="cat"><h3><span data-i18n="cat.calc">Calculations</span> <b data-count="Calculs">6</b></h3><p data-i18n="cat.calc.ex">statistics, aggregate, sort, counter, SQL on the inputs</p></div>
+      <div class="cat"><h3><span data-i18n="cat.batch">Batches and variables</span> <b data-count="Lots et variables">5</b></h3><p data-i18n="cat.batch.ex">one run per listed file, variables, one file per group</p></div>
+      <div class="cat"><h3><span data-i18n="cat.io">Inputs / outputs</span> <b data-count="Entrées / sorties">3</b></h3><p data-i18n="cat.io.ex">call a web API, SQL on a database, create features</p></div>
+      <div class="cat"><h3><span data-i18n="cat.comp">Components</span> <b data-count="Composants">2</b></h3><p data-i18n="cat.comp.ex">a flow reused as a modifier</p></div>
+    </div>
+    <p class="more"><a href="https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md" data-doc="catalogue" data-i18n="mods.more">Full catalogue</a></p>
+  </section>
 
-  <figure>
-    <img id="shot-query" src="img/requete-en.webp" width="1500" height="900" loading="lazy" alt="" data-i18n-alt="shot.query">
-    <figcaption data-i18n="shot.query">Read query of a GeoParquet reader: attributes to read, filter, and the number of features it keeps, without running the flow.</figcaption>
-  </figure>
-  <p class="muted" style="margin-top:10px" data-i18n="shot.data">Data shown: communes of Haute-Garonne and their population, from the API Géo of Etalab (Licence Ouverte).</p>
+  <section id="video">
+    <h2 data-i18n="video.title">Video</h2>
+    <figure>
+      <video id="demo" controls preload="none" playsinline width="1280" height="800" src="media/demo-en.mp4" poster="img/demo-en.webp"></video>
+      <figcaption data-i18n="video.caption">A flow built from an empty canvas, run, then its result inspected.</figcaption>
+    </figure>
+  </section>
 
-  <h2 id="download" data-i18n="dl.title">Download</h2>
-  <table>
-    <tr>
-      <th>Windows 10 / 11</th>
-      <td>
-        <a id="dl-win" href="https://github.com/TLecae/Carriole/releases/latest">Carriole-Setup.exe</a> <span class="muted" id="dl-win-detail"></span><br>
-        <span data-i18n="dl.win">Installer for all users of the computer. It is not code-signed: on the SmartScreen warning, choose “More info”, then “Run anyway”.</span>
-      </td>
-    </tr>
-    <tr>
-      <th>Linux x64</th>
-      <td>
-        <a id="dl-linux" href="https://github.com/TLecae/Carriole/releases/latest">Carriole.AppImage</a> <span class="muted" id="dl-linux-detail"></span><br>
-        <span data-i18n-html="dl.linux">Make the file executable (<code>chmod +x</code>) and run it. No installation or admin rights needed.</span>
-      </td>
-    </tr>
-  </table>
-  <p class="muted" style="margin-top:10px"><span data-i18n="dl.bundled">Python, GDAL, DuckDB and the projection grids are included.</span> <a href="https://github.com/TLecae/Carriole/releases" data-i18n="dl.all">All versions and checksums</a>.</p>
+  <section>
+    <div class="gallery">
+      <figure>
+        <img id="shot-inspector" src="img/inspecteur-en.webp" width="1500" height="900" loading="lazy" alt="" data-i18n-alt="shot.inspector">
+        <figcaption data-i18n="shot.inspector">Inspector in full page: colors by an attribute, sorted table, selection shared between table and map.</figcaption>
+      </figure>
+      <figure>
+        <img id="shot-query" src="img/requete-en.webp" width="1500" height="900" loading="lazy" alt="" data-i18n-alt="shot.query">
+        <figcaption data-i18n="shot.query">Read query of a file: attributes to read, filter, and number of features kept, without running the flow.</figcaption>
+      </figure>
+    </div>
+  </section>
 
-  <h2 data-i18n="code.title">Writing a modifier</h2>
-  <p data-i18n="code.sub">A modifier is one Python class in one file. Its parameters become a form in the editor. The file is placed in the plugins folder; no rebuild is needed.</p>
-<pre><code>class SurfaceCalculator(Modifier):
-    name = "SurfaceCalculator"
-    label = "Surface area"
-    category = "Geometry"
+  <section>
+    <h2 data-i18n="local.title">On your computer</h2>
+    <ul>
+      <li data-i18n="local.1">Installed with an .exe (Windows) or run as an AppImage (Linux); Python, GDAL, DuckDB and the projection grids are included.</li>
+      <li data-i18n="local.2">No server: Carriole reads and writes your files, network shares and databases with your own permissions.</li>
+      <li data-i18n="local.3">Internet is only used for the basemap and for the web sources your flows call.</li>
+      <li data-i18n="local.4">Interface in English and French.</li>
+      <li data-i18n="local.5">Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama): it proposes changes to the flow; what it may read is configurable.</li>
+    </ul>
+  </section>
 
-    class Params(Params):
-        attribute: str = "surface"
-        unit: Literal["m2", "ha"] = "m2"
+  <section id="download">
+    <h2 data-i18n="dl.title">Download</h2>
+    <table>
+      <tr>
+        <th>Windows 10 / 11</th>
+        <td>
+          <a id="dl-win" href="https://github.com/TLecae/Carriole/releases/latest">Carriole-Setup.exe</a> <span class="muted" id="dl-win-detail"></span><br>
+          <span data-i18n="dl.win">Installer for all users of the computer. It is not code-signed: on the SmartScreen warning, choose “More info”, then “Run anyway”.</span>
+        </td>
+      </tr>
+      <tr>
+        <th>Linux x64</th>
+        <td>
+          <a id="dl-linux" href="https://github.com/TLecae/Carriole/releases/latest">Carriole.AppImage</a> <span class="muted" id="dl-linux-detail"></span><br>
+          <span data-i18n-html="dl.linux">Make the file executable (<code>chmod +x</code>) and run it. No installation or admin rights needed.</span>
+        </td>
+      </tr>
+    </table>
+    <p class="muted" style="margin-top:10px"><a href="https://github.com/TLecae/Carriole/releases" data-i18n="dl.all">All versions and checksums</a></p>
+  </section>
 
-    def process(self, batch):
-        area = shapely.area(geometries(batch))
-        if self.params.unit == "ha":
-            area = area / 10_000
-        return {"output": batch.append_column(
-            self.params.attribute, pa.array(area))}</code></pre>
-
-  <h2 data-i18n="built.title">Libraries used</h2>
-  <dl>
-    <dt data-i18n="built.g1">Data</dt>
-    <dd><a href="https://duckdb.org">DuckDB</a> (Spatial), <a href="https://arrow.apache.org">Apache Arrow</a>, <a href="https://gdal.org">GDAL</a> (<a href="https://pyogrio.readthedocs.io">pyogrio</a>, <a href="https://rasterio.readthedocs.io">Rasterio</a>), <a href="https://shapely.readthedocs.io">Shapely</a> / GEOS, <a href="https://proj.org">PROJ</a> / pyproj, <a href="https://numpy.org">NumPy</a></dd>
-    <dt data-i18n="built.g2">Databases</dt>
-    <dd><a href="https://www.psycopg.org">psycopg</a>, <a href="https://python-oracledb.readthedocs.io">python-oracledb</a>, SQLite, <a href="https://www.sqlalchemy.org">SQLAlchemy</a></dd>
-    <dt data-i18n="built.g3">Backend</dt>
-    <dd><a href="https://fastapi.tiangolo.com">FastAPI</a>, <a href="https://www.uvicorn.org">Uvicorn</a>, <a href="https://docs.pydantic.dev">Pydantic</a>, <a href="https://typer.tiangolo.com">Typer</a></dd>
-    <dt data-i18n="built.g4">Interface</dt>
-    <dd><a href="https://react.dev">React</a>, <a href="https://reactflow.dev">React Flow</a>, <a href="https://maplibre.org">MapLibre GL JS</a>, <a href="https://codemirror.net">CodeMirror</a>, <a href="https://tanstack.com/virtual">TanStack Virtual</a>, <a href="https://www.i18next.com">i18next</a>, <a href="https://zustand.docs.pmnd.rs">Zustand</a>, <a href="https://vite.dev">Vite</a></dd>
-    <dt data-i18n="built.g5">Desktop application</dt>
-    <dd><a href="https://www.electronjs.org">Electron</a>, <a href="https://www.electron.build">electron-builder</a>, <a href="https://docs.astral.sh/uv/">uv</a>, python-build-standalone</dd>
-    <dt data-i18n="built.g6">Maps and data</dt>
-    <dd data-i18n-html="built.d6"><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, IGN transformation grids</dd>
-  </dl>
-  <p class="muted" style="margin-top:12px"><a href="https://github.com/TLecae/Carriole/blob/main/THIRD_PARTY_NOTICES.md" data-i18n="built.all">Components and licenses</a></p>
+  <section>
+    <p class="muted" data-i18n-html="more.dev">For developers: an extra modifier is one Python file, added without rebuilding Carriole (<a href="https://github.com/TLecae/Carriole/blob/main/docs/ecrire_un_modificateur.md">guide</a>). The <code>etl</code> command line is optional.</p>
+    <details>
+      <summary data-i18n="built.title">Libraries used</summary>
+      <dl class="libs">
+        <dt data-i18n="built.g1">Data</dt>
+        <dd><a href="https://duckdb.org">DuckDB</a> (Spatial), <a href="https://arrow.apache.org">Apache Arrow</a>, <a href="https://gdal.org">GDAL</a> (<a href="https://pyogrio.readthedocs.io">pyogrio</a>, <a href="https://rasterio.readthedocs.io">Rasterio</a>), <a href="https://shapely.readthedocs.io">Shapely</a> / GEOS, <a href="https://proj.org">PROJ</a> / pyproj, <a href="https://numpy.org">NumPy</a></dd>
+        <dt data-i18n="built.g2">Databases</dt>
+        <dd><a href="https://www.psycopg.org">psycopg</a>, <a href="https://python-oracledb.readthedocs.io">python-oracledb</a>, SQLite, <a href="https://www.sqlalchemy.org">SQLAlchemy</a></dd>
+        <dt data-i18n="built.g3">Backend</dt>
+        <dd><a href="https://fastapi.tiangolo.com">FastAPI</a>, <a href="https://www.uvicorn.org">Uvicorn</a>, <a href="https://docs.pydantic.dev">Pydantic</a>, <a href="https://typer.tiangolo.com">Typer</a></dd>
+        <dt data-i18n="built.g4">Interface</dt>
+        <dd><a href="https://react.dev">React</a>, <a href="https://reactflow.dev">React Flow</a>, <a href="https://maplibre.org">MapLibre GL JS</a>, <a href="https://codemirror.net">CodeMirror</a>, <a href="https://tanstack.com/virtual">TanStack Virtual</a>, <a href="https://www.i18next.com">i18next</a>, <a href="https://zustand.docs.pmnd.rs">Zustand</a>, <a href="https://vite.dev">Vite</a></dd>
+        <dt data-i18n="built.g5">Desktop application</dt>
+        <dd><a href="https://www.electronjs.org">Electron</a>, <a href="https://www.electron.build">electron-builder</a>, <a href="https://docs.astral.sh/uv/">uv</a>, python-build-standalone</dd>
+        <dt data-i18n="built.g6">Maps and data</dt>
+        <dd data-i18n-html="built.d6"><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, IGN transformation grids</dd>
+      </dl>
+      <p class="muted" style="margin-top:12px"><a href="https://github.com/TLecae/Carriole/blob/main/THIRD_PARTY_NOTICES.md" data-i18n="built.all">Components and licenses</a></p>
+    </details>
+  </section>
 </main>
 
 <footer>
@@ -205,35 +323,56 @@
 <script>
 (() => {
   const REPO = "TLecae/Carriole";
+  const BLOB = `https://github.com/${REPO}/blob/main/`;
   const T = {
     en: {
-      "title": "Carriole",
-      "nav.download": "Download", "nav.docs": "Documentation",
-      "intro.1": "Desktop ETL for geographic data. Flows are built in a visual editor from modifiers written in Python, and every intermediate result can be checked on a table and a map.",
-      "intro.2": "Windows and Linux. Free software under the MIT license.",
-      "cta.download": "Download", "cta.source": "Source code",
-      "shot.editor": "A flow in the editor: communes read from a GeoParquet file, reprojected, population density computed. Below, its output on the table and the map.",
-      "shot.inspector": "Inspector in full page: communes colored by population density, table sorted by density, the selected commune highlighted on both.",
-      "features.title": "What it does",
-      "features.1": "Reads and writes PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT or X/Y) and Excel. Rasters: GeoTIFF, COG, JPEG 2000, NetCDF, STAC catalogs.",
-      "features.2": "About a hundred modifiers: attributes, filters, joins, statistics, geometry (buffer, clip, dissolve, polygon overlay, spatial joins, reprojection, validation…) and rasters. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md\">Catalogue</a>.",
-      "features.3": "The output of each port can be opened on a filterable table and a map, computed with DuckDB Spatial, including on millions of features.",
-      "features.4": "Runs in the background, with a cache: on the next run, only the nodes that changed are recomputed. Runs can be scheduled.",
-      "features.5": "Flows are JSON files, stored wherever the team wants. Reusable components are shared through a folder.",
-      "features.6": "Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama), which proposes changes to the flow; what it may read is configurable.",
-      "features.7": "Runs on the user's computer, with their own file permissions, without a server. Internet is only used for basemaps and the assistant. Interface in English and French.",
-      "shot.query": "Read query of a GeoParquet reader: attributes to read, filter, and the number of features it keeps, without running the flow.",
-      "shot.data": "Data shown: communes of Haute-Garonne and their population, from the API Géo of Etalab (Licence Ouverte).",
-      "video.title": "Video",
-      "video.caption": "The flow above, built from an empty canvas, run, then its result inspected: table sorted by density, map colored by density, selection shared between the two. 1 minute, no sound.",
-      "features.8": "SQL and expression editors with completion, error checking, and the list of attributes with their most frequent values. A reader of CSV or Parquet files shows its read query: attributes to read, filter, number of features kept.",
+      "nav.formats": "Formats", "nav.modifiers": "Modifiers", "nav.download": "Download", "nav.guide": "User guide",
+      "hero.lead": "Process geographic data without writing code",
+      "hero.sub": "Carriole is a desktop ETL for GIS: modifiers are assembled on a canvas, the flow is run, and every result can be checked on a table and a map.",
+      "cta.download": "Download", "cta.guide": "User guide", "cta.source": "Source code",
+      "stat.mod": "modifiers", "stat.mod.detail": "geometry, attributes, joins, filters, statistics",
+      "stat.fmt": "vector formats and databases", "stat.fmt.detail": "read and written: PostGIS, GeoPackage, Shapefile…",
+      "stat.raster": "raster modifiers", "stat.raster.detail": "GeoTIFF, COG, JPEG 2000, NetCDF, STAC",
+      "stat.os": "free, MIT license", "stat.os.detail": "no server, nothing to set up",
+      "shot.editor": "A flow in the editor; below, the output of its last node on the table and the map.",
+      "how.title": "Build, check, automate", "how.sub": "Everything is done with the mouse and forms.",
+      "how.build.t": "Build",
+      "how.build.d": "Modifiers are dragged from the palette and connected output to input. Each parameter has its form, with help and a link to the documentation. Expressions and SQL are written with the list of attributes and their values a click away.",
+      "how.check.t": "Check",
+      "how.check.d": "A click on a node shows its output on a table (filters, sorting) and a map (colors by attribute, OpenStreetMap or satellite basemap). Before running, warnings point out a missing attribute or parameter.",
+      "how.auto.t": "Automate",
+      "how.auto.d": "Running again only recomputes what changed. A flow can run once per file of a folder or per value, and be scheduled. Flows are files the team shares.",
+      "fmt.title": "Formats", "fmt.sub": "Read and written, unless stated otherwise.",
+      "fmt.db": "Databases", "fmt.vector": "Vector files", "fmt.table": "Tables", "fmt.csv": "CSV (WKT or X/Y)",
+      "fmt.raster": "Rasters", "fmt.raster.note": "written as GeoTIFF or COG",
+      "fmt.web": "Web", "fmt.web.parquet": "(Geo)Parquet over https", "fmt.web.stac": "STAC search", "fmt.web.api": "Web APIs (JSON)", "fmt.web.note": "read",
+      "fmt.more": "Format details",
+      "mods.title": "modifiers", "mods.sub": "By category; the catalogue describes each parameter.", "mods.more": "Full catalogue",
+      "cat.geom": "Geometry", "cat.geom.ex": "buffer, clip, dissolve, polygon overlay, reprojection, repair…",
+      "cat.attr": "Attributes", "cat.attr.ex": "create, rename, manage, convert, pivot, extract from JSON…",
+      "cat.raster": "Rasters", "cat.raster.ex": "raster calculator, terrain analysis, contour lines, zonal statistics, mosaic, STAC search…",
+      "cat.read": "Reading", "cat.read.ex": "one reader per format, files and databases",
+      "cat.write": "Writing", "cat.write.ex": "one writer per format; append and update in databases",
+      "cat.filter": "Filters", "cat.filter.ex": "by expression, spatial, by geometry type, duplicates, sample",
+      "cat.join": "Joins", "cat.join.ex": "attribute join, point in polygon, nearest neighbors, spatial relator",
+      "cat.calc": "Calculations", "cat.calc.ex": "statistics, aggregate, sort, counter, SQL on the inputs",
+      "cat.batch": "Batches and variables", "cat.batch.ex": "one run per listed file, variables, one file per group",
+      "cat.io": "Inputs / outputs", "cat.io.ex": "call a web API, SQL on a database, create features",
+      "cat.comp": "Components", "cat.comp.ex": "a flow reused as a modifier",
+      "video.title": "Video", "video.caption": "A flow built from an empty canvas, run, then its result inspected.",
+      "shot.inspector": "Inspector in full page: colors by an attribute, sorted table, selection shared between table and map.",
+      "shot.query": "Read query of a file: attributes to read, filter, and number of features kept, without running the flow.",
+      "local.title": "On your computer",
+      "local.1": "Installed with an .exe (Windows) or run as an AppImage (Linux); Python, GDAL, DuckDB and the projection grids are included.",
+      "local.2": "No server: Carriole reads and writes your files, network shares and databases with your own permissions.",
+      "local.3": "Internet is only used for the basemap and for the web sources your flows call.",
+      "local.4": "Interface in English and French.",
+      "local.5": "Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama): it proposes changes to the flow; what it may read is configurable.",
       "dl.title": "Download",
       "dl.win": "Installer for all users of the computer. It is not code-signed: on the SmartScreen warning, choose “More info”, then “Run anyway”.",
       "dl.linux": "Make the file executable (<code>chmod +x</code>) and run it. No installation or admin rights needed.",
-      "dl.bundled": "Python, GDAL, DuckDB and the projection grids are included.",
       "dl.all": "All versions and checksums",
-      "code.title": "Writing a modifier",
-      "code.sub": "A modifier is one Python class in one file. Its parameters become a form in the editor. The file is placed in the plugins folder; no rebuild is needed.",
+      "more.dev": "For developers: an extra modifier is one Python file, added without rebuilding Carriole (<a href=\"https://github.com/TLecae/Carriole/blob/main/docs/ecrire_un_modificateur.md\">guide</a>). The <code>etl</code> command line is optional.",
       "built.title": "Libraries used",
       "built.g1": "Data", "built.g2": "Databases", "built.g3": "Backend", "built.g4": "Interface", "built.g5": "Desktop application", "built.g6": "Maps and data",
       "built.d6": "<a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors, IGN transformation grids",
@@ -241,33 +380,53 @@
       "foot.license": "MIT license", "foot.issues": "Report a problem",
     },
     fr: {
-      "title": "Carriole",
-      "nav.download": "Télécharger", "nav.docs": "Documentation",
-      "intro.1": "ETL de bureau pour les données géographiques. Les flux se construisent dans un éditeur graphique à partir de modificateurs écrits en Python, et chaque résultat intermédiaire se vérifie sur une table et une carte.",
-      "intro.2": "Windows et Linux. Logiciel libre sous licence MIT.",
-      "cta.download": "Télécharger", "cta.source": "Code source",
-      "shot.editor": "Un flux dans l'éditeur : communes lues dans un GeoParquet, reprojetées, densité de population calculée. En bas, sa sortie sur la table et la carte.",
-      "shot.inspector": "Inspecteur en pleine page : communes colorées selon la densité de population, table triée par densité, commune sélectionnée sur les deux.",
-      "features.title": "Fonctionnalités",
-      "features.1": "Lecture et écriture de PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT ou X/Y) et Excel. Rasters : GeoTIFF, COG, JPEG 2000, NetCDF, catalogues STAC.",
-      "features.2": "Une centaine de modificateurs : attributs, filtres, jointures, statistiques, géométrie (zone tampon, découpage, fusion, superposition de polygones, jointures spatiales, reprojection, validation…) et rasters. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/catalogue.md\">Catalogue</a>.",
-      "features.3": "La sortie de chaque port s'ouvre dans une table filtrable et sur une carte, calculées avec DuckDB Spatial, y compris sur des millions d'entités.",
-      "features.4": "Exécution en arrière-plan, avec un cache : au run suivant, seuls les nœuds modifiés sont recalculés. Les runs peuvent être planifiés.",
-      "features.5": "Les flux sont des fichiers JSON, rangés où l'équipe le souhaite. Les composants réutilisables se partagent par un dossier.",
-      "features.6": "Assistant IA facultatif (Claude, OpenAI, OpenRouter, Ollama), qui propose des modifications du flux ; ce qu'il peut lire se règle.",
-      "features.7": "Fonctionne sur le poste de l'utilisateur, avec ses droits sur les fichiers, sans serveur. Internet ne sert qu'aux fonds de carte et à l'assistant. Interface en français et en anglais.",
-      "shot.query": "Requête de lecture d'un lecteur GeoParquet : attributs lus, filtre, et nombre d'entités gardées, sans lancer le flux.",
-      "shot.data": "Données montrées : communes de la Haute-Garonne et leur population, API Géo d'Etalab (Licence Ouverte).",
-      "video.title": "Vidéo",
-      "video.caption": "Le flux ci-dessus, construit à partir d'un canevas vide, lancé, puis son résultat inspecté : table triée par densité, carte colorée selon la densité, sélection partagée entre les deux. 1 minute, sans son.",
-      "features.8": "Éditeurs SQL et d'expressions avec complétion, vérification, et la liste des attributs avec leurs valeurs les plus fréquentes. Un lecteur de fichiers CSV ou Parquet montre sa requête de lecture : attributs lus, filtre, nombre d'entités gardées.",
+      "nav.formats": "Formats", "nav.modifiers": "Modificateurs", "nav.download": "Télécharger", "nav.guide": "Guide",
+      "hero.lead": "Traiter des données géographiques sans écrire de code",
+      "hero.sub": "Carriole est un ETL de bureau pour les SIG : on assemble des modificateurs sur un canevas, on lance le flux, et chaque résultat se vérifie sur une table et une carte.",
+      "cta.download": "Télécharger", "cta.guide": "Guide de l'utilisateur", "cta.source": "Code source",
+      "stat.mod": "modificateurs", "stat.mod.detail": "géométrie, attributs, jointures, filtres, statistiques",
+      "stat.fmt": "formats vecteur et bases de données", "stat.fmt.detail": "en lecture et en écriture : PostGIS, GeoPackage, Shapefile…",
+      "stat.raster": "modificateurs raster", "stat.raster.detail": "GeoTIFF, COG, JPEG 2000, NetCDF, STAC",
+      "stat.os": "gratuit, licence MIT", "stat.os.detail": "sans serveur, rien à configurer",
+      "shot.editor": "Un flux dans l'éditeur ; en bas, la sortie de son dernier nœud sur la table et la carte.",
+      "how.title": "Construire, vérifier, automatiser", "how.sub": "Tout se fait à la souris et dans des formulaires.",
+      "how.build.t": "Construire",
+      "how.build.d": "Les modificateurs se glissent depuis la palette et se branchent sortie vers entrée. Chaque paramètre a son formulaire, avec une aide et un lien vers la documentation. Expressions et SQL s'écrivent avec la liste des attributs et de leurs valeurs à portée de clic.",
+      "how.check.t": "Vérifier",
+      "how.check.d": "Un clic sur un nœud montre sa sortie sur une table (filtres, tri) et une carte (couleurs selon un attribut, fond OpenStreetMap ou satellite). Avant le lancement, les avertissements signalent un attribut absent ou un paramètre manquant.",
+      "how.auto.t": "Automatiser",
+      "how.auto.d": "Relancer ne recalcule que ce qui a changé. Un flux peut tourner une fois par fichier d'un dossier ou par valeur, et se planifier. Les flux sont des fichiers que l'équipe partage.",
+      "fmt.title": "Formats", "fmt.sub": "En lecture et en écriture, sauf mention.",
+      "fmt.db": "Bases de données", "fmt.vector": "Fichiers vecteur", "fmt.table": "Tableaux", "fmt.csv": "CSV (WKT ou X/Y)",
+      "fmt.raster": "Rasters", "fmt.raster.note": "écrits en GeoTIFF ou COG",
+      "fmt.web": "Web", "fmt.web.parquet": "(Geo)Parquet en https", "fmt.web.stac": "Recherche STAC", "fmt.web.api": "API web (JSON)", "fmt.web.note": "lecture",
+      "fmt.more": "Détail des formats",
+      "mods.title": "modificateurs", "mods.sub": "Par catégorie ; le catalogue décrit chaque paramètre.", "mods.more": "Catalogue complet",
+      "cat.geom": "Géométrie", "cat.geom.ex": "zone tampon, découpage, fusion, superposition de polygones, reprojection, réparation…",
+      "cat.attr": "Attributs", "cat.attr.ex": "créer, renommer, gérer, convertir, pivoter, extraire du JSON…",
+      "cat.raster": "Rasters", "cat.raster.ex": "calculatrice de rasters, analyse de terrain, courbes de niveau, statistiques zonales, mosaïque, recherche STAC…",
+      "cat.read": "Lecture", "cat.read.ex": "un lecteur par format, fichiers et bases",
+      "cat.write": "Écriture", "cat.write.ex": "un écrivain par format ; ajout et mise à jour dans les bases",
+      "cat.filter": "Filtres", "cat.filter.ex": "par expression, spatial, par type de géométrie, doublons, échantillon",
+      "cat.join": "Jointures", "cat.join.ex": "attributaire, point dans polygone, plus proches voisines, relateur spatial",
+      "cat.calc": "Calculs", "cat.calc.ex": "statistiques, agrégats, tri, compteur, SQL sur les entrées",
+      "cat.batch": "Lots et variables", "cat.batch.ex": "un run par fichier listé, variables, un fichier par groupe",
+      "cat.io": "Entrées / sorties", "cat.io.ex": "appel d'une API web, SQL sur une base, création d'entités",
+      "cat.comp": "Composants", "cat.comp.ex": "un flux réutilisé comme un modificateur",
+      "video.title": "Vidéo", "video.caption": "Un flux construit à partir d'un canevas vide, lancé, puis son résultat inspecté.",
+      "shot.inspector": "Inspecteur en pleine page : couleurs selon un attribut, table triée, sélection partagée entre la table et la carte.",
+      "shot.query": "Requête de lecture d'un fichier : attributs lus, filtre et nombre d'entités gardées, sans lancer le flux.",
+      "local.title": "Sur votre poste",
+      "local.1": "Installation par un .exe (Windows) ou une AppImage (Linux) ; Python, GDAL, DuckDB et les grilles de projection sont inclus.",
+      "local.2": "Sans serveur : Carriole lit et écrit vos fichiers, partages réseau et bases de données avec vos propres droits.",
+      "local.3": "Internet ne sert qu'au fond de carte et aux sources web que vos flux appellent.",
+      "local.4": "Interface en français et en anglais.",
+      "local.5": "Assistant IA facultatif (Claude, OpenAI, OpenRouter, Ollama) : il propose des modifications du flux ; ce qu'il peut lire se règle.",
       "dl.title": "Télécharger",
       "dl.win": "Installeur pour tous les utilisateurs du poste. Il n'est pas signé : à l'avertissement SmartScreen, choisir « Informations complémentaires » puis « Exécuter quand même ».",
       "dl.linux": "Rendre le fichier exécutable (<code>chmod +x</code>) puis le lancer. Ni installation ni droits d'administrateur.",
-      "dl.bundled": "Python, GDAL, DuckDB et les grilles de projection sont inclus.",
       "dl.all": "Toutes les versions et sommes de contrôle",
-      "code.title": "Écrire un modificateur",
-      "code.sub": "Un modificateur est une classe Python dans un fichier. Ses paramètres deviennent un formulaire dans l'éditeur. Le fichier se dépose dans le dossier des plugins, sans rien recompiler.",
+      "more.dev": "Pour les développeurs : un modificateur supplémentaire est un fichier Python, ajouté sans recompiler Carriole (<a href=\"https://github.com/TLecae/Carriole/blob/main/docs/ecrire_un_modificateur.md\">guide</a>). La ligne de commande <code>etl</code> est facultative.",
       "built.title": "Bibliothèques utilisées",
       "built.g1": "Données", "built.g2": "Bases de données", "built.g3": "Serveur local", "built.g4": "Interface", "built.g5": "Application de bureau", "built.g6": "Cartes et données",
       "built.d6": "Contributeurs <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>, grilles de transformation de l'IGN",
@@ -275,33 +434,53 @@
       "foot.license": "Licence MIT", "foot.issues": "Signaler un problème",
     },
     es: {
-      "title": "Carriole",
-      "nav.download": "Descargar", "nav.docs": "Documentación",
-      "intro.1": "ETL de escritorio para datos geográficos. Los flujos se construyen en un editor visual a partir de modificadores escritos en Python, y cada resultado intermedio se comprueba en una tabla y un mapa.",
-      "intro.2": "Windows y Linux. Software libre con licencia MIT.",
-      "cta.download": "Descargar", "cta.source": "Código fuente",
-      "shot.editor": "Un flujo en el editor: municipios leídos de un archivo GeoParquet, reproyectados, densidad de población calculada. Abajo, su salida en la tabla y el mapa.",
-      "shot.inspector": "Inspector a pantalla completa: municipios coloreados según la densidad de población, tabla ordenada por densidad, municipio seleccionado en ambos.",
-      "features.title": "Funciones",
-      "features.1": "Lectura y escritura de PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT o X/Y) y Excel. Ráster: GeoTIFF, COG, JPEG 2000, NetCDF, catálogos STAC.",
-      "features.2": "Un centenar de modificadores: atributos, filtros, uniones, estadísticas, geometría (área de influencia, recorte, disolución, superposición de polígonos, uniones espaciales, reproyección, validación…) y ráster. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md\">Catálogo</a>.",
-      "features.3": "La salida de cada puerto se abre en una tabla filtrable y en un mapa, calculados con DuckDB Spatial, incluso con millones de entidades.",
-      "features.4": "Ejecución en segundo plano, con caché: en la siguiente ejecución solo se recalculan los nodos modificados. Las ejecuciones se pueden programar.",
-      "features.5": "Los flujos son archivos JSON, guardados donde el equipo quiera. Los componentes reutilizables se comparten mediante una carpeta.",
-      "features.6": "Asistente de IA opcional (Claude, OpenAI, OpenRouter, Ollama), que propone cambios en el flujo; lo que puede leer es configurable.",
-      "features.7": "Funciona en el equipo del usuario, con sus propios permisos sobre los archivos, sin servidor. Internet solo se usa para los mapas de fondo y el asistente. Interfaz en inglés y francés.",
-      "shot.query": "Consulta de lectura de un lector GeoParquet: atributos leídos, filtro y número de entidades conservadas, sin ejecutar el flujo.",
-      "shot.data": "Datos mostrados: municipios del departamento de Alto Garona y su población, API Géo de Etalab (Licence Ouverte).",
-      "video.title": "Vídeo",
-      "video.caption": "El flujo anterior, construido desde un lienzo vacío, ejecutado y su resultado inspeccionado: tabla ordenada por densidad, mapa coloreado según la densidad, selección compartida entre ambos. 1 minuto, sin sonido.",
-      "features.8": "Editores de SQL y de expresiones con autocompletado, verificación y la lista de atributos con sus valores más frecuentes. Un lector de archivos CSV o Parquet muestra su consulta de lectura: atributos leídos, filtro, número de entidades conservadas.",
+      "nav.formats": "Formatos", "nav.modifiers": "Modificadores", "nav.download": "Descargar", "nav.guide": "Guía",
+      "hero.lead": "Procesar datos geográficos sin escribir código",
+      "hero.sub": "Carriole es un ETL de escritorio para SIG: se ensamblan modificadores en un lienzo, se ejecuta el flujo y cada resultado se comprueba en una tabla y un mapa.",
+      "cta.download": "Descargar", "cta.guide": "Guía del usuario", "cta.source": "Código fuente",
+      "stat.mod": "modificadores", "stat.mod.detail": "geometría, atributos, uniones, filtros, estadísticas",
+      "stat.fmt": "formatos vectoriales y bases de datos", "stat.fmt.detail": "lectura y escritura: PostGIS, GeoPackage, Shapefile…",
+      "stat.raster": "modificadores ráster", "stat.raster.detail": "GeoTIFF, COG, JPEG 2000, NetCDF, STAC",
+      "stat.os": "gratuito, licencia MIT", "stat.os.detail": "sin servidor, nada que configurar",
+      "shot.editor": "Un flujo en el editor; abajo, la salida de su último nodo en la tabla y el mapa.",
+      "how.title": "Construir, comprobar, automatizar", "how.sub": "Todo se hace con el ratón y en formularios.",
+      "how.build.t": "Construir",
+      "how.build.d": "Los modificadores se arrastran desde la paleta y se conectan de salida a entrada. Cada parámetro tiene su formulario, con ayuda y un enlace a la documentación. Las expresiones y el SQL se escriben con la lista de atributos y sus valores a un clic.",
+      "how.check.t": "Comprobar",
+      "how.check.d": "Un clic en un nodo muestra su salida en una tabla (filtros, orden) y un mapa (colores según un atributo, fondo OpenStreetMap o satélite). Antes de ejecutar, los avisos señalan un atributo o un parámetro que falta.",
+      "how.auto.t": "Automatizar",
+      "how.auto.d": "Volver a ejecutar solo recalcula lo que ha cambiado. Un flujo puede ejecutarse una vez por archivo de una carpeta o por valor, y programarse. Los flujos son archivos que el equipo comparte.",
+      "fmt.title": "Formatos", "fmt.sub": "Lectura y escritura, salvo indicación.",
+      "fmt.db": "Bases de datos", "fmt.vector": "Archivos vectoriales", "fmt.table": "Tablas", "fmt.csv": "CSV (WKT o X/Y)",
+      "fmt.raster": "Ráster", "fmt.raster.note": "escritos en GeoTIFF o COG",
+      "fmt.web": "Web", "fmt.web.parquet": "(Geo)Parquet por https", "fmt.web.stac": "Búsqueda STAC", "fmt.web.api": "API web (JSON)", "fmt.web.note": "lectura",
+      "fmt.more": "Detalle de los formatos",
+      "mods.title": "modificadores", "mods.sub": "Por categoría; el catálogo describe cada parámetro.", "mods.more": "Catálogo completo",
+      "cat.geom": "Geometría", "cat.geom.ex": "área de influencia, recorte, disolución, superposición de polígonos, reproyección, reparación…",
+      "cat.attr": "Atributos", "cat.attr.ex": "crear, renombrar, gestionar, convertir, pivotar, extraer de JSON…",
+      "cat.raster": "Ráster", "cat.raster.ex": "calculadora ráster, análisis del terreno, curvas de nivel, estadísticas zonales, mosaico, búsqueda STAC…",
+      "cat.read": "Lectura", "cat.read.ex": "un lector por formato, archivos y bases de datos",
+      "cat.write": "Escritura", "cat.write.ex": "un escritor por formato; añadir y actualizar en bases de datos",
+      "cat.filter": "Filtros", "cat.filter.ex": "por expresión, espacial, por tipo de geometría, duplicados, muestra",
+      "cat.join": "Uniones", "cat.join.ex": "por atributo, punto en polígono, vecinos más cercanos, relación espacial",
+      "cat.calc": "Cálculos", "cat.calc.ex": "estadísticas, agregados, orden, contador, SQL sobre las entradas",
+      "cat.batch": "Lotes y variables", "cat.batch.ex": "una ejecución por archivo listado, variables, un archivo por grupo",
+      "cat.io": "Entradas / salidas", "cat.io.ex": "llamar a una API web, SQL en una base de datos, crear entidades",
+      "cat.comp": "Componentes", "cat.comp.ex": "un flujo reutilizado como modificador",
+      "video.title": "Vídeo", "video.caption": "Un flujo construido desde un lienzo vacío, ejecutado y su resultado inspeccionado.",
+      "shot.inspector": "Inspector a pantalla completa: colores según un atributo, tabla ordenada, selección compartida entre tabla y mapa.",
+      "shot.query": "Consulta de lectura de un archivo: atributos leídos, filtro y número de entidades conservadas, sin ejecutar el flujo.",
+      "local.title": "En su equipo",
+      "local.1": "Se instala con un .exe (Windows) o se ejecuta como AppImage (Linux); incluye Python, GDAL, DuckDB y las mallas de proyección.",
+      "local.2": "Sin servidor: Carriole lee y escribe sus archivos, recursos de red y bases de datos con sus propios permisos.",
+      "local.3": "Internet solo se usa para el mapa de fondo y las fuentes web que llaman sus flujos.",
+      "local.4": "Interfaz en inglés y francés.",
+      "local.5": "Asistente de IA opcional (Claude, OpenAI, OpenRouter, Ollama): propone cambios en el flujo; lo que puede leer es configurable.",
       "dl.title": "Descargar",
       "dl.win": "Instalador para todos los usuarios del equipo. No está firmado: ante el aviso de SmartScreen, elegir «Más información» y luego «Ejecutar de todas formas».",
       "dl.linux": "Hacer el archivo ejecutable (<code>chmod +x</code>) y abrirlo. Sin instalación ni permisos de administrador.",
-      "dl.bundled": "Incluye Python, GDAL, DuckDB y las mallas de proyección.",
       "dl.all": "Todas las versiones y sumas de verificación",
-      "code.title": "Escribir un modificador",
-      "code.sub": "Un modificador es una clase Python en un archivo. Sus parámetros se convierten en un formulario del editor. El archivo se coloca en la carpeta de plugins, sin recompilar nada.",
+      "more.dev": "Para desarrolladores: un modificador adicional es un archivo Python, añadido sin recompilar Carriole (<a href=\"https://github.com/TLecae/Carriole/blob/main/docs/ecrire_un_modificateur.md\">guía</a>, en francés). La línea de comandos <code>etl</code> es opcional.",
       "built.title": "Bibliotecas utilizadas",
       "built.g1": "Datos", "built.g2": "Bases de datos", "built.g3": "Servidor local", "built.g4": "Interfaz", "built.g5": "Aplicación de escritorio", "built.g6": "Mapas y datos",
       "built.d6": "Colaboradores de <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>, mallas de transformación del IGN",
@@ -363,13 +542,43 @@
     })
     .catch(() => renderDownloads()); // pas de version publiée, ou limite de l'API : liens vers la page des versions
 
+  // ---------------------------------------------------------------- nombre de modificateurs, lu dans le catalogue
+  // publié (tableau des catégories) : la page reste juste quand le catalogue change ; sans réseau, les nombres écrits
+  // dans la page
+  fetch(`https://raw.githubusercontent.com/${REPO}/main/docs/catalogue.md`)
+    .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
+    .then((md) => {
+      const counts = {};
+      let total = 0;
+      for (const m of md.matchAll(/^\| ([^|]+) \| (.+) \|$/gm)) {
+        const n = (m[2].match(/\]\(#/g) || []).length;
+        if (n) {
+          counts[m[1].trim()] = n;
+          total += n;
+        }
+      }
+      if (!total) return;
+      document.querySelectorAll("[data-count]").forEach((el) => {
+        const n = el.dataset.count === "total" ? total : counts[el.dataset.count];
+        if (n) el.textContent = String(n);
+      });
+    })
+    .catch(() => {});
+
   // ---------------------------------------------------------------- langue
+  const DOCS = {
+    guide: { fr: "docs/guide_utilisateur.md", other: "docs/en/user_guide.md" },
+    catalogue: { fr: "docs/catalogue.md", other: "docs/en/catalogue.md" },
+  };
   function apply() {
     document.documentElement.lang = lang;
-    document.title = tr("title");
     document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = tr(el.dataset.i18n)));
     document.querySelectorAll("[data-i18n-html]").forEach((el) => (el.innerHTML = tr(el.dataset.i18nHtml)));
     document.querySelectorAll("[data-i18n-alt]").forEach((el) => (el.alt = tr(el.dataset.i18nAlt)));
+    document.querySelectorAll("[data-doc]").forEach((el) => {
+      const doc = DOCS[el.dataset.doc];
+      el.href = BLOB + (lang === "fr" ? doc.fr : doc.other);
+    });
     const shots = lang === "fr" ? "fr" : "en"; // l'interface de Carriole existe en français et en anglais
     document.getElementById("shot-main").src = `img/editeur-${shots}.webp`;
     document.getElementById("shot-inspector").src = `img/inspecteur-${shots}.webp`;

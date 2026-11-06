@@ -156,6 +156,7 @@ async function add(page: Page, hand: Hand, search: string, type: string, at: { x
 }
 
 test("vidéo : un flux construit, lancé, puis inspecté", async ({ page }) => {
+  const t0 = Date.now(); // la vidéo commence avec la page
   await start(page);
   const hand = new Hand(page);
   await page.goto("/");
@@ -187,6 +188,8 @@ test("vidéo : un flux construit, lancé, puis inspecté", async ({ page }) => {
   await hand.click(page.locator("button.run"));
   await expect(page.getByTestId("run-status")).toHaveText("done", { timeout: 60_000 });
   await pause(800);
+  // image d'attente de la vidéo : le flux construit et lancé (scripts/site_media.ps1)
+  fs.writeFileSync(path.join(OUT, `poster-${LANG}.txt`), ((Date.now() - t0) / 1000 - 0.3).toFixed(1));
   await hand.click(page.getByRole("tab", { name: T.data }));
   await hand.click(page.getByTestId("node-AddAttributes_1").locator(".node-head"), 800);
   await expect(page.getByTestId("data-row").first()).toBeVisible();

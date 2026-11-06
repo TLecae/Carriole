@@ -14,8 +14,8 @@ un canevas à partir de modificateurs ; la sortie de chaque nœud se vérifie su
 
 ![Un flux dans l'éditeur : communes lues dans un GeoParquet, reprojetées, densité de population calculée ; en bas, la sortie sur la table et la carte](site/img/editeur-fr.webp)
 
-[Vidéo, 1 min](https://tlecae.github.io/Carriole/#video) : ce flux construit à partir d'un canevas vide, lancé, puis
-son résultat inspecté.
+[Vidéo](https://tlecae.github.io/Carriole/#video) : ce flux construit à partir d'un canevas vide, lancé, puis son
+résultat inspecté.
 
 Application de bureau : elle lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits, sans serveur à
 installer.
@@ -49,8 +49,6 @@ installer.
 ![Inspecteur en pleine page : communes colorées selon la densité de population, table triée par densité, commune sélectionnée sur les deux](site/img/inspecteur-fr.webp)
 
 ![Requête de lecture d'un lecteur GeoParquet : attributs lus, filtre, nombre d'entités gardées](site/img/requete-fr.webp)
-
-Données montrées : communes de la Haute-Garonne et leur population, API Géo d'Etalab (Licence Ouverte).
 
 ## Documentation
 

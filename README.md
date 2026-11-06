@@ -20,8 +20,7 @@ modifiers; the output of every node can be checked on a table and a map.</p>
 
 ![A flow in the editor: communes read from a GeoParquet file, reprojected, population density computed; below, the output on the table and the map](site/img/editeur-en.webp)
 
-[Video, 1 min](https://tlecae.github.io/Carriole/#video): this flow built from an empty canvas, run, then its result
-inspected.
+[Video](https://tlecae.github.io/Carriole/#video): this flow built from an empty canvas, run, then its result inspected.
 
 ## Features
 
@@ -49,8 +48,6 @@ inspected.
 ![Inspector in full page: communes colored by population density, table sorted by density, the selected commune highlighted on both](site/img/inspecteur-en.webp)
 
 ![Read query of a GeoParquet reader: attributes to read, filter, number of features kept](site/img/requete-en.webp)
-
-Data shown: communes of Haute-Garonne with their population, from the API Géo of Etalab (Licence Ouverte).
 
 ## Install
 

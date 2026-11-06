@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Site: home page reorganized for GIS users who do not code: number of modifiers by category (read from the
+  published catalogue), formats by family, build / check / automate, video and screenshots; the Python section is
+  reduced to one line.
+
 ## 0.1.6
 
 - *OverlayPolygons*: computed by tiles on all cores, sized from the memory budget of *Settings* and the number

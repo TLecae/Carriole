@@ -60,8 +60,10 @@ foreach ($l in $Lang) {
   # H.264, lue par tous les navigateurs ; démarrage avant la fin du téléchargement ; sans son
   & $ffmpeg -y -v error -i $video.FullName -c:v libx264 -preset slow -crf 30 -pix_fmt yuv420p -movflags +faststart -an (Join-Path $root "site\media\demo-$l.mp4")
   Check "vidéo ($l)"
-  # image d'attente : le flux construit, avant son lancement (les captures montrent déjà l'inspecteur)
-  & $ffmpeg -y -v error -ss 28 -i $video.FullName -frames:v 1 -c:v libwebp -quality 80 (Join-Path $root "site\img\demo-$l.webp")
+  # image d'attente : le flux construit et lancé, à l'instant noté par le scénario (les captures montrent déjà
+  # l'inspecteur)
+  $at = (Get-Content (Join-Path $out "poster-$l.txt") -Raw).Trim()
+  & $ffmpeg -y -v error -ss $at -i $video.FullName -frames:v 1 -c:v libwebp -quality 80 (Join-Path $root "site\img\demo-$l.webp")
   Check "image d'attente ($l)"
   foreach ($name in "editeur", "inspecteur", "requete") {
     & $ffmpeg -y -v error -i (Join-Path $out "$name-$l.png") -c:v libwebp -quality 82 (Join-Path $root "site\img\$name-$l.webp")
