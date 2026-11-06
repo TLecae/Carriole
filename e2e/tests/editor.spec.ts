@@ -563,14 +563,15 @@ test("bandeau du nœud : lancer jusqu'à lui en reprenant le cache, le désactiv
   await expect(journal.locator(".log-line").first()).toContainText("run jusqu'au nœud"); // l'en-tête d'abord
   await expect(journal).toContainText("CsvReader_1 repris du cache : output 20");
   await expect(journal).toContainText("run terminé en");
-  await tester.click();
+  // un clic sur l'en-tête : le centre d'un nœud peut être le chevron des attributs d'un port
+  await tester.locator(".node-head").click();
   await expect(page.getByTestId("data-count")).toHaveText("10 entités");
-  await reader.click();
+  await reader.locator(".node-head").click();
   await expect(page.getByTestId("data-count")).toHaveText("20 entités");
   await page.getByTestId("data-row").first().click();
-  await reader.click();
+  await reader.locator(".node-head").click();
   await expect(page.getByTestId("data-count")).toHaveText("20 entités");
-  await tester.click();
+  await tester.locator(".node-head").click();
   await expect(page.getByTestId("data-count")).toHaveText("10 entités");
 
   // désactiver puis réactiver
