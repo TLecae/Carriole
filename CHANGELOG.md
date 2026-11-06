@@ -13,6 +13,9 @@
   GeoPackage, Shapefile…) or from a GeoParquet whose geometry carries the Arrow `geoarrow.wkb` extension: DuckDB 2
   read such a column as a native geometry and the expression failed. The geometry is now plain WKB everywhere.
 - Canvas: fitting the view (opening a flow, first node, button) no longer zooms in beyond 100 %.
+- README and site: new screenshots and a one-minute video of a flow built, run and inspected, recorded from the
+  application by `scripts/site_media.ps1`; plainer wording. In English, the OpenStreetMap basemap is labelled
+  "Streets".
 - README and site: code signing policy, for the SignPath Foundation application (roles, privacy statement).
 - Inspector: the table of a dataset with a date-and-time-with-time-zone field (such as a GeoParquet read over https)
   is shown again; it failed with "invalid query" because DuckDB needs `pytz` for these values, now a dependency.

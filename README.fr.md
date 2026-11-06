@@ -2,9 +2,8 @@
 
 <h1 align="center">Carriole</h1>
 
-<p align="center"><b>L'ETL pensé d'abord pour la donnée géographique.</b><br>On construit des traitements SIG en
-branchant des modificateurs Python les uns aux autres dans un éditeur graphique, on les exécute en arrière-plan et on
-inspecte chaque connexion sur une table et une carte synchronisées.</p>
+<p align="center">ETL de bureau pour les données géographiques, sous Windows et Linux.<br>Les flux se construisent sur
+un canevas à partir de modificateurs ; la sortie de chaque nœud se vérifie sur une table et une carte.</p>
 
 <p align="center">
   <a href="https://tlecae.github.io/Carriole/">Site</a> ·
@@ -13,28 +12,45 @@ inspecte chaque connexion sur une table et une carte synchronisées.</p>
   <a href="README.md">English</a>
 </p>
 
-![Un flux dans l'éditeur ; la sortie de la zone tampon sur la table et la carte](site/img/editeur-fr.webp)
+![Un flux dans l'éditeur : communes lues dans un GeoParquet, reprojetées, densité de population calculée ; en bas, la sortie sur la table et la carte](site/img/editeur-fr.webp)
 
-Ici, la géométrie n'est pas une colonne parmi d'autres : chaque connexion transporte des entités avec leur système
-de coordonnées, les modificateurs connaissent la géométrie, et tout résultat intermédiaire se regarde sur une carte.
-Application de bureau (Windows, Linux) : elle lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits.
+[Vidéo, 1 min](https://tlecae.github.io/Carriole/#video) : ce flux construit à partir d'un canevas vide, lancé, puis
+son résultat inspecté.
+
+Application de bureau : elle lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits, sans serveur à
+installer.
 
 > Plan et avancement : [docs/plan_jalons.md](docs/plan_jalons.md) et [docs/journal_jalons.md](docs/journal_jalons.md).
 
 ## Ce que ça fait
 
-- **Éditeur graphique** : flux récents, palette, ajout rapide au clavier, formulaires générés depuis le code des
-  modificateurs (aide et exemples sur chaque champ), dialogues de fichiers, annuler/rétablir, copier-coller, signets,
-  annotations.
+- **Formats**, en lecture et en écriture : PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON,
+  (Geo)Parquet (local ou en https), FlatGeobuf, CSV (WKT ou X/Y), Excel ; bases Oracle et SQLite / SpatiaLite ;
+  rasters GeoTIFF / COG, JPEG 2000, NetCDF, catalogues STAC : [formats](docs/formats.md).
+- **Une centaine de modificateurs** : attributs, filtres, jointures, statistiques ; géométrie (zone tampon,
+  découpage, fusion, superposition de polygones, jointures spatiales, reprojection avec les grilles de l'IGN,
+  validation…) ; rasters (calculatrice, relief, courbes de niveau, statistiques zonales…) : [catalogue](docs/catalogue.md).
+- **Inspecteur** : la sortie de chaque nœud sur une table (filtres par colonne, tri, `WHERE` SQL) et sur une carte
+  (couleurs selon un attribut, OpenStreetMap, photographies aériennes ou serveur de tuiles personnalisé), sélection
+  partagée entre les deux. Les requêtes passent par DuckDB et la carte est dessinée en tuiles vectorielles : un gros
+  jeu de données reste consultable.
+- **Édition** : formulaires générés depuis les paramètres des modificateurs, aide sur chaque champ et lien vers le
+  catalogue. Les éditeurs SQL et d'expressions proposent la complétion, la vérification, et la liste des attributs
+  avec leurs valeurs les plus fréquentes.
+- **Runs** en arrière-plan : nœuds en parallèle, mémoire limitée au budget réglé dans *Paramètres*. Le résultat de
+  chaque nœud est gardé : le run suivant ne recalcule que ce qui a changé. Les runs se planifient (cron).
 - **Des flux en fichiers JSON**, rangés où l'équipe veut ; composants partagés par un dossier commun.
-- **104 modificateurs** (un lecteur et un écrivain par format de fichier, attributs, filtres, jointures, statistiques, géométrie, bases SQL (PostgreSQL, Oracle, SQLite), rasters et STAC…) : [catalogue](docs/catalogue.md).
-- **Assistant IA** (Claude, OpenAI, OpenRouter, Ollama) : il lit le flux, les fichiers et les runs, et propose des modifications que l'on applique d'un clic ; confidentialité réglable : [ADR 0027](docs/decisions/0027-assistant-ia.md).
-- **Formats géographiques** : PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT ou X/Y), Excel ; rasters GeoTIFF/COG, JPEG 2000, NetCDF, catalogues STAC : [formats](docs/formats.md).
-- **Runs en arrière-plan** sur des workers (reprise, annulation, notification), planifiables (cron).
-- **Français et anglais** : langue choisie à l'installation, modifiable dans les paramètres ([ADR 0023](docs/decisions/0023-internationalisation.md)).
-- **Ligne de commande** `etl` : exécuter, valider, inspecter un fichier, piloter le backend local.
-- **Inspecteur** : table filtrable et carte synchronisées (DuckDB), sur des millions d'entités.
-- **Performance** : nœuds enchaînés en parallèle, mémoire bornée par run, plusieurs flux à la fois ([ADR 0028](docs/decisions/0028-performance-memoire-et-runs-paralleles.md)).
+- **Des modificateurs en Python** : un plugin est une classe dans un fichier ([écrire un modificateur](docs/ecrire_un_modificateur.md)).
+- **Assistant IA** facultatif (Claude, OpenAI, OpenRouter, Ollama) : il lit le flux et propose des modifications que
+  l'on applique d'un clic ; ce qu'il peut lire se règle : [ADR 0027](docs/decisions/0027-assistant-ia.md).
+- **Français et anglais**, au choix dans les paramètres ([ADR 0023](docs/decisions/0023-internationalisation.md)).
+- **Ligne de commande** `etl`, facultative : exécuter, valider, inspecter un fichier, piloter le serveur local.
+
+![Inspecteur en pleine page : communes colorées selon la densité de population, table triée par densité, commune sélectionnée sur les deux](site/img/inspecteur-fr.webp)
+
+![Requête de lecture d'un lecteur GeoParquet : attributs lus, filtre, nombre d'entités gardées](site/img/requete-fr.webp)
+
+Données montrées : communes de la Haute-Garonne et leur population, API Géo d'Etalab (Licence Ouverte).
 
 ## Documentation
 
@@ -83,6 +99,8 @@ powershell -ExecutionPolicy Bypass -File scripts\ci.ps1     # lint, pytest, vite
 
 PostgreSQL de test facultatif : `ETL_TEST_PG` (voir `.env.example`). Navigateur des tests de bout en bout : Edge
 (livré avec Windows) ou Chromium (`E2E_CHANNEL=chromium`).
+
+Captures et vidéo du site : `scripts\site_media.ps1` (rejoue `e2e/media`).
 
 ## Construit avec
 

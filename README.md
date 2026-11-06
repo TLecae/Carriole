@@ -2,8 +2,8 @@
 
 <h1 align="center">Carriole</h1>
 
-<p align="center"><b>The geospatial-first ETL.</b><br>Build GIS data pipelines by wiring Python modifiers together in
-a visual editor, run them in the background, and inspect every connection on a synchronized table and map.</p>
+<p align="center">Desktop ETL for geographic data, on Windows and Linux.<br>Flows are built on a canvas from
+modifiers; the output of every node can be checked on a table and a map.</p>
 
 <p align="center">
   <a href="https://github.com/TLecae/Carriole/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/TLecae/Carriole?label=download"></a>
@@ -18,35 +18,39 @@ a visual editor, run them in the background, and inspect every connection on a s
   <a href="README.fr.md">Français</a>
 </p>
 
-![A flow in the editor; the buffer output on the table and the map](site/img/editeur-en.webp)
+![A flow in the editor: communes read from a GeoParquet file, reprojected, population density computed; below, the output on the table and the map](site/img/editeur-en.webp)
 
-## Why Carriole
+[Video, 1 min](https://tlecae.github.io/Carriole/#video): this flow built from an empty canvas, run, then its result
+inspected.
 
-In Carriole, geometry is not an afterthought. Every connection carries features with their coordinate reference
-system, modifiers are geometry-aware, and any intermediate result can be looked at on a map. It is a desktop
-application for GIS teams who want visual workflows with modifiers that are
-plain Python files they can read and write.
+## Features
 
-- **Spatial formats, read and written**: PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo (TAB, MIF), GeoJSON,
-  (Geo)Parquet, FlatGeobuf, CSV with WKT or X/Y columns, Excel; Oracle and SQLite / SpatiaLite databases.
-  [Formats](docs/formats.md)
-- **Vector processing**: buffer, clip, dissolve, spatial relations and filters, point-on-area overlay, reprojection
-  (official French IGN grids bundled), geometry validation, vertices, centroids, area… next to attributes, filters,
-  joins and statistics. **104 modifiers**: [catalogue](docs/en/catalogue.md).
-- **Rasters**: GeoTIFF, Cloud-Optimized GeoTIFF, JPEG 2000, NetCDF, STAC search; raster calculator, terrain analysis,
-  contours, clip, mosaic, reproject, resample, reclassify, rasterize, polygonize, zonal statistics.
-- **Inspector**: click any port to see its features on a filterable table and a map (OpenStreetMap, satellite or your
-  own tile servers). Computed by DuckDB Spatial, smooth on millions of features.
-- **Visual editor**: palette, keyboard quick add, forms generated from the modifiers' code (with help and examples),
-  undo/redo, copy/paste, bookmarks, annotations, reusable components.
-- **Flows are JSON files**, stored wherever your team wants; shared components live in a common folder.
-- **Background runs**: parallel nodes, bounded memory, cancel and resume from cache, notifications, scheduling (cron).
-- **AI assistant** (Claude, OpenAI, OpenRouter, Ollama): reads the flow, files and runs, and proposes changes you apply
-  in one click; what is sent to the model is configurable. [ADR 0027](docs/decisions/0027-assistant-ia.md)
-- **Your files, your permissions**: runs on your computer and reads and writes local drives and network shares as you.
-  No server to administer. English and French interface.
+- **Formats**, read and written: PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo (TAB, MIF), GeoJSON,
+  (Geo)Parquet (local or over https), FlatGeobuf, CSV with WKT or X/Y columns, Excel; Oracle and SQLite / SpatiaLite
+  databases. [Formats](docs/formats.md)
+- **About a hundred modifiers**: attributes, filters, joins, statistics; vector geometry (buffer, clip, dissolve,
+  polygon overlay, spatial joins, reprojection with the IGN grids, validation…); rasters (GeoTIFF / COG, JPEG 2000,
+  NetCDF, STAC search; calculator, terrain analysis, contours, zonal statistics…). [Catalogue](docs/en/catalogue.md)
+- **Inspector**: the output of any node on a table (column filters, sorting, SQL `WHERE`) and a map (colors by
+  attribute, OpenStreetMap, satellite imagery or your own tile server), with the selection shared between the two.
+  Queries run in DuckDB and the map is drawn from vector tiles, so large datasets stay usable.
+- **Editing**: forms generated from the modifiers' parameters, with help on each field and a link to the catalogue.
+  SQL and expression editors offer completion, error checking, and the list of attributes with their most frequent
+  values.
+- **Runs** in the background, with nodes in parallel and memory limited to the budget set in *Settings*. Each node's
+  result is kept: the next run only recomputes what changed. Runs can be scheduled.
+- **Flows are JSON files**, stored wherever the team wants; reusable components are shared through a folder.
+- **Modifiers are Python files**: a plugin is one class in one file (see below).
+- **AI assistant**, optional (Claude, OpenAI, OpenRouter, Ollama): it reads the flow and proposes changes, applied in
+  one click; what it may read is configurable. [ADR 0027](docs/decisions/0027-assistant-ia.md)
+- Runs on the user's computer, with their own permissions on local drives and network shares; no server to install.
+  Interface in English and French.
 
-![Inspector: buffers colored by category, synchronized with the table](site/img/inspecteur-en.webp)
+![Inspector in full page: communes colored by population density, table sorted by density, the selected commune highlighted on both](site/img/inspecteur-en.webp)
+
+![Read query of a GeoParquet reader: attributes to read, filter, number of features kept](site/img/requete-en.webp)
+
+Data shown: communes of Haute-Garonne with their population, from the API Géo of Etalab (Licence Ouverte).
 
 ## Install
 
@@ -112,7 +116,8 @@ cd desktop && npm ci && npm start         # or the desktop window (Electron)
 | `docs/` | guides, architecture decision records (ADR), catalogue |
 
 Tests: `uv run pytest engine api store worker assistant -m "not slow"`; on Windows, `scripts\ci.ps1` runs the whole
-chain including Playwright. See [CONTRIBUTING.md](CONTRIBUTING.md). Most developer documentation and code comments are
+chain including Playwright. Website screenshots and video: `scripts\site_media.ps1` (replays
+`e2e/media`). See [CONTRIBUTING.md](CONTRIBUTING.md). Most developer documentation and code comments are
 in French; issues and pull requests are welcome in English or French.
 
 ## Built with

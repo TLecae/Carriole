@@ -62,7 +62,7 @@
   .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
   .btn small { font-weight: 400; opacity: .8; }
   figure { margin: 24px 0 0; }
-  figure img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
+  figure img, figure video { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
   figcaption { font-size: 14px; color: var(--muted); margin-top: 6px; }
   ul { padding-left: 20px; margin: 0 0 12px; }
   li { margin: 4px 0; }
@@ -111,14 +111,21 @@
 
   <figure>
     <img id="shot-main" src="img/editeur-en.webp" width="1500" height="900" alt="" data-i18n-alt="shot.editor">
-    <figcaption data-i18n="shot.editor">A flow in the editor; below, the output of the buffer node on the table and the map.</figcaption>
+    <figcaption data-i18n="shot.editor">A flow in the editor: communes read from a GeoParquet file, reprojected, population density computed. Below, its output on the table and the map.</figcaption>
+  </figure>
+
+  <h2 id="video" data-i18n="video.title">Video</h2>
+  <figure>
+    <video id="demo" controls preload="none" playsinline width="1280" height="800" src="media/demo-en.mp4" poster="img/demo-en.webp"></video>
+    <figcaption data-i18n="video.caption">The flow above, built from an empty canvas, run, then its result inspected: table sorted by density, map colored by density, selection shared between the two. 1 minute, no sound.</figcaption>
   </figure>
 
   <h2 data-i18n="features.title">What it does</h2>
   <ul>
     <li data-i18n-html="features.1">Reads and writes PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT or X/Y) and Excel. Rasters: GeoTIFF, COG, JPEG 2000, NetCDF, STAC catalogs.</li>
-    <li data-i18n-html="features.2">104 modifiers: attributes, filters, joins, statistics, geometry (buffer, clip, dissolve, spatial joins, reprojection, validation…) and rasters. <a href="https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md">Catalogue</a>.</li>
+    <li data-i18n-html="features.2">About a hundred modifiers: attributes, filters, joins, statistics, geometry (buffer, clip, dissolve, polygon overlay, spatial joins, reprojection, validation…) and rasters. <a href="https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md">Catalogue</a>.</li>
     <li data-i18n="features.3">The output of each port can be opened on a filterable table and a map, computed with DuckDB Spatial, including on millions of features.</li>
+    <li data-i18n="features.8">SQL and expression editors with completion, error checking, and the list of attributes with their most frequent values. A reader of CSV or Parquet files shows its read query: attributes to read, filter, number of features kept.</li>
     <li data-i18n="features.4">Runs in the background, with a cache: on the next run, only the nodes that changed are recomputed. Runs can be scheduled.</li>
     <li data-i18n="features.5">Flows are JSON files, stored wherever the team wants. Reusable components are shared through a folder.</li>
     <li data-i18n="features.6">Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama), which proposes changes to the flow; what it may read is configurable.</li>
@@ -127,8 +134,14 @@
 
   <figure>
     <img id="shot-inspector" src="img/inspecteur-en.webp" width="1500" height="900" loading="lazy" alt="" data-i18n-alt="shot.inspector">
-    <figcaption data-i18n="shot.inspector">Inspector: features colored by an attribute, synchronized with the table.</figcaption>
+    <figcaption data-i18n="shot.inspector">Inspector in full page: communes colored by population density, table sorted by density, the selected commune highlighted on both.</figcaption>
   </figure>
+
+  <figure>
+    <img id="shot-query" src="img/requete-en.webp" width="1500" height="900" loading="lazy" alt="" data-i18n-alt="shot.query">
+    <figcaption data-i18n="shot.query">Read query of a GeoParquet reader: attributes to read, filter, and the number of features it keeps, without running the flow.</figcaption>
+  </figure>
+  <p class="muted" style="margin-top:10px" data-i18n="shot.data">Data shown: communes of Haute-Garonne and their population, from the API Géo of Etalab (Licence Ouverte).</p>
 
   <h2 id="download" data-i18n="dl.title">Download</h2>
   <table>
@@ -200,16 +213,21 @@
       "intro.1": "Desktop ETL for geographic data. Flows are built in a visual editor from modifiers written in Python, and every intermediate result can be checked on a table and a map.",
       "intro.2": "Windows and Linux. Free software under the MIT license.",
       "cta.download": "Download", "cta.source": "Source code",
-      "shot.editor": "A flow in the editor; below, the output of the buffer node on the table and the map.",
-      "shot.inspector": "Inspector: features colored by an attribute, synchronized with the table.",
+      "shot.editor": "A flow in the editor: communes read from a GeoParquet file, reprojected, population density computed. Below, its output on the table and the map.",
+      "shot.inspector": "Inspector in full page: communes colored by population density, table sorted by density, the selected commune highlighted on both.",
       "features.title": "What it does",
       "features.1": "Reads and writes PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT or X/Y) and Excel. Rasters: GeoTIFF, COG, JPEG 2000, NetCDF, STAC catalogs.",
-      "features.2": "104 modifiers: attributes, filters, joins, statistics, geometry (buffer, clip, dissolve, spatial joins, reprojection, validation…) and rasters. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md\">Catalogue</a>.",
+      "features.2": "About a hundred modifiers: attributes, filters, joins, statistics, geometry (buffer, clip, dissolve, polygon overlay, spatial joins, reprojection, validation…) and rasters. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md\">Catalogue</a>.",
       "features.3": "The output of each port can be opened on a filterable table and a map, computed with DuckDB Spatial, including on millions of features.",
       "features.4": "Runs in the background, with a cache: on the next run, only the nodes that changed are recomputed. Runs can be scheduled.",
       "features.5": "Flows are JSON files, stored wherever the team wants. Reusable components are shared through a folder.",
       "features.6": "Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama), which proposes changes to the flow; what it may read is configurable.",
       "features.7": "Runs on the user's computer, with their own file permissions, without a server. Internet is only used for basemaps and the assistant. Interface in English and French.",
+      "shot.query": "Read query of a GeoParquet reader: attributes to read, filter, and the number of features it keeps, without running the flow.",
+      "shot.data": "Data shown: communes of Haute-Garonne and their population, from the API Géo of Etalab (Licence Ouverte).",
+      "video.title": "Video",
+      "video.caption": "The flow above, built from an empty canvas, run, then its result inspected: table sorted by density, map colored by density, selection shared between the two. 1 minute, no sound.",
+      "features.8": "SQL and expression editors with completion, error checking, and the list of attributes with their most frequent values. A reader of CSV or Parquet files shows its read query: attributes to read, filter, number of features kept.",
       "dl.title": "Download",
       "dl.win": "Installer for all users of the computer. It is not code-signed: on the SmartScreen warning, choose “More info”, then “Run anyway”.",
       "dl.linux": "Make the file executable (<code>chmod +x</code>) and run it. No installation or admin rights needed.",
@@ -229,16 +247,21 @@
       "intro.1": "ETL de bureau pour les données géographiques. Les flux se construisent dans un éditeur graphique à partir de modificateurs écrits en Python, et chaque résultat intermédiaire se vérifie sur une table et une carte.",
       "intro.2": "Windows et Linux. Logiciel libre sous licence MIT.",
       "cta.download": "Télécharger", "cta.source": "Code source",
-      "shot.editor": "Un flux dans l'éditeur ; en bas, la sortie de la zone tampon sur la table et la carte.",
-      "shot.inspector": "Inspecteur : entités colorées selon un attribut, synchronisées avec la table.",
+      "shot.editor": "Un flux dans l'éditeur : communes lues dans un GeoParquet, reprojetées, densité de population calculée. En bas, sa sortie sur la table et la carte.",
+      "shot.inspector": "Inspecteur en pleine page : communes colorées selon la densité de population, table triée par densité, commune sélectionnée sur les deux.",
       "features.title": "Fonctionnalités",
       "features.1": "Lecture et écriture de PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT ou X/Y) et Excel. Rasters : GeoTIFF, COG, JPEG 2000, NetCDF, catalogues STAC.",
-      "features.2": "104 modificateurs : attributs, filtres, jointures, statistiques, géométrie (zone tampon, découpage, fusion, jointures spatiales, reprojection, validation…) et rasters. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/catalogue.md\">Catalogue</a>.",
+      "features.2": "Une centaine de modificateurs : attributs, filtres, jointures, statistiques, géométrie (zone tampon, découpage, fusion, superposition de polygones, jointures spatiales, reprojection, validation…) et rasters. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/catalogue.md\">Catalogue</a>.",
       "features.3": "La sortie de chaque port s'ouvre dans une table filtrable et sur une carte, calculées avec DuckDB Spatial, y compris sur des millions d'entités.",
       "features.4": "Exécution en arrière-plan, avec un cache : au run suivant, seuls les nœuds modifiés sont recalculés. Les runs peuvent être planifiés.",
       "features.5": "Les flux sont des fichiers JSON, rangés où l'équipe le souhaite. Les composants réutilisables se partagent par un dossier.",
       "features.6": "Assistant IA facultatif (Claude, OpenAI, OpenRouter, Ollama), qui propose des modifications du flux ; ce qu'il peut lire se règle.",
       "features.7": "Fonctionne sur le poste de l'utilisateur, avec ses droits sur les fichiers, sans serveur. Internet ne sert qu'aux fonds de carte et à l'assistant. Interface en français et en anglais.",
+      "shot.query": "Requête de lecture d'un lecteur GeoParquet : attributs lus, filtre, et nombre d'entités gardées, sans lancer le flux.",
+      "shot.data": "Données montrées : communes de la Haute-Garonne et leur population, API Géo d'Etalab (Licence Ouverte).",
+      "video.title": "Vidéo",
+      "video.caption": "Le flux ci-dessus, construit à partir d'un canevas vide, lancé, puis son résultat inspecté : table triée par densité, carte colorée selon la densité, sélection partagée entre les deux. 1 minute, sans son.",
+      "features.8": "Éditeurs SQL et d'expressions avec complétion, vérification, et la liste des attributs avec leurs valeurs les plus fréquentes. Un lecteur de fichiers CSV ou Parquet montre sa requête de lecture : attributs lus, filtre, nombre d'entités gardées.",
       "dl.title": "Télécharger",
       "dl.win": "Installeur pour tous les utilisateurs du poste. Il n'est pas signé : à l'avertissement SmartScreen, choisir « Informations complémentaires » puis « Exécuter quand même ».",
       "dl.linux": "Rendre le fichier exécutable (<code>chmod +x</code>) puis le lancer. Ni installation ni droits d'administrateur.",
@@ -258,16 +281,21 @@
       "intro.1": "ETL de escritorio para datos geográficos. Los flujos se construyen en un editor visual a partir de modificadores escritos en Python, y cada resultado intermedio se comprueba en una tabla y un mapa.",
       "intro.2": "Windows y Linux. Software libre con licencia MIT.",
       "cta.download": "Descargar", "cta.source": "Código fuente",
-      "shot.editor": "Un flujo en el editor; abajo, la salida del área de influencia en la tabla y el mapa.",
-      "shot.inspector": "Inspector: entidades coloreadas según un atributo, sincronizadas con la tabla.",
+      "shot.editor": "Un flujo en el editor: municipios leídos de un archivo GeoParquet, reproyectados, densidad de población calculada. Abajo, su salida en la tabla y el mapa.",
+      "shot.inspector": "Inspector a pantalla completa: municipios coloreados según la densidad de población, tabla ordenada por densidad, municipio seleccionado en ambos.",
       "features.title": "Funciones",
       "features.1": "Lectura y escritura de PostgreSQL/PostGIS, Oracle, SQLite/SpatiaLite, GeoPackage, Shapefile, MapInfo, GeoJSON, (Geo)Parquet, FlatGeobuf, CSV (WKT o X/Y) y Excel. Ráster: GeoTIFF, COG, JPEG 2000, NetCDF, catálogos STAC.",
-      "features.2": "104 modificadores: atributos, filtros, uniones, estadísticas, geometría (área de influencia, recorte, disolución, uniones espaciales, reproyección, validación…) y ráster. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md\">Catálogo</a> (inglés).",
+      "features.2": "Un centenar de modificadores: atributos, filtros, uniones, estadísticas, geometría (área de influencia, recorte, disolución, superposición de polígonos, uniones espaciales, reproyección, validación…) y ráster. <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/en/catalogue.md\">Catálogo</a>.",
       "features.3": "La salida de cada puerto se abre en una tabla filtrable y en un mapa, calculados con DuckDB Spatial, incluso con millones de entidades.",
       "features.4": "Ejecución en segundo plano, con caché: en la siguiente ejecución solo se recalculan los nodos modificados. Las ejecuciones se pueden programar.",
       "features.5": "Los flujos son archivos JSON, guardados donde el equipo quiera. Los componentes reutilizables se comparten mediante una carpeta.",
       "features.6": "Asistente de IA opcional (Claude, OpenAI, OpenRouter, Ollama), que propone cambios en el flujo; lo que puede leer es configurable.",
       "features.7": "Funciona en el equipo del usuario, con sus propios permisos sobre los archivos, sin servidor. Internet solo se usa para los mapas de fondo y el asistente. Interfaz en inglés y francés.",
+      "shot.query": "Consulta de lectura de un lector GeoParquet: atributos leídos, filtro y número de entidades conservadas, sin ejecutar el flujo.",
+      "shot.data": "Datos mostrados: municipios del departamento de Alto Garona y su población, API Géo de Etalab (Licence Ouverte).",
+      "video.title": "Vídeo",
+      "video.caption": "El flujo anterior, construido desde un lienzo vacío, ejecutado y su resultado inspeccionado: tabla ordenada por densidad, mapa coloreado según la densidad, selección compartida entre ambos. 1 minuto, sin sonido.",
+      "features.8": "Editores de SQL y de expresiones con autocompletado, verificación y la lista de atributos con sus valores más frecuentes. Un lector de archivos CSV o Parquet muestra su consulta de lectura: atributos leídos, filtro, número de entidades conservadas.",
       "dl.title": "Descargar",
       "dl.win": "Instalador para todos los usuarios del equipo. No está firmado: ante el aviso de SmartScreen, elegir «Más información» y luego «Ejecutar de todas formas».",
       "dl.linux": "Hacer el archivo ejecutable (<code>chmod +x</code>) y abrirlo. Sin instalación ni permisos de administrador.",
@@ -346,6 +374,12 @@
     const shots = lang === "fr" ? "fr" : "en"; // l'interface de Carriole existe en français et en anglais
     document.getElementById("shot-main").src = `img/editeur-${shots}.webp`;
     document.getElementById("shot-inspector").src = `img/inspecteur-${shots}.webp`;
+    document.getElementById("shot-query").src = `img/requete-${shots}.webp`;
+    const video = document.getElementById("demo");
+    if (video.getAttribute("src") !== `media/demo-${shots}.mp4`) {
+      video.poster = `img/demo-${shots}.webp`;
+      video.src = `media/demo-${shots}.mp4`;
+    }
     document.getElementById("lang").value = lang;
     renderDownloads();
   }
