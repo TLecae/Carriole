@@ -40,5 +40,5 @@ Options étudiées :
 ## Complément (2026-11-06) : demande refusée
 SignPath Foundation n'a pas retenu le projet. La politique de signature est retirée des README et du site ;
 l'installateur reste non signé (avertissement SmartScreen, documenté au téléchargement). L'étape de signature du
-workflow de release reste en place : sans la variable `SIGNPATH_ORGANIZATION_ID`, elle ne s'exécute pas et n'ajoute
-rien aux notes de version. Une nouvelle demande, ici ou ailleurs, pourra la réactiver.
+workflow de release et la configuration d'artefact (`.signpath/`) sont retirées du dépôt ; l'historique git les garde
+pour une nouvelle demande.
