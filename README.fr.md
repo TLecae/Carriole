@@ -125,19 +125,6 @@ Principales bibliothèques libres utilisées :
 
 Liste complète avec les licences : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## Signature du code (Code signing policy)
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
-[SignPath Foundation](https://signpath.org/) : signature gratuite par SignPath.io, certificat de la SignPath Foundation.
-
-L'installateur Windows est construit à partir de ce dépôt par le [workflow de release](.github/workflows/release.yml),
-sur les machines de GitHub, et chaque demande de signature est approuvée à la main.
-
-- Auteurs et relecteurs (committers and reviewers) : [Thomas Lecae](https://github.com/TLecae)
-- Approbateurs (approvers) : [Thomas Lecae](https://github.com/TLecae)
-
-Politique de confidentialité : voir [Confidentialité](#confidentialité) ci-dessous.
-
 ## Confidentialité
 
 Carriole ne transmet aucune information à d'autres systèmes en réseau, sauf demande expresse de l'utilisateur ou de

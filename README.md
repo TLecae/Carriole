@@ -142,19 +142,6 @@ Main open source libraries used:
 
 Full list with licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
-[SignPath Foundation](https://signpath.org/).
-
-The Windows installer is built from this repository by the [release workflow](.github/workflows/release.yml), on
-GitHub-hosted runners, and each signing request is approved by hand.
-
-- Committers and reviewers: [Thomas Lecae](https://github.com/TLecae)
-- Approvers: [Thomas Lecae](https://github.com/TLecae)
-
-Privacy policy: see [Privacy](#privacy) below.
-
 ## Privacy
 
 Carriole will not transfer any information to other networked systems unless specifically requested by the user or
