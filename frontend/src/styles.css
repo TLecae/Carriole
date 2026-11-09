@@ -114,6 +114,9 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .grow { flex: 1; }
 .run-chip { padding: 2px 8px; border-radius: 10px; background: var(--surface-3); font-size: 12px; }
 .run-chip:empty { display: none; }
+.run-chip.paused { background: var(--warn-soft); }
+/* run en pause : les nœuds en cours ne s'animent plus (le moteur est arrêté au point sûr suivant) */
+.canvas.run-paused .spinner { animation-play-state: paused; }
 .run-chip.running, .run-chip.queued { background: var(--selected); }
 .run-chip.done { background: var(--ok-soft); }
 .run-chip.error, .run-chip.interrupted { background: var(--danger-soft); }
@@ -135,6 +138,7 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .etl-node.disabled { opacity: .45; border-style: dashed; }
 .etl-node.unknown { border-color: var(--danger); }
 .etl-node.has-error { border-color: var(--danger); }
+.etl-node.st-paused { border-color: var(--warn); border-style: dashed; }
 .etl-node.has-warning:not(.has-error) { border-color: var(--warn); }
 .etl-node.st-running { border-color: var(--primary); animation: pulse 1.2s infinite; }
 .etl-node.st-error { border-color: var(--danger); background: var(--danger-soft); }
@@ -167,7 +171,7 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .cache-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
 .node-foot { border-top: 1px solid var(--line); padding: 3px 8px; color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 5px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
-.dot.running { background: var(--primary); } .dot.done, .dot.cached { background: var(--ok); } .dot.error { background: var(--danger); }
+.dot.running { background: var(--primary); } .dot.paused { background: var(--warn); } .dot.done, .dot.cached { background: var(--ok); } .dot.error { background: var(--danger); }
 .react-flow__handle { width: 10px; height: 10px; background: var(--handle); border: 2px solid var(--panel); }
 /* cadre d'une sélection à la souris : transparent aux clics, pour que Ctrl+clic (ou Maj+clic) sur un nœud le retire
    de la sélection ; on déplace toujours le groupe en tirant l'un des nœuds sélectionnés */

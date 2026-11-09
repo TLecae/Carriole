@@ -38,6 +38,7 @@ const statusLabel = (status: string): string =>
   ({
     pending: t("en attente"),
     running: t("en cours"),
+    paused: t("en pause"),
     done: t("terminé"),
     cached: t("cache"),
     error: t("erreur"),
@@ -151,6 +152,7 @@ function rowLimit(info: ModifierInfo, params: Record<string, unknown>): number |
 function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
   const info = useEditor((s) => s.paletteMap.get(data.type));
   const result = useEditor((s) => s.run.nodes[id]);
+  const runPaused = useEditor((s) => !!s.run.paused && s.run.status === "running");
   const runCache = useEditor((s) => s.run.cache);
   const stale = useEditor((s) => staleOf(s).has(id));
   const livePorts = useEditor((s) => s.analysis?.ports?.[id]);
@@ -172,7 +174,8 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
     );
   }
 
-  const status = result?.status;
+  // run en pause : ses nœuds en cours sont arrêtés au point sûr, pas en train de calculer
+  const status = result?.status === "running" && runPaused ? "paused" : result?.status;
   const cached = status === "done" || status === "cached";
   const ins = livePorts?.inputs ?? info.inputs; // les ports peuvent dépendre des paramètres du nœud
   const outs = livePorts?.outputs ?? info.outputs;
@@ -248,7 +251,7 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
         >
           <span className={`dot ${status}`} />
           {statusLabel(status)}
-          {result?.seconds != null && status !== "running" && status !== "pending" && ` · ${formatNumber(result.seconds)} s`}
+          {result?.seconds != null && status !== "running" && status !== "paused" && status !== "pending" && ` · ${formatNumber(result.seconds)} s`}
           {result?.rss_mb ? t(" · {{n}} Mo", { n: Math.round(result.rss_mb) }) : ""}
           {stale && (
             <span className="stale-tag" data-testid={`stale-${id}`} title={t("Ce nœud ou un nœud en amont a changé depuis le run : ces résultats ne correspondent plus au flux. Relancer pour les mettre à jour.")}>

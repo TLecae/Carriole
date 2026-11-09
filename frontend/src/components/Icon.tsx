@@ -8,6 +8,7 @@ const PATHS = {
   runTo: "M4 5v14l10-7zM18 5v14",
   power: "M12 3v8M6.4 6.4a8 8 0 1 0 11.2 0",
   stop: "M6 6h12v12H6z",
+  pause: "M7 5h3v14H7zM14 5h3v14h-3z",
   activity: "M3 12h4l3-8 4 16 3-8h4",
   settings: "M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M16 4v4M8 10v4M18 16v4",
   sparkles: "M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z",

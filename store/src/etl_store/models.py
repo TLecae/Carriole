@@ -57,6 +57,7 @@ class RunRow(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     result: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON : résultat par nœud
     cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
+    paused: Mapped[bool] = mapped_column(Boolean, default=False)  # pause demandée (run « running »), schéma v8
     purged_at: Mapped[float | None] = mapped_column(Float, nullable=True)  # cache supprimé par la purge (schéma v2)
 
 

@@ -104,7 +104,11 @@ export function Home() {
         <footer>
           {run ? (
             <span title={run.error ?? undefined}>
-              <span className={`run-chip ${run.status}`}>{runLabel(run.status)}</span> <small className="muted">{date(run.created_at)}</small>
+              {run.paused && run.status === "running" ? (
+                <span className="run-chip paused">{t("en pause")}</span>
+              ) : (
+                <span className={`run-chip ${run.status}`}>{runLabel(run.status)}</span>
+              )} <small className="muted">{date(run.created_at)}</small>
             </span>
           ) : (
             <small className="muted">{t("Jamais lancé")}</small>

@@ -160,6 +160,8 @@ export const api = {
   runs: (query = "") => call<RunSummary[]>(`/runs${query}`),
   run: (id: string) => call<RunDetail>(`/runs/${id}`),
   cancelRun: (id: string) => call<RunSummary>(`/runs/${id}/cancel`, { method: "POST" }),
+  pauseRun: (id: string) => call<RunSummary>(`/runs/${id}/pause`, { method: "POST" }),
+  resumeRun: (id: string) => call<RunSummary>(`/runs/${id}/resume`, { method: "POST" }),
   runEvents: (id: string, after = 0) => call<RunEvent[]>(`/runs/${id}/events?stream=false&after=${after}`),
 
   // fichiers du serveur

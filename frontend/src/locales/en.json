@@ -753,5 +753,13 @@
  "Choisir les attributs lus et le filtre : colonnes du fichier, valeurs, comptage": "Choose the attributes read and the filter: columns of the file, values, count",
  "tous les attributs": "all attributes",
  "toutes les entités": "all features",
- "Modifier…": "Edit…"
+ "Modifier…": "Edit…",
+ "Pause": "Pause",
+ "en pause": "paused",
+ "Pause impossible": "Cannot pause",
+ "Reprise impossible": "Cannot resume",
+ "Met le run en pause au prochain point sûr (entre deux lots ou deux nœuds) : il garde sa mémoire et ses résultats, et reprend au même point. Le processeur est libéré pendant la pause.": "Pauses the run at the next safe point (between two batches or two nodes): it keeps its memory and its results, and resumes at the same point. The processor is freed during the pause.",
+ "Reprend le run au point où il s'était arrêté. Si le flux a été modifié pendant la pause, le run est relancé : les nœuds terminés et inchangés sont repris du cache.": "Resumes the run where it stopped. If the flow was changed during the pause, the run is restarted: finished, unchanged nodes are taken from the cache.",
+ "Le flux a changé pendant la pause : le run est arrêté puis relancé. Les nœuds terminés et inchangés sont repris du cache, les nœuds modifiés et leur aval sont recalculés.": "The flow changed during the pause: the run is stopped then restarted. Finished, unchanged nodes are taken from the cache; changed nodes and everything downstream are recomputed.",
+ "« {{node}} » : run en pause. Ses données seront prêtes une fois le run repris et le nœud terminé.": "\"{{node}}\": run paused. Its data will be ready once the run is resumed and the node finished."
 }

@@ -10,6 +10,7 @@ from pathlib import Path
 
 import psutil
 import pytest
+from etl_engine.backend import BackendError
 from serve_support import make_backend  # noqa: F401 - fixture
 
 pytestmark = pytest.mark.slow
@@ -78,3 +79,23 @@ def test_a_running_run_can_be_cancelled(make_backend, csv):
     server.wait_status(run["id"], "running", 60)
     server.call("POST", f"/api/runs/{run['id']}/cancel")
     server.wait_status(run["id"], "cancelled", 90)
+
+
+def test_a_running_run_can_be_paused_then_resumed(make_backend, csv):
+    """Pause par l'API : le run reste « running », figé au point sûr suivant (il ne finit pas pendant la pause) ;
+    reprise : il va au bout sans rien recommencer. Une pause hors d'un run en cours est refusée."""
+    server = make_backend(workers=1, ETL_PLUGINS_DIR=str(PLUGINS))
+    flow = slow_flow(csv)
+    flow["nodes"][1]["params"]["seconds"] = 4
+    run = server.call("POST", "/api/runs", {"flow": flow, "cache": True})
+    server.wait_status(run["id"], "running", 60)
+    assert server.call("POST", f"/api/runs/{run['id']}/pause")["paused"] is True
+    time.sleep(8)  # deux fois la durée du nœud lent : sans pause, le run serait fini
+    paused = server.call("GET", f"/api/runs/{run['id']}")
+    assert paused["status"] == "running" and paused["paused"] is True
+    assert server.call("POST", f"/api/runs/{run['id']}/resume")["paused"] is False
+    done = server.wait_status(run["id"], "done", 60)
+    assert done["paused"] is False and done["result"]["nodes"]["Slow_1"]["rows"]["output"] == 20
+    with pytest.raises(BackendError) as refused:
+        server.call("POST", f"/api/runs/{run['id']}/pause")
+    assert refused.value.status == 409

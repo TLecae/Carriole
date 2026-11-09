@@ -36,7 +36,7 @@ import pyarrow.parquet as pq
 
 from etl_engine import duck
 from etl_engine.data import conform, get_crs, with_crs
-from etl_engine.sdk import Cancelled, ConfigError
+from etl_engine.sdk import Cancelled, ConfigError, hold
 
 PORT_COMPRESSION = os.environ.get("ETL_PORT_COMPRESSION", "zstd")
 ROW_GROUP_BYTES = 128 * 2**20  # un bloc Parquet ne dépasse pas ça (sauf une seule ligne plus grosse) : relu par blocs
@@ -339,10 +339,12 @@ class PortSource:
         cancel: threading.Event,
         total: int | None = None,
         schema: pa.Schema | None = None,
+        pause: threading.Event | None = None,
     ) -> None:
         self.sources = sources
         self.batch_rows = batch_rows
         self.cancel = cancel
+        self.pause = pause  # run en pause : la lecture s'arrête entre deux lots
         self.total = total
         self.schema = schema
         self.rows = 0
@@ -350,6 +352,7 @@ class PortSource:
     def __iter__(self) -> Iterator[pa.Table]:
         for source in self.sources:
             for table in self._file(source) if isinstance(source, Path) else self._query(source):
+                hold(self.pause, self.cancel)
                 if self.cancel.is_set():
                     raise Cancelled
                 self.rows += table.num_rows

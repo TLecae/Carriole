@@ -96,6 +96,13 @@ DuckSql = Annotated[str, _widget("sql", **{"x-etl-dialect": "duckdb"})]
 Emit = Callable[[str, pa.Table], None]
 
 
+def hold(pause: threading.Event | None, cancel: threading.Event) -> None:
+    """Point sûr d'un run en pause (`pause` posé) : le fil attend ici, sans calculer, jusqu'à la reprise. Un arrêt
+    demandé pendant la pause le libère aussitôt (le point d'arrêt suivant lève `Cancelled`)."""
+    while pause is not None and pause.is_set() and not cancel.is_set():
+        cancel.wait(0.25)
+
+
 @dataclass
 class Context:
     """Ce que le moteur donne à un modificateur : journal, progression, annulation, paramètres publiés."""
@@ -103,6 +110,7 @@ class Context:
     node_id: str = ""
     params: Mapping[str, str] = field(default_factory=dict)
     cancel: threading.Event = field(default_factory=threading.Event)
+    pause: threading.Event | None = None  # posé : le run est en pause (`hold` à chaque point sûr)
     batch_rows: int = DEFAULT_BATCH_ROWS
     workers: int = 1  # lots traités en parallèle par un modificateur « streaming » sans état
     connections: Any = None
@@ -131,6 +139,8 @@ class Context:
         self.log("ERROR", message)
 
     def check_cancel(self) -> None:
+        """Point sûr : attend la fin d'une pause, puis lève `Cancelled` si le run est arrêté."""
+        hold(self.pause, self.cancel)
         if self.cancel.is_set():
             raise Cancelled
 

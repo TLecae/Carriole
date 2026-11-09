@@ -17,6 +17,13 @@
   SQL route (computed by DuckDB, ports defined on demand).
 - *StatisticsByGroup*: the `summary` port (one row per group) comes first, so the inspector shows it rather than all
   the features; saved flows are unchanged (links name their ports).
+- Runs can be paused and resumed (*Pause* / *Resume* next to *Stop*, and the *Run* menu): the run stops at the next
+  safe point (between batches or nodes), keeps its memory and results, frees the processor, and resumes where it
+  was, even in the middle of a node; its time limit does not count the pause. Nodes stopped at the safe point show
+  "paused" on the canvas, in the inspector, the run list and the home page. If the flow was changed during the
+  pause, *Resume* stops the run and starts it again: finished nodes that did not change are taken from the cache,
+  changed nodes and everything downstream are recomputed
+  ([ADR 0051](docs/decisions/0051-pause-d-un-run.md)). Metadata database schema v8 (`runs.paused`).
 - *Settings → Computation → Engine cores*: the number of cores the engine uses, 60 % of the computer's cores by
   default. Every parallel computation follows it (share of each run, DuckDB, batches and nodes in parallel, Arrow,
   GDAL, rasters, inspector); the fixed limits of 8 batches and 8 nodes are gone, and a heavy node alone in its run

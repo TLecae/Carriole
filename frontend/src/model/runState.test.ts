@@ -5,6 +5,15 @@ import { applyResult, IDLE_RUN, reduceEvent, settle } from "./runState";
 const result = (nodes: Record<string, Partial<NodeResult>>): RunDetail["result"] => ({ status: "done", seconds: 1, error: null, nodes: nodes as Record<string, NodeResult> });
 
 describe("reduceEvent", () => {
+  it("pause et reprise : l'état suit les événements du worker, la fin du run lève la pause", () => {
+    const running = reduceEvent(IDLE_RUN, { type: "run_started", nodes: ["a"] });
+    const paused = reduceEvent(running, { type: "run_paused" });
+    expect(paused.paused).toBe(true);
+    expect(paused.status).toBe("running");
+    expect(reduceEvent(paused, { type: "run_resumed" }).paused).toBe(false);
+    expect(reduceEvent(paused, { type: "run_finished", status: "cancelled" }).paused).toBe(false);
+  });
+
   it("run_started garde les nœuds repris annoncés avant lui (run « jusqu'au nœud »)", () => {
     let run = reduceEvent(IDLE_RUN, { type: "node", node: "autre", status: "cached", rows: { output: 3 } });
     run = reduceEvent(run, { type: "run_started", nodes: ["cible"] });

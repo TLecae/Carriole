@@ -84,6 +84,7 @@ export function Canvas() {
   const palette = useEditor((s) => s.paletteMap);
   const { onNodesChange, onEdgesChange, onConnect, beginDrag, addNode, addNote } = useEditor.getState();
   const pick = useUi((s) => s.pick);
+  const paused = useEditor((s) => !!s.run.paused && s.run.status === "running");
   const miniMap = useUi((s) => s.miniMap);
   const drop = useRef<{ node: string; samples: Map<string, Point[]> } | null>(null);
   const mouse = useRef({ x: 0, y: 0 });
@@ -151,7 +152,7 @@ export function Canvas() {
   return (
     <div
       ref={box}
-      className={`canvas${pick ? " picking" : ""}`}
+      className={`canvas${pick ? " picking" : ""}${paused ? " run-paused" : ""}`}
       onMouseMove={(e) => (mouse.current = { x: e.clientX, y: e.clientY })}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes(DRAG_TYPE)) {

@@ -1,5 +1,6 @@
 import threading
 import time
+from typing import Any, ClassVar
 
 import pyarrow.parquet as pq
 import pytest
@@ -268,6 +269,71 @@ def test_timeout(registry_with_test_nodes, communes, tmp_path):
     )
     res = run_flow(flow, registry_with_test_nodes, tmp_path / "run", timeout=0.4, batch_rows=2)
     assert res.status == "error" and "délai" in res.error
+
+
+class Tick(Modifier):
+    """Compte ses lots traités (un à la fois) : la progression d'un run, vue de l'extérieur."""
+
+    name = "Tick"
+    label = "Tick"
+    calls: ClassVar[list[float]] = []
+
+    class Params(Params):
+        seconds: float = 0.05
+
+    def process(self, batch):
+        time.sleep(self.params.seconds)
+        Tick.calls.append(time.monotonic())
+        return {"output": batch}
+
+
+def _ticking(registry, communes, tmp_path, **kw):
+    """Run de 10 lots de `Tick` (0,05 s chacun), un à la fois, dans un fil ; renvoie (fil, résultat)."""
+    registry.register(Tick)
+    Tick.calls.clear()
+    flow = make_flow(
+        [
+            {"id": "r", "type": "Reader", "params": {"path": str(communes)}},
+            {"id": "t", "type": "Tick", "params": {}},
+        ],
+        [("r", "output", "t", "input")],
+    )
+    out: dict[str, Any] = {}
+    worker = threading.Thread(
+        target=lambda: out.update(res=run_flow(flow, registry, tmp_path / "run", batch_rows=2, batch_workers=1, **kw))
+    )
+    worker.start()
+    return worker, out
+
+
+def test_pause_stops_at_a_safe_point_and_resumes_where_it_was(registry, communes, tmp_path):
+    """Pause : plus aucun lot traité tant qu'elle dure (le calcul en cours finit), puis le run reprend et va au bout,
+    sans recommencer ce qui était fait. Le délai maximal ne compte pas la pause."""
+    pause = threading.Event()
+    worker, out = _ticking(registry, communes, tmp_path, pause=pause, timeout=1.2)
+    while len(Tick.calls) < 3:
+        time.sleep(0.01)
+    pause.set()
+    time.sleep(0.2)  # le lot en cours se termine
+    frozen = len(Tick.calls)
+    time.sleep(1.0)  # pause plus longue que le reste du délai
+    assert len(Tick.calls) == frozen < 10 and worker.is_alive()
+    pause.clear()
+    worker.join(10)
+    res = out["res"]
+    assert res.status == "done" and res.nodes["t"].rows["output"] == 20 and len(Tick.calls) == 10
+
+
+def test_pause_before_start_and_stop_during_pause(registry, communes, tmp_path):
+    """En pause dès le départ : aucun nœud ne démarre ; un arrêt pendant la pause termine le run aussitôt."""
+    pause, cancel = threading.Event(), threading.Event()
+    pause.set()
+    worker, out = _ticking(registry, communes, tmp_path, pause=pause, cancel=cancel)
+    time.sleep(0.5)
+    assert Tick.calls == [] and worker.is_alive()
+    cancel.set()
+    worker.join(5)
+    assert not worker.is_alive() and out["res"].status == "cancelled"
 
 
 class Clock(Modifier):

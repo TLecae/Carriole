@@ -104,7 +104,11 @@ export function RunsDialog({ onClose }: { onClose: () => void }) {
             const resumable = r.status === "interrupted" || r.status === "error" || r.status === "cancelled";
             return (
               <div className="run-row" key={r.id} data-testid="run-row" data-status={r.status}>
-                <span className={`run-chip ${r.status}`}>{statusLabel(r.status)}</span>
+                {r.paused && r.status === "running" ? (
+                  <span className="run-chip paused">{t("en pause")}</span>
+                ) : (
+                  <span className={`run-chip ${r.status}`}>{statusLabel(r.status)}</span>
+                )}
                 <div className="run-main">
                   <strong>{r.flow_name}</strong>
                   {r.options.batch && (

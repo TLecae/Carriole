@@ -4,7 +4,7 @@ import { ApiError, api, currentEmail, subscribeRun } from "../api/client";
 import { onConnection } from "../api/connection";
 import type { Analysis, FlowDoc, FlowRecord, FlowSummary, RunEvent, RunStatus, ModifierInfo } from "../api/types";
 import { applyResult, IDLE_RUN, reduceEvent, type RunState, settle } from "../model/runState";
-import { signatures, staleNodes } from "../model/staleness";
+import { differsFrom, signatures, staleNodes } from "../model/staleness";
 import { pickPath } from "../platform";
 import { useUi } from "./ui";
 import {
@@ -105,6 +105,11 @@ interface EditorState {
   retryRun: (id: string, resume: boolean) => Promise<void>;
   attachRun: (id: string) => Promise<void>;
   cancelRun: () => Promise<void>;
+  /** Pause du run en cours : il s'arrête au prochain point sûr et garde sa mémoire et ses résultats. */
+  pauseRun: () => Promise<void>;
+  /** Reprise : au même point si le flux n'a pas changé ; sinon le run est arrêté puis relancé (cache des nœuds
+   * terminés et inchangés repris, nœuds modifiés et leur aval recalculés). */
+  resumeRun: () => Promise<void>;
 }
 
 // ---- utilitaires hors état ------------------------------------------------------------------
@@ -245,8 +250,10 @@ export const useEditor = create<EditorState>((set, get) => {
     eventBuffer = [];
     if (batch.length) set((s) => ({ run: batch.reduce(reduceEvent, s.run) }));
   };
+  // run en pause arrêté parce que le flux a changé : relancé dès qu'il est fini (`resumeRun`)
+  let restart: { id: string; target: string | null } | null = null;
   const pushEvent = (e: RunEvent) => {
-    if (e.type === "run_finished") announce(e, (n) => set({ notice: n }));
+    if (e.type === "run_finished" && restart?.id !== get().run.id) announce(e, (n) => set({ notice: n }));
     eventBuffer.push(e);
     flushTimer ??= setTimeout(flushEvents, 120);
   };
@@ -692,6 +699,7 @@ export const useEditor = create<EditorState>((set, get) => {
       eventBuffer = [];
       const detail = await api.run(id);
       let state: RunState = { ...IDLE_RUN, id, status: detail.status, error: detail.error, cache: detail.options.cache ?? true, signatures: signatures(detail.flow), params: detail.params };
+      if (restart && restart.id !== id) restart = null; // un autre run est ouvert : plus de relance en attente
       let lastId = 0;
       for (;;) {
         // par pages : un long run compte bien plus d'événements qu'une seule réponse n'en rend
@@ -700,7 +708,7 @@ export const useEditor = create<EditorState>((set, get) => {
         if (!page.length || (page[page.length - 1].id ?? lastId) <= lastId) break;
         lastId = page[page.length - 1].id ?? lastId;
       }
-      state = settle({ ...applyResult(state, detail.result), status: detail.status, error: detail.error });
+      state = settle({ ...applyResult(state, detail.result), status: detail.status, error: detail.error, paused: !!detail.paused });
       set({ run: state });
       if (!FINAL.includes(detail.status)) {
         unsubscribe = subscribeRun(id, lastId, pushEvent, (status) => {
@@ -708,7 +716,14 @@ export const useEditor = create<EditorState>((set, get) => {
           set((s) => ({ run: { ...s.run, status: status as RunStatus } }));
           // l'état enregistré du run fait foi pour ses nœuds (un événement perdu ne laisse pas un nœud « en cours »)
           void api.run(id).then(
-            (done) => set((s) => (s.run.id === id ? { run: settle({ ...applyResult(s.run, done.result), status: done.status, error: done.error }) } : {})),
+            (done) => {
+              set((s) => (s.run.id === id ? { run: settle({ ...applyResult(s.run, done.result), status: done.status, error: done.error, paused: false }) } : {}));
+              if (restart?.id === id && get().run.id === id) {
+                const target = restart.target;
+                restart = null;
+                void get().startRun({ target }); // reprend du cache de ce run : seuls les nœuds non repris tournent
+              }
+            },
             () => undefined,
           );
         });
@@ -716,7 +731,40 @@ export const useEditor = create<EditorState>((set, get) => {
     },
     cancelRun: async () => {
       const id = get().run.id;
+      restart = null;
       if (id) await api.cancelRun(id);
+    },
+    pauseRun: async () => {
+      const id = get().run.id;
+      if (!id) return;
+      try {
+        await api.pauseRun(id);
+        set((s) => (s.run.id === id ? { run: { ...s.run, paused: true } } : {}));
+      } catch (err) {
+        set({ notice: { kind: "error", text: err instanceof Error ? err.message : t("Pause impossible") } });
+      }
+    },
+    resumeRun: async () => {
+      const { run } = get();
+      if (!run.id) return;
+      try {
+        const { meta, nodes, edges } = get();
+        if (!differsFrom(toFlowDoc(meta, nodes, edges), run.signatures)) {
+          await api.resumeRun(run.id);
+          set((s) => (s.run.id === run.id ? { run: { ...s.run, paused: false } } : {}));
+          return;
+        }
+        // le run en pause exécute le flux figé à son lancement : il ne peut pas prendre les modifications. Arrêté,
+        // puis relancé : les nœuds terminés dont rien n'a changé (paramètres, amont) sont repris de son cache, les
+        // autres recalculés ; le nœud en cours au moment de la pause repart du début.
+        const detail = await api.run(run.id);
+        restart = { id: run.id, target: detail.options.target ?? null };
+        set({ notice: { kind: "info", text: t("Le flux a changé pendant la pause : le run est arrêté puis relancé. Les nœuds terminés et inchangés sont repris du cache, les nœuds modifiés et leur aval sont recalculés.") } });
+        await api.cancelRun(run.id);
+      } catch (err) {
+        restart = null;
+        set({ notice: { kind: "error", text: err instanceof Error ? err.message : t("Reprise impossible") } });
+      }
     },
   };
 });

@@ -73,6 +73,30 @@ def test_cancel_queued_and_running(store):
     assert store.is_cancel_requested(r) and store.get_run(r)["status"] == "running"
 
 
+def test_pause_and_resume_a_running_run(store):
+    """Pause : seulement un run qui tourne ; il reste « running » (place, concurrence, cache protégé) ; la fin du run
+    (ou son interruption) lève la pause."""
+    import pytest
+
+    q = store.create_run(FLOW, None, {}, {}, "a")["id"]
+    with pytest.raises(ValueError):
+        store.request_pause(q, True)  # en attente : rien à mettre en pause
+    store.claim_next_run("w")
+    assert store.request_pause(q, True)["paused"] is True
+    assert store.run_control(q) == (False, True) and store.get_run(q)["status"] == "running"
+    assert store.count_running() == 1 and q in store.protected_runs()
+    assert store.request_pause(q, False)["paused"] is False and store.run_control(q) == (False, False)
+    store.request_pause(q, True)
+    store.request_cancel(q)
+    assert store.run_control(q) == (True, True)
+    with pytest.raises(ValueError):
+        store.request_pause(q, False)  # arrêt demandé : la reprise n'a plus de sens
+    store.finish_run(q, "cancelled", None, None)
+    assert store.get_run(q)["paused"] is False
+    with pytest.raises(ValueError):
+        store.request_pause(q, True)
+
+
 def test_events_resume_from_last_id(store):
     rid = store.create_run(FLOW, None, {}, {}, "a")["id"]
     store.add_events(

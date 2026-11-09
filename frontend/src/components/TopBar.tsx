@@ -23,6 +23,9 @@ export function TopBar() {
   const picked = s.nodes.filter((n) => n.selected && isEtl(n));
   const one = picked.length === 1 ? picked[0] : null;
   const active = s.run.status === "queued" || s.run.status === "running";
+  const pausable = s.run.status === "running"; // un run en attente n'a encore rien calculé : il s'arrête, sans pause
+  const pauseTip = t("Met le run en pause au prochain point sûr (entre deux lots ou deux nœuds) : il garde sa mémoire et ses résultats, et reprend au même point. Le processeur est libéré pendant la pause.");
+  const resumeTip = t("Reprend le run au point où il s'était arrêté. Si le flux a été modifié pendant la pause, le run est relancé : les nœuds terminés et inchangés sont repris du cache.");
   const empty = s.nodes.length === 0;
   const noParams = s.meta.publishedParams.length === 0;
 
@@ -100,6 +103,9 @@ export function TopBar() {
           {t("Mise en cache des données")}
         </MenuItem>
         <MenuSeparator />
+        <MenuItem onSelect={() => void (s.run.paused ? s.resumeRun() : s.pauseRun())} disabled={!pausable} title={s.run.paused ? resumeTip : pauseTip}>
+          {s.run.paused ? t("Reprendre") : t("Pause")}
+        </MenuItem>
         <MenuItem onSelect={() => void s.cancelRun()} disabled={!active}>
           {t("Arrêter")}
         </MenuItem>
@@ -156,13 +162,23 @@ export function TopBar() {
       >
         {t("Cache")}
       </button>
+      {pausable &&
+        (s.run.paused ? (
+          <button className="ghost" onClick={() => void s.resumeRun()} title={resumeTip} data-testid="run-resume">
+            <Icon name="play" /> {t("Reprendre")}
+          </button>
+        ) : (
+          <button className="ghost" onClick={() => void s.pauseRun()} title={pauseTip} data-testid="run-pause">
+            <Icon name="pause" /> {t("Pause")}
+          </button>
+        ))}
       {active && (
         <button className="danger" onClick={() => void s.cancelRun()}>
           <Icon name="stop" /> {t("Arrêter")}
         </button>
       )}
-      <span className={`run-chip ${s.run.status}`} data-testid="run-status">
-        {s.run.status === "idle" ? "" : s.run.status}
+      <span className={`run-chip ${s.run.paused && pausable ? "paused" : s.run.status}`} data-testid="run-status">
+        {s.run.status === "idle" ? "" : s.run.paused && pausable ? "paused" : s.run.status}
       </span>
       <Spacer />
       <RunsButton />

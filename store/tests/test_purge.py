@@ -130,7 +130,7 @@ def test_migration_adds_purged_at_to_a_v1_database(tmp_path):
     con.close()
     store = Store(f"sqlite:///{path.as_posix()}")
     run = store.get_run("r1")
-    assert run["flow_name"] == "ancien" and run["purged_at"] is None
+    assert run["flow_name"] == "ancien" and run["purged_at"] is None and run["paused"] is False  # v8
     store.mark_purged(["r1"])
     assert store.get_run("r1")["purged_at"] is not None
     with store.engine.begin() as c:

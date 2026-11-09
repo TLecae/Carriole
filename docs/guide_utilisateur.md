@@ -84,7 +84,15 @@ millésime, un fichier). Dans n'importe quel paramètre de nœud : `${NOM}` ; va
   nombre exact est dans l'info-bulle. L'état est sur
   chaque nœud, le **journal** en bas (un clic sur une ligne sélectionne le nœud) : ce que le run va faire et avec
   quelles ressources, le début et la fin de chaque nœud (durée, entités par port), les nœuds repris du cache ou
-  désactivés, les entités rejetées, les erreurs, puis le bilan. Annuler : bouton *Arrêter*.
+  désactivés, les entités rejetées, les erreurs, puis le bilan. Annuler : bouton *Arrêter* ; les nœuds déjà terminés
+  restent dans le cache et sont repris au *Lancer* suivant, seuls les nœuds en cours repartent du début.
+- **Pause** (à côté de *Arrêter*, ou menu *Exécution*) : le run s'arrête au prochain point sûr (entre deux lots ou
+  deux nœuds ; une étape d'un seul tenant, comme une requête DuckDB, va d'abord à son terme). Il garde sa mémoire et
+  ses résultats, le processeur est libéré. *Reprendre* repart au même point, même au milieu d'un nœud. Si le flux a
+  été modifié pendant la pause (nœud ajouté, retiré ou réglé autrement), le run ne peut pas prendre ces changements :
+  *Reprendre* l'arrête et le relance aussitôt ; les nœuds terminés dont rien n'a changé (réglages, amont) sont repris
+  du cache, les nœuds modifiés et leur aval sont recalculés. Un run en pause interrompu par l'arrêt de Carriole se
+  reprend comme après *Arrêter*.
 - **Runs** : liste de tous les runs (en cours, terminés, en échec, interrompus). On peut les rouvrir, voir le
   journal et les données, **relancer** (même flux, tel qu'il avait été exécuté) ou **reprendre** après un arrêt : les
   nœuds terminés ne sont pas recalculés. Un e-mail de fin de run est possible si le serveur le propose.

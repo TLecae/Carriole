@@ -37,6 +37,18 @@ export function signatures(doc: FlowDoc): Record<string, string> {
 
 /** Nœuds dont le résultat affiché (celui du run) ne correspond plus au flux : ceux qui ont changé depuis le run, et
  * tous ceux qui en dépendent en aval. Un nœud ajouté depuis n'a pas de résultat : seul son aval est concerné. */
+/**
+ * Vrai si le flux n'est plus celui d'un run (`ran` : ses signatures) : un nœud ajouté, retiré ou modifié (paramètres,
+ * entrées, activation). Plus strict que `staleNodes` : un run en pause ne reprend que s'il exécuterait encore exactement
+ * ce flux (un nœud d'écriture retiré ne doit plus écrire, un nœud ajouté doit tourner).
+ */
+export function differsFrom(current: FlowDoc, ran: Record<string, string> | undefined): boolean {
+  if (!ran) return false;
+  const now = signatures(current);
+  const ids = Object.keys(now);
+  return ids.length !== Object.keys(ran).length || ids.some((id) => ran[id] !== now[id]);
+}
+
 export function staleNodes(current: FlowDoc, ran: Record<string, string> | undefined): Set<string> {
   const stale = new Set<string>();
   if (!ran) return stale;

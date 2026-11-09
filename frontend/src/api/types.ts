@@ -210,6 +210,7 @@ export interface RunSummary {
   };
   params: Record<string, string>;
   purged_at: number | null; // données supprimées par la purge du cache
+  paused?: boolean; // run « running » mis en pause : arrêté au prochain point sûr, il reprend au même point
 }
 
 export interface RunDetail extends RunSummary {

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from etl_store.models import Base, ComponentVersionRow, EventRow, FlowRow, MetaRow, RunRow, ScheduleRow
 from etl_store.workers import alive_here
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 FINAL_STATUSES = ("done", "error", "cancelled", "interrupted")
 
 
@@ -48,6 +48,13 @@ def _migrate_to_7(engine: Engine) -> None:
             con.execute(text("ALTER TABLE connections ADD COLUMN options TEXT DEFAULT '{}'"))
 
 
+def _migrate_to_8(engine: Engine) -> None:
+    """v8 : `runs.paused` (pause d'un run en cours, reprise au même point)."""
+    if "paused" not in {c["name"] for c in inspect(engine).get_columns("runs")}:
+        with engine.begin() as con:
+            con.execute(text("ALTER TABLE runs ADD COLUMN paused BOOLEAN DEFAULT FALSE"))
+
+
 # Migrations ordonnées par version cible ; chacune doit pouvoir être rejouée sans dommage.
 MIGRATIONS = {
     2: _migrate_to_2,
@@ -56,6 +63,7 @@ MIGRATIONS = {
     5: lambda _engine: None,
     6: lambda _engine: None,
     7: _migrate_to_7,
+    8: _migrate_to_8,
 }  # v3 : `connections`, v5 : `schedules`, v6 : `component_versions` (create_all)
 
 
@@ -149,6 +157,7 @@ def _run_dict(row: RunRow, detail: bool = True) -> dict[str, Any]:
         "worker": row.worker,
         "error": row.error,
         "cancel_requested": row.cancel_requested,
+        "paused": bool(row.paused),
         "options": json.loads(row.options),
         "params": json.loads(row.params),
         "purged_at": row.purged_at,
@@ -439,6 +448,25 @@ class Store:
                 row.cancel_requested = True
             return _run_dict(row, detail=False)
 
+    def request_pause(self, run_id: str, paused: bool) -> dict[str, Any]:
+        """Met en pause un run en cours, ou le reprend. Il reste « running » : il garde sa place, sa mémoire et son
+        cache ; le worker s'arrête au prochain point sûr (entre deux lots, deux paquets, deux nœuds). Lève `NotFound`,
+        ou `ValueError` si le run ne tourne pas (en attente, terminé)."""
+        with self._session.begin() as s:
+            row = s.get(RunRow, run_id)
+            if row is None:
+                raise NotFound(run_id)
+            if row.status != "running" or row.cancel_requested:
+                raise ValueError(row.status)
+            row.paused = paused
+            return _run_dict(row, detail=False)
+
+    def run_control(self, run_id: str) -> tuple[bool, bool]:
+        """(arrêt demandé, en pause), lus ensemble par le worker."""
+        with self._session() as s:
+            row = s.execute(select(RunRow.cancel_requested, RunRow.paused).where(RunRow.id == run_id)).first()
+        return (bool(row[0]), bool(row[1])) if row else (False, False)
+
     def is_cancel_requested(self, run_id: str) -> bool:
         with self._session() as s:
             return bool(s.scalar(select(RunRow.cancel_requested).where(RunRow.id == run_id)))
@@ -451,6 +479,7 @@ class Store:
                 .values(
                     status=status,
                     error=error,
+                    paused=False,
                     finished_at=time.time(),
                     result=json.dumps(result, ensure_ascii=False) if result is not None else None,
                 )
@@ -477,7 +506,12 @@ class Store:
                 s.execute(
                     update(RunRow)
                     .where(RunRow.id.in_(ids))
-                    .values(status="interrupted", finished_at=time.time(), error="worker arrêté pendant le run")
+                    .values(
+                        status="interrupted",
+                        paused=False,
+                        finished_at=time.time(),
+                        error="worker arrêté pendant le run",
+                    )
                 )
         return ids
 

@@ -64,7 +64,7 @@ from etl_engine.expr import deterministic
 from etl_engine.flow import Flow, expand_late, resolve_params, system_values
 from etl_engine.plan import Plan, build_plan
 from etl_engine.registry import Registry
-from etl_engine.sdk import Cancelled, ConfigError, Context, Modifier, expressions
+from etl_engine.sdk import Cancelled, ConfigError, Context, Modifier, expressions, hold
 from etl_engine.spatial import is_out_of_memory
 from etl_engine.sqlroute import Source, SqlRouteResult, has_sql_route, row_wise, run_sql_route
 
@@ -215,6 +215,7 @@ def run_flow(
     target: str | None = None,
     on_event: EventSink | None = None,
     cancel: threading.Event | None = None,
+    pause: threading.Event | None = None,
     max_workers: int | None = None,
     timeout: float | None = None,
     batch_rows: int = DEFAULT_BATCH_ROWS,
@@ -233,6 +234,8 @@ def run_flow(
     - `cache` : conserve les ports (réglable par nœud) ; sinon un port est supprimé dès que ses consommateurs ont fini.
     - `reuse_from` : run précédent ; un nœud dont l'empreinte (paramètres + amont) est inchangée n'est pas recalculé.
     - `target` : n'exécute que ce nœud et ses ancêtres (« lancer jusqu'à un nœud »).
+    - `pause` : posé, le run est en pause ; chaque fil s'arrête au prochain point sûr (`sdk.hold` : entre deux lots
+      lus ou émis, avant un nœud) et repart quand il est levé. Le délai maximal (`timeout`) ne compte pas la pause.
     - `flow_path`, `run_id`, `user` : valeurs de `${sys:flow_dir}`, `${sys:run_id}`, `${sys:user}` (`run_id` : le nom du
       dossier du run par défaut).
     - `lang` : langue des messages (journal, erreurs) ; par défaut le réglage de l'utilisateur. Le code est en français.
@@ -311,6 +314,7 @@ def run_flow(
             work_dir=run_dir / node_id / "rasters",
             params=values,
             cancel=cancel,
+            pause=pause,
             batch_rows=batch_rows,
             workers=batch_workers if batch_workers is not None else duck.batch_workers(run_threads),
             log_sink=lambda n, level, msg: event(type="log", node=n, level=level, message=msg),
@@ -468,10 +472,20 @@ def run_flow(
 
     sampler = _RssSampler(watch=guard)
     sampler.start()
+    over = threading.Event()  # fin du run : le chien de garde du délai s'arrête
     if timeout:
-        timer = threading.Timer(timeout, lambda: (state.update(timed_out=True), cancel.set()))
-        timer.daemon = True
-        timer.start()
+
+        def watchdog() -> None:  # délai maximal du run, pauses non comptées
+            spent, tick = 0.0, min(1.0, max(0.05, timeout / 20))
+            while not over.wait(tick):
+                if pause is None or not pause.is_set():
+                    spent += tick
+                if spent >= timeout:
+                    state.update(timed_out=True)
+                    cancel.set()
+                    return
+
+        threading.Thread(target=watchdog, daemon=True, name="etl-timeout").start()
     event(type="run_started", nodes=selected)
     after_header: list[Callable[[], None]] = []  # lignes du journal des nœuds repris : sous l'en-tête du run
 
@@ -612,7 +626,9 @@ def run_flow(
                     return
                 for port, parts in inputs.items():
                     joined = in_schemas.get(port) if len(parts) > 1 else None  # plusieurs sorties : réunies par nom
-                    sources[port] = PortSource(parts, batch_rows, cancel, total=rows_in[port], schema=joined)
+                    sources[port] = PortSource(
+                        parts, batch_rows, cancel, total=rows_in[port], schema=joined, pause=pause
+                    )
             throttles = {port: Throttle() for port in outs}
             for port in outs:
 
@@ -635,6 +651,7 @@ def run_flow(
             }
 
             def emit(port: str, table: Any) -> None:
+                hold(pause, cancel)  # point sûr : un run en pause n'écrit plus
                 sink = sinks.get(port)
                 if sink is None:
                     raise ConfigError(f"{inst.name} : port de sortie inconnu « {port} »")
@@ -702,6 +719,7 @@ def run_flow(
             event(type="counts", node=nid, port=port, count=count)
 
     def job(nid: str) -> str:
+        hold(pause, cancel)  # run en pause : aucun nœud ne démarre
         with active_lock:
             active.add(nid)
         try:
@@ -860,8 +878,7 @@ def run_flow(
                     waiting.clear()
     finally:
         sampler.stop()
-        if timeout:
-            timer.cancel()
+        over.set()
         _publish_aliases(run_dir, aliases, event)
         shutil.rmtree(run_dir / ".spill", ignore_errors=True)
 

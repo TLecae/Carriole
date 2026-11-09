@@ -63,10 +63,13 @@ def execute_run(
     """Exécute `run` (déjà réservé), enregistre le résultat et renvoie le statut final.
 
     - annulation demandée par l'utilisateur : statut `cancelled` ;
-    - arrêt du worker (SIGTERM) : le run est coupé proprement et marqué `interrupted`, relançable depuis le cache.
+    - arrêt du worker (SIGTERM) : le run est coupé proprement et marqué `interrupted`, relançable depuis le cache ;
+    - pause demandée par l'utilisateur : le moteur s'arrête au prochain point sûr et garde sa mémoire ; la reprise le
+      fait repartir au même point. Événements `run_paused` / `run_resumed` pour l'interface.
     """
     run_id, options = run["id"], run["options"]
     cancel = threading.Event()
+    pause = threading.Event()
     done = threading.Event()
     interrupted = threading.Event()
     events = EventBuffer(store, run_id)
@@ -76,8 +79,13 @@ def execute_run(
             if shutdown.is_set():
                 interrupted.set()
                 cancel.set()
-            elif store.is_cancel_requested(run_id):
+                continue
+            stop, paused = store.run_control(run_id)
+            if stop:
                 cancel.set()
+            elif paused != pause.is_set():
+                (pause.set if paused else pause.clear)()
+                events.push({"type": "run_paused" if paused else "run_resumed"})
 
     watcher = threading.Thread(target=watch, daemon=True)
     watcher.start()
@@ -98,6 +106,7 @@ def execute_run(
             target=options.get("target"),
             on_event=events.push,
             cancel=cancel,
+            pause=pause,
             timeout=settings.run_timeout,
             lang=options.get("locale"),
             flow_path=options.get("flow_path"),

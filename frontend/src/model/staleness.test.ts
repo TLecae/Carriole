@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FlowDoc } from "../api/types";
-import { signatures, staleNodes } from "./staleness";
+import { differsFrom, signatures, staleNodes } from "./staleness";
 
 const node = (id: string, params: Record<string, unknown> = {}) => ({ id, type: "T", label: id, params, position: [0, 0] as [number, number], enabled: true });
 const link = (from: string, to: string) => ({ id: `${from}-${to}`, from: [from, "output"] as [string, string], to: [to, "input"] as [string, string], enabled: true });
@@ -15,6 +15,19 @@ const ran = flow(
   [link("read", "filter"), link("filter", "stats"), link("stats", "write"), link("read", "buffer")],
 );
 const before = signatures(ran);
+
+describe("flux changé depuis un run (reprise d'une pause)", () => {
+  it("le même flux, même déplacé : inchangé", () => {
+    const moved = flow(ran.nodes.map((n) => ({ ...n, position: [50, 80] as [number, number] })), ran.links);
+    expect(differsFrom(moved, before)).toBe(false);
+  });
+  it("nœud ajouté (même seul), retiré ou modifié : changé", () => {
+    expect(differsFrom(flow([...ran.nodes, node("alone")], ran.links), before)).toBe(true);
+    expect(differsFrom(flow(ran.nodes.filter((n) => n.id !== "write"), ran.links.filter((l) => l.to[0] !== "write")), before)).toBe(true);
+    expect(differsFrom(flow(ran.nodes.map((n) => (n.id === "buffer" ? { ...n, params: { d: 9 } } : n)), ran.links), before)).toBe(true);
+    expect(differsFrom(flow(ran.nodes, ran.links), undefined)).toBe(false);
+  });
+});
 
 describe("nœuds à relancer après une modification", () => {
   it("rien n'a changé : aucun", () => {

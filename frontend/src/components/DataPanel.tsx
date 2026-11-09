@@ -137,7 +137,14 @@ export function DataPanel() {
         </p>
       )}
       {loading && !info && !insp.emptyNode && !busyNode && <Loading text={insp.preparing ? t("Préparation des données…") : t("Chargement des données…")} />}
-      {busyNode && <Loading text={t("« {{node}} » en cours de calcul…", { node: busyNode })} />}
+      {busyNode &&
+        (run.paused && run.status === "running" ? (
+          <p className="muted pad" data-testid="inspector-paused">
+            {t("« {{node}} » : run en pause. Ses données seront prêtes une fois le run repris et le nœud terminé.", { node: busyNode })}
+          </p>
+        ) : (
+          <Loading text={t("« {{node}} » en cours de calcul…", { node: busyNode })} />
+        ))}
       {staleTarget && info && !busyNode && !insp.emptyNode && (
         <p className="stale-banner" role="status" data-testid="data-stale">
           {t("Données du dernier run : ce nœud ou un nœud en amont a changé depuis. Relancer pour les mettre à jour.")}

@@ -209,6 +209,28 @@ def cancel_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict
         raise HTTPException(404, "run introuvable") from None
 
 
+def _pause(store: Store, run_id: str, paused: bool) -> dict[str, Any]:
+    try:
+        return store.request_pause(run_id, paused)
+    except NotFound:
+        raise HTTPException(404, "run introuvable") from None
+    except ValueError:
+        raise HTTPException(409, "ce run ne tourne pas : il ne peut être mis en pause ou repris") from None
+
+
+@router.post("/runs/{run_id}/pause")
+def pause_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
+    """Pause : le run s'arrête au prochain point sûr (entre deux lots, paquets ou nœuds) et garde sa mémoire, ses
+    résultats et sa place ; une étape d'un seul tenant (requête DuckDB) va d'abord à son terme."""
+    return _pause(store, run_id, True)
+
+
+@router.post("/runs/{run_id}/resume")
+def resume_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
+    """Reprise d'un run en pause, au point où il s'était arrêté, avec le flux et les paramètres de son lancement."""
+    return _pause(store, run_id, False)
+
+
 @router.get("/runs/{run_id}/logs")
 def run_logs(
     run_id: str,

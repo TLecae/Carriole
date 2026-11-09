@@ -9,6 +9,7 @@ export interface RunState {
   counts: Record<string, number>;
   logs: RunEvent[];
   cache: boolean;
+  paused?: boolean; // en pause (run « running ») : le moteur s'est arrêté au point sûr suivant
   signatures?: Record<string, string>; // nœuds du flux exécuté (`staleness.signatures`)
   params?: Record<string, string>; // valeurs des paramètres publiés de ce run : celles proposées au lancement suivant
 }
@@ -45,8 +46,12 @@ function reduceRaw(run: RunState, e: RunEvent): RunState {
       return { ...run, counts: { ...run.counts, [`${e.node}/${e.port}`]: e.count ?? 0 } };
     case "log":
       return { ...run, logs: [...run.logs, e].slice(-5000) };
+    case "run_paused":
+      return { ...run, paused: true };
+    case "run_resumed":
+      return { ...run, paused: false };
     case "run_finished":
-      return { ...run, status: (e.status as RunStatus) ?? "done", error: e.error ?? null };
+      return { ...run, status: (e.status as RunStatus) ?? "done", error: e.error ?? null, paused: false };
     default:
       return run;
   }

@@ -1506,6 +1506,7 @@
   "ce lecteur ne lit pas d'adresse web : {pattern}": "this reader does not read web addresses: {pattern}",
   "ce port ne contient pas de raster": "this port contains no raster",
   "ce run n'est pas terminé": "this run is not finished",
+  "ce run ne tourne pas : il ne peut être mis en pause ou repris": "this run is not running: it cannot be paused or resumed",
   "ce stockage n'enregistre pas les flux dans des fichiers": "this storage does not save flows as files",
   "chaque attribut demande un nom et une expression": "each attribute needs a name and an expression",
   "chaque conversion demande un attribut": "each conversion needs an attribute",
