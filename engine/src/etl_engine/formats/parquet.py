@@ -7,6 +7,7 @@ import json
 import os
 import re
 import time
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -199,18 +200,90 @@ def sql_prepare(con: duckdb.DuckDBPyConnection, paths: list[str], limit: int | N
             con.execute("SET disable_parquet_prefetching = true")
 
 
-class ParquetWriter:
-    """Écrit un GeoParquet 1.1 par lots (WKB, SCR, emprise et types de géométrie dans les métadonnées)."""
+def file_columns(path: str) -> list[dict[str, str]] | None:
+    """Colonnes d'un fichier Parquet existant, la géométrie nommée `geometry` (voir `_prepare`) ; None si ce n'est pas
+    un fichier (absent, ou dossier partitionné)."""
+    if not os.path.isfile(path):
+        return None
+    try:
+        schema = read_schema(path)
+    except Exception:  # noqa: BLE001 - fichier illisible : l'écriture dira pourquoi
+        return None
+    return [{"name": f.name, "type": str(f.type)} for f in schema]
 
-    def __init__(self, path: str, compression: str = "zstd", **_: Any) -> None:
+
+def _same_crs(a: str, b: str) -> bool:
+    try:
+        return pyproj.CRS.from_user_input(a) == pyproj.CRS.from_user_input(b)
+    except pyproj.exceptions.CRSError:
+        return a == b
+
+
+class ParquetWriter:
+    """Écrit un GeoParquet 1.1 par lots (WKB, SCR, emprise et types de géométrie dans les métadonnées). Un fichier
+    Parquet ne se complète pas sur place : l'ajout réécrit ses lignes puis les nouvelles, rangées selon ses colonnes."""
+
+    def __init__(self, path: str, compression: str = "zstd", mode: str = "overwrite", **_: Any) -> None:
+        if mode == "create" and os.path.exists(path):
+            raise ConfigError(f"le fichier existe déjà : {path}")
         self.path = path
         self._part = part_name(path)  # tout ou rien : le fichier n'apparaît qu'à la fermeture
         self.compression = compression
+        self._append = mode == "append" and os.path.isfile(path)
+        self._target: pa.Schema | None = None  # ajout : colonnes du fichier existant
         self._writer: pq.ParquetWriter | None = None
         self._schema: pa.Schema | None = None
         self._bounds: np.ndarray | None = None
         self._types: set[str] = set()
         self._crs: str | None = None
+
+    def _aligned(self, table: pa.Table) -> pa.Table:
+        """Ajout : les colonnes du fichier, dans son ordre et ses types ; vides pour celles que rien n'alimente."""
+        target = self._target
+        assert target is not None
+        absent = [n for n in table.column_names if n not in target.names]
+        if absent:
+            listing = ", ".join(absent)
+            raise ConfigError(f"attributs absents du fichier : {listing}")
+        arrays = []
+        for field in target:
+            if field.name not in table.column_names:
+                arrays.append(pa.nulls(table.num_rows, field.type))
+                continue
+            column = table.column(field.name)
+            if column.type != field.type:
+                try:
+                    column = column.cast(field.type)
+                except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
+                    name, kind, wanted = field.name, column.type, field.type
+                    raise ConfigError(
+                        f"attribut « {name} » : {kind} ne s'écrit pas dans une colonne {wanted}"
+                    ) from None
+            arrays.append(column)
+        return pa.Table.from_arrays(arrays, schema=pa.schema(list(target), metadata=table.schema.metadata))
+
+    def _existing(self, table: pa.Table) -> tuple[pa.Table, pq.ParquetFile]:
+        """Ajout : le fichier existant, et le premier lot rangé selon ses colonnes (SCR du fichier, s'il en a un)."""
+        existing = pq.ParquetFile(self.path)
+        self._target, _, crs = _prepare(existing.schema_arrow, existing.metadata.metadata or {})
+        incoming = get_crs(table)
+        if crs and incoming and not _same_crs(crs, incoming):
+            raise ConfigError(f"système de coordonnées différent de celui du fichier : {incoming} (fichier : {crs})")
+        self._crs = crs or incoming
+        return self._aligned(table), existing
+
+    def _copy(self, existing: pq.ParquetFile) -> None:
+        """Ajout : les lignes du fichier existant, groupe par groupe, avant les nouvelles."""
+        assert self._writer is not None and self._schema is not None
+        _, column, _ = _prepare(existing.schema_arrow, existing.metadata.metadata or {})
+        for i in range(existing.num_row_groups):
+            group = existing.read_row_group(i)
+            if column and column != GEOM:
+                group = group.rename_columns([GEOM if n == column else n for n in group.column_names])
+            group = pa.Table.from_arrays(group.columns, schema=self._schema)
+            if has_geometry(self._schema):
+                self._track(group)
+            self._writer.write_table(group)
 
     def _track(self, table: pa.Table) -> None:
         geoms = shapely.from_wkb(table.column(GEOM).to_numpy(zero_copy_only=False))
@@ -244,13 +317,21 @@ class ParquetWriter:
 
     def write(self, table: pa.Table) -> None:
         if self._writer is None:
-            self._crs = get_crs(table)
+            existing = None
+            if self._append:
+                table, existing = self._existing(table)
+            else:
+                self._crs = get_crs(table)
             self._schema = table.schema
             if has_geometry(table):
                 self._schema = table.schema.with_metadata({**(table.schema.metadata or {}), b"geo": self._geo(False)})
             self._writer = pq.ParquetWriter(
                 self._part, self._schema, compression=self.compression, use_dictionary=dictionary_columns(self._schema)
             )
+            if existing is not None:
+                self._copy(existing)
+        elif self._target is not None:
+            table = self._aligned(table)
         elif not table.schema.equals(self._schema, check_metadata=False):
             raise ValueError("schéma incohérent entre deux lots")
         if has_geometry(table):
@@ -290,7 +371,11 @@ class PartitionedParquetWriter:
     ):
         if not partition_by:
             raise ValueError("partition_by vide")
+        if mode == "create" and os.path.exists(path):
+            raise ConfigError(f"le dossier existe déjà : {path}")
         self.path, self.by, self.compression = path, list(partition_by), compression
+        # ajout : un fichier de plus par partition, à côté de ceux des runs précédents
+        self._name = f"part-{uuid.uuid4().hex[:8]}.parquet" if mode == "append" else "part-0.parquet"
         self._writers: dict[tuple, ParquetWriter] = {}
         self.messages = []
         self._started = False
@@ -327,7 +412,7 @@ class PartitionedParquetWriter:
                     raise ValueError(f"plus de {MAX_PARTITIONS} partitions : choisir une colonne moins fine")
                 folder = self._dir(key)
                 os.makedirs(folder, exist_ok=True)
-                writer = self._writers[key] = ParquetWriter(os.path.join(folder, "part-0.parquet"), self.compression)
+                writer = self._writers[key] = ParquetWriter(os.path.join(folder, self._name), self.compression)
             writer.write(table.take(rows))
 
     def abort(self) -> None:

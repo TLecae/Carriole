@@ -1888,6 +1888,10 @@
   "fichier introuvable ou illisible": "file not found or unreadable",
   "fichier introuvable ou illisible par DuckDB": "file not found or unreadable by DuckDB",
   "comptage trop long (plus de {TIMEOUT} s)": "count too long (more than {TIMEOUT} s)",
-  "comptage impossible : {v}": "count impossible: {v}"
+  "comptage impossible : {v}": "count impossible: {v}",
+  "attribut « {name} » : {kind} ne s'écrit pas dans une colonne {wanted}": "attribute \"{name}\": {kind} cannot be written to a {wanted} column",
+  "attributs absents du fichier : {listing}": "attributes missing from the file: {listing}",
+  "le dossier existe déjà : {path}": "the folder already exists: {path}",
+  "système de coordonnées différent de celui du fichier : {incoming} (fichier : {crs})": "coordinate system different from that of the file: {incoming} (file: {crs})"
  }
 }

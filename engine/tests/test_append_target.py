@@ -7,7 +7,7 @@ import pytest
 import shapely
 from etl_engine import formats
 from etl_engine.analysis import analyze
-from etl_engine.data import GEOM, with_crs
+from etl_engine.data import GEOM, get_crs, with_crs
 from etl_engine.executor import run_flow
 from etl_engine.field_values import writer_target
 from etl_engine.formats import databases
@@ -163,3 +163,38 @@ def test_the_run_stops_before_reading_and_the_editor_lists_the_layer(registry, t
     assert writer_target(make_flow(nodes, [("read", "output", "write", "input")]), registry, "write")["exists"] is False
     with pytest.raises(ConfigError, match="n'écrit pas dans un fichier"):
         writer_target(flow, registry, "read")
+
+
+def test_a_geoparquet_append_keeps_the_rows_of_the_file(tmp_path):
+    """Le mode « append » remplaçait le fichier ; « create » ne refusait pas un fichier existant."""
+    target = tmp_path / "communes.parquet"
+    write("parquet", target, points(insee=["31555", "31069"], pop=[504078, 10000]), mode="overwrite")
+    with pytest.raises(ConfigError, match="le fichier existe déjà"):
+        formats.open_writer("parquet", str(target), mode="create")
+    write("parquet", target, points(pop=[2.0], insee=["31149"]), mode="append")  # ordre et type du fichier
+    write("parquet", target, points(insee=["31003"]), mode="append")  # pop : vide
+    table = pa.concat_tables(formats.read_batches("parquet", str(target), 1000))
+    assert table.column("insee").to_pylist() == ["31555", "31069", "31149", "31003"]
+    assert table.column("pop").to_pylist() == [504078, 10000, 2, None]
+    assert table.schema.field("pop").type == pa.int64() and get_crs(table) == "EPSG:2154"
+    assert [shapely.from_wkb(g).x for g in table.column(GEOM).to_pylist()] == [0, 1, 0, 0]
+    with pytest.raises(ConfigError, match="attributs absents du fichier : nom$"):
+        formats.check_append("parquet", str(target), points(nom=["x"]).schema)
+    with pytest.raises(ConfigError, match="attributs absents du fichier : nom$"):
+        write("parquet", target, points(nom=["x"]), mode="append")
+    with pytest.raises(ConfigError, match="système de coordonnées différent"):
+        write("parquet", target, with_crs(points(insee=["x"]), "EPSG:4326"), mode="append")
+    with pytest.raises(ConfigError, match="ne s'écrit pas dans une colonne int64"):
+        write("parquet", target, points(pop=["beaucoup"]), mode="append")
+    assert pq.read_table(target).num_rows == 4  # erreurs : le fichier est intact
+
+
+def test_a_partitioned_append_adds_a_file_per_partition(tmp_path):
+    target = tmp_path / "communes"
+    table = points(dep=["31", "09"], insee=["31555", "09122"])
+    write("parquet", target, table, partition_by=["dep"], mode="overwrite")
+    write("parquet", target, table, partition_by=["dep"], mode="append")
+    assert len(list(target.glob("dep=31/*.parquet"))) == 2
+    assert sum(pq.read_metadata(f).num_rows for f in target.glob("*/*.parquet")) == 4
+    with pytest.raises(ConfigError, match="le dossier existe déjà"):
+        formats.open_writer("parquet", str(target), partition_by=["dep"], mode="create")

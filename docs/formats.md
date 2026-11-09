@@ -41,7 +41,8 @@ de la table : précision de l'ordre du centimètre en Lambert-93.
 ## (Geo)Parquet partitionné
 
 « Partitionner par » écrit un sous-dossier `colonne=valeur/` par valeur (500 partitions maximum). La colonne
-reste dans les fichiers. Pour relire : *Lecture (Geo)Parquet* avec le motif `dossier/**/*.parquet`.
+reste dans les fichiers. Pour relire : *Lecture (Geo)Parquet* avec le motif `dossier/**/*.parquet`. En mode
+`append`, chaque run ajoute un fichier par partition, à côté de ceux des runs précédents.
 
 ## Ajout à une couche ou une table existante
 
@@ -53,11 +54,14 @@ leurs colonnes : un attribut reçu qu'ils n'ont pas ne peut pas y être écrit.
 - L'analyse du flux signale l'erreur sur le nœud, et le run s'arrête avant de lire la moindre donnée. Renommer
   ou retirer ces attributs en amont (*Gérer les attributs*).
 - Comparaison : sans la casse pour les fichiers lus par GDAL (GeoPackage, SpatiaLite, Shapefile, GeoJSON,
-  FlatGeobuf, MapInfo) et pour Oracle ; nom exact pour CSV, Excel et PostgreSQL. En Shapefile, les noms sont
+  FlatGeobuf, MapInfo) et pour Oracle ; nom exact pour CSV, Excel, (Geo)Parquet et PostgreSQL. En Shapefile, les noms sont
   comparés raccourcis à 10 caractères, comme ils seront écrits. La géométrie va dans la colonne géométrique (base :
   « Colonne géométrique créée »), dans `wkt` pour un CSV, `geometry` pour une feuille Excel.
 - CSV et Excel suivent l'en-tête existant : chaque attribut dans sa colonne, quel que soit son rang. Un CSV absent
   ou vide est créé avec son en-tête.
+- (Geo)Parquet : un fichier Parquet ne se complète pas sur place. L'ajout réécrit le fichier (ses lignes, puis
+  les nouvelles, rangées selon ses colonnes et converties dans leurs types) et le remplace d'un bloc à la fin ;
+  un système de coordonnées différent de celui du fichier est refusé.
 - Une couche ou une table qui n'existe pas encore est créée avec les attributs reçus.
 
 ## Oracle

@@ -9,6 +9,9 @@
   database writers (`append`, `truncate`, `upsert`) are now checked before the run too.
 - CSV and Excel appends follow the header of the existing file or sheet: each attribute goes to its column
   (they were written by position). Appending to a missing CSV writes its header.
+- *GeoParquetWriter*: `append` adds to the file instead of replacing it (its rows are rewritten, then the new
+  ones, arranged by its columns; a different coordinate system is refused), `create` refuses an existing file,
+  and a partitioned append adds a file per partition instead of overwriting the previous one.
 - Proposed values (tables of a database, attributes, coordinate systems, AI models) open in a list with the
   colours of the application instead of the system list.
 

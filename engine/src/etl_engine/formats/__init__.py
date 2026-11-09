@@ -113,7 +113,7 @@ def read_schema(fmt: str, path: str, **opts: Any) -> pa.Schema:
 
 
 _targets: OrderedDict[tuple, list[dict[str, str]] | None] = OrderedDict()
-CASE_SENSITIVE = {"csv", "xlsx"}  # GDAL retrouve un champ sans tenir compte de la casse ; CSV, Excel : nom exact
+CASE_SENSITIVE = {"csv", "xlsx", "parquet"}  # GDAL retrouve un champ sans tenir compte de la casse ; les autres non
 
 
 def target_columns(fmt: str, path: str, layer: str | None = None, delimiter: str = ",") -> list[dict[str, str]] | None:
@@ -132,6 +132,8 @@ def target_columns(fmt: str, path: str, layer: str | None = None, delimiter: str
     found: list[dict[str, str]] | None = None
     if fmt == "csv":
         found = csvfmt.header_columns(path, delimiter)
+    elif fmt == "parquet":
+        found = parquet.file_columns(path)
     elif fmt == "xlsx":
         found = xlsx.sheet_columns(path, layer)
     elif fmt in ogr.DRIVERS:
@@ -145,8 +147,10 @@ def target_columns(fmt: str, path: str, layer: str | None = None, delimiter: str
 
 
 def written_names(fmt: str, schema: pa.Schema) -> list[str]:
-    """Colonnes que l'écriture de `schema` alimente dans un fichier `fmt` : la géométrie n'en est une qu'en CSV (`wkt`)
-    et dans une feuille Excel (`geometry`) ; un Shapefile raccourcit les noms à 10 caractères."""
+    """Colonnes que l'écriture de `schema` alimente dans un fichier `fmt` : la géométrie n'en est une qu'en CSV (`wkt`),
+    dans une feuille Excel et un Parquet (`geometry`) ; un Shapefile raccourcit les noms à 10 caractères."""
+    if fmt == "parquet":
+        return list(schema.names)
     geometry = has_geometry(schema)
     names = [n for n in schema.names if not (geometry and n == GEOM)]
     if fmt == "csv":
@@ -177,6 +181,8 @@ def check_append(fmt: str, path: str, schema: pa.Schema, layer: str | None = Non
     listing = ", ".join(absent)
     if fmt == "csv":
         raise ConfigError(f"attributs absents de l'en-tête du fichier : {listing}")
+    if fmt == "parquet":
+        raise ConfigError(f"attributs absents du fichier : {listing}")
     if fmt == "xlsx":
         sheet = layer or "Feuil1"
         raise ConfigError(f"attributs absents de la feuille « {sheet} » : {listing}")
@@ -218,7 +224,7 @@ def open_writer(fmt: str, path: str, **opts: Any) -> Writer:
     if fmt == "parquet":
         if opts.get("partition_by"):
             return parquet.PartitionedParquetWriter(path, **opts)
-        return parquet.ParquetWriter(path, **{k: v for k, v in opts.items() if k == "compression"})
+        return parquet.ParquetWriter(path, **{k: v for k, v in opts.items() if k in ("compression", "mode")})
     if fmt == "csv":
         return csvfmt.CsvWriter(path, **opts)
     if fmt == "xlsx":
