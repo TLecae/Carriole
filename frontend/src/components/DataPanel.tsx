@@ -15,7 +15,9 @@ const MapView = lazy(() => import("./MapView").then((m) => ({ default: m.MapView
 class MapBoundary extends Component<{ children: ReactNode }, { failed: string | null }> {
   state = { failed: null as string | null };
   static getDerivedStateFromError(e: Error) {
-    return { failed: e.message };
+    // module de la carte introuvable : Carriole a été mis à jour pendant que la page était ouverte
+    const outdated = /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(e.message);
+    return { failed: outdated ? t("Carriole a été mis à jour depuis l'ouverture de la page : enregistrer le flux, puis recharger la page (Ctrl+R).") : e.message };
   }
   render() {
     return this.state.failed ? <p className="error-text pad">{t("Carte indisponible : {{reason}}", { reason: this.state.failed })}</p> : this.props.children;

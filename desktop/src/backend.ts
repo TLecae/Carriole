@@ -183,6 +183,28 @@ export async function ensureBackend(
   throw new BackendError(`${why}${last ? ` : ${last}` : ""}\n\nJournal : ${log}`);
 }
 
+const PYTHON_SOURCES = ["engine/src", "api/src", "worker/src", "store/src", "assistant/src"];
+
+/**
+ * Développement (`npm start` dans le dépôt) : vrai si un fichier Python du moteur a changé depuis `startedSec` (date de
+ * démarrage d'un moteur, en secondes). Un moteur resté en arrière-plan exécute sinon l'ancien code.
+ */
+export function sourcesChangedSince(startedSec: number, repo: string): boolean {
+  const limit = startedSec * 1000;
+  const walk = (dir: string): boolean => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== "__pycache__" && walk(full)) return true;
+      } else if (entry.name.endsWith(".py") && fs.statSync(full).mtimeMs > limit) {
+        return true;
+      }
+    }
+    return false;
+  };
+  return PYTHON_SOURCES.some((d) => fs.existsSync(path.join(repo, d)) && walk(path.join(repo, d)));
+}
+
 export async function stopBackend(info: ServerInfo, waitMs = 90_000): Promise<void> {
   try {
     await call(info, "POST", "/api/shutdown");

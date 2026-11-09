@@ -24,6 +24,11 @@
   pause, *Resume* stops the run and starts it again: finished nodes that did not change are taken from the cache,
   changed nodes and everything downstream are recomputed
   ([ADR 0051](docs/decisions/0051-pause-d-un-run.md)). Metadata database schema v8 (`runs.paused`).
+- Desktop: after an update, the window showed the previous interface and the map failed to load ("Failed to fetch
+  dynamically imported module"): the page was kept in the browser cache. The interface is now served with cache
+  headers (`index.html` revalidated, hashed assets kept) and the application clears its cache at start. In
+  development, `npm start` restarts an engine left running in the background when the Python sources changed
+  since it started (unless a run is in progress).
 - Map: a layer coloured by a text attribute shows its 20 most frequent values in colour (10 before), the others in
   grey; the grey of the ninth colour, too close to "Other values", is replaced.
 - Editor: the logo is removed from the top bar (the window title shows the name); a home button returns to the flow

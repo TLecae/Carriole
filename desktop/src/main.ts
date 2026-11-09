@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, Notification, Tray, app, dialog, ipcMain, nativeImage, nativeTheme, shell } from "electron";
+import { BrowserWindow, Menu, Notification, Tray, app, dialog, ipcMain, nativeImage, nativeTheme, session, shell } from "electron";
 import type { IpcMainInvokeEvent, OpenDialogOptions, SaveDialogOptions } from "electron";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,6 +12,8 @@ import {
   loadInstallerDefaults,
   loginUrlOf,
   processAlive,
+  runningServer,
+  sourcesChangedSince,
   stopBackend,
   urlOf,
 } from "./backend";
@@ -249,6 +251,24 @@ async function activeRuns(): Promise<number> {
   }
 }
 
+/**
+ * Développement (`npm start`) : un moteur resté en arrière-plan exécute le code Python de son démarrage. Il est arrêté
+ * (puis relancé par `ensureBackend`) si les sources ont changé depuis, sauf si un run tourne : il n'est pas interrompu.
+ */
+async function restartIfOutdated(): Promise<void> {
+  if (app.isPackaged) return;
+  const existing = await runningServer();
+  if (!existing || !sourcesChangedSince(existing.started, path.join(__dirname, "..", ".."))) return;
+  info = existing;
+  const busy = (await activeRuns()) > 0;
+  info = null;
+  if (busy) {
+    console.warn("moteur en arrière-plan plus ancien que les sources, gardé : un run est en cours");
+    return;
+  }
+  await stopBackend(existing);
+}
+
 async function refreshTray(): Promise<void> {
   if (!tray) return;
   const n = await activeRuns();
@@ -444,6 +464,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!startHidden) splash = createSplash();
     await loadInstallerDefaults();
     try {
+      await restartIfOutdated();
       info = await ensureBackend(pythonPath());
     } catch (err) {
       closeSplash();
@@ -454,6 +475,9 @@ if (!app.requestSingleInstanceLock()) {
     await applyInstallerLanguage(info); // première ouverture : la langue choisie dans l'installeur
     buildMenu();
     createTray();
+    // le serveur est local : son cache HTTP ne fait rien gagner, et une page gardée par une version précédente (servie
+    // sans en-tête de cache) affichait l'ancienne interface, avec des modules disparus
+    await session.defaultSession.clearCache();
     win = createWindow();
     await win.loadURL(loginUrlOf(info));
     closeSplash(); // page chargée (elle s'affiche d'elle-même : « ready-to-show »)

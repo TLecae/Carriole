@@ -214,3 +214,21 @@ def test_end_to_end_with_a_worker(client):
     assert detail["result"]["nodes"]["t"]["rows"]["Passed"] == 5 and detail["counts"]["r/output"] == 5
     assert json.loads(json.dumps(detail["result"]))["status"] == "done"
     assert pq.read_table(client.tmp / "o.parquet").num_rows == 5
+
+
+def test_frontend_cache_headers(tmp_path):
+    """`index.html` revalidé à chaque chargement, fichiers de `assets/` (empreinte dans le nom) gardés : après une
+    mise à jour, la fenêtre de l'application ne garde pas une ancienne page qui demande des modules disparus."""
+    web = tmp_path / "web"
+    (web / "assets").mkdir(parents=True)
+    (web / "index.html").write_bytes(b"<!doctype html><script src='/assets/index-abc.js'></script>")
+    (web / "assets" / "index-abc.js").write_bytes(b"console.log(1)")
+    (web / "logo.svg").write_bytes(b"<svg/>")
+    settings = Settings(
+        meta_dir=tmp_path / "meta", cache_dir=tmp_path / "cache", plugins_dir=tmp_path / "plugins", frontend_dir=web
+    )
+    with TestClient(create_app(settings)) as c:
+        for path in ("/", "/index.html", "/logo.svg"):
+            assert c.get(path).headers["cache-control"] == "no-cache", path
+        assert "immutable" in c.get("/assets/index-abc.js").headers["cache-control"]
+        assert "immutable" not in c.get("/assets/absent.js").headers.get("cache-control", "")

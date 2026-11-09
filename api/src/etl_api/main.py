@@ -48,12 +48,20 @@ async def _sweep(store, stale_seconds: float) -> None:
 
 
 class Frontend(StaticFiles):
-    """Interface statique. Une écriture (PUT, POST…) qui n'a trouvé aucune route d'API est un 404, pas un 405."""
+    """Interface statique. Une écriture (PUT, POST…) qui n'a trouvé aucune route d'API est un 404, pas un 405.
+
+    Cache : les fichiers de `assets/` ont leur empreinte dans leur nom (Vite), ils ne changent jamais ; tout le reste
+    (`index.html`, logo…) est revalidé à chaque chargement. Sans en-tête, Chromium (fenêtre de l'application) gardait
+    un ancien `index.html` après une mise à jour : ancienne interface, et ses modules chargés à la demande (la carte)
+    introuvables."""
 
     async def get_response(self, path, scope):
         if scope["method"] not in ("GET", "HEAD"):
             raise HTTPException(status_code=404)
-        return await super().get_response(path, scope)
+        response = await super().get_response(path, scope)
+        hashed = path.replace("\\", "/").startswith("assets/") and response.status_code == 200
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable" if hashed else "no-cache"
+        return response
 
 
 def frontend_dir(settings: Settings) -> Path | None:

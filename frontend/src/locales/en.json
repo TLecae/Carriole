@@ -101,6 +101,7 @@
  "Carte": "Map",
  "Carte indisponible": "Map unavailable",
  "Carte indisponible : système de coordonnées inconnu.": "Map unavailable: unknown coordinate system.",
+ "Carriole a été mis à jour depuis l'ouverture de la page : enregistrer le flux, puis recharger la page (Ctrl+R).": "Carriole was updated since the page was opened: save the flow, then reload the page (Ctrl+R).",
  "Carte indisponible : {{reason}}": "Map unavailable: {{reason}}",
  "Catégorie": "Category",
  "Ce flux est un composant": "This flow is a component",
