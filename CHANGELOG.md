@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.7
 
 - Site: home page reorganized for GIS users who do not code: number of modifiers by category (read from the
   published catalogue), formats by family, build / check / automate, video and screenshots; the Python section is

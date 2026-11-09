@@ -1,6 +1,6 @@
 [project]
 name = "etl-store"
-version = "0.1.6"
+version = "0.1.7"
 description = "Métadonnées : flux, runs, événements (SQLite par défaut, PostgreSQL possible)"
 requires-python = ">=3.12"
 dependencies = ["etl-engine", "sqlalchemy>=2.0", "cryptography>=43", "psutil>=6"]
