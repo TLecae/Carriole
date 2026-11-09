@@ -31,6 +31,12 @@ test("barre du haut : menus groupés, et paramètres modifiables sans ligne de c
   await dialog.getByLabel("Runs en parallèle").fill("3");
   await dialog.getByLabel("Mémoire maximale du moteur (Mo)").focus();
   await expect(dialog.getByRole("status")).toContainText("prochain démarrage");
+  // cœurs du moteur : la répartition affichée suit la saisie (cœurs ÷ runs en parallèle)
+  await dialog.getByLabel("Cœurs du moteur").fill("2");
+  await expect(dialog.getByTestId("compute-share")).toContainText("Répartition : 2 cœur(s) pour le moteur");
+  await expect(dialog.getByTestId("compute-share")).toContainText("Avec 3 run(s) en même temps, chacun en reçoit 1");
+  await dialog.getByLabel("Cœurs du moteur").blur();
+  await expect.poll(async () => (await (await page.request.get("/api/settings")).json()).values.cpu_budget).toBe(2);
 
   await dialog.getByRole("tab", { name: "Variables globales" }).click();
   await dialog.getByRole("button", { name: "+ Ajouter une variable" }).click();
@@ -40,5 +46,5 @@ test("barre du haut : menus groupés, et paramètres modifiables sans ligne de c
   await expect.poll(async () => (await (await page.request.get("/api/settings")).json()).values.variables).toEqual({ RACINE_E2E: "D:/donnees" });
 
   // remise à zéro : les essais ne laissent rien dans les réglages de l'utilisateur
-  await page.request.patch("/api/settings", { data: { tile_hosts: null, workers: null, variables: null } });
+  await page.request.patch("/api/settings", { data: { tile_hosts: null, workers: null, cpu_budget: null, variables: null } });
 });

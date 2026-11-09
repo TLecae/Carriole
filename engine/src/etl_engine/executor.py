@@ -761,7 +761,7 @@ def run_flow(
                 todo.append(child)
         return members
 
-    node_workers = max_workers or min(8, run_threads)
+    node_workers = max_workers or run_threads
     waiting = {nid: set(d) for nid, d in deps.items() if nid not in live}
     remaining = dict(consumers)
     running: dict[Any, str] = {}

@@ -139,7 +139,8 @@ d'utilisation de chaque fournisseur.
 
 | Variable | Rôle |
 | --- | --- |
-| `ETL_BATCH_WORKERS` | lots traités en parallèle dans un nœud « au fil de l'eau » (moitié des cœurs du run, 2 à 8) |
+| `ETL_BATCH_WORKERS` | lots traités en parallèle dans un nœud (cœurs du run ÷ nœuds lourds qui tournent ensemble) |
+| `ETL_CPU_BUDGET` | cœurs du moteur (*Paramètres → Calcul*, 60 % des cœurs logiques du poste par défaut), partagés entre les runs en cours ; tout calcul parallèle en découle ([ADR 0050](decisions/0050-budget-de-coeurs.md)) |
 | `ETL_DUCK_THREADS` | threads de chaque connexion DuckDB « lourde » (les cœurs du run par défaut) |
 | `ETL_MEMORY_BUDGET_MB` | budget mémoire du moteur (*Paramètres → Calcul*, 75 % du poste par défaut), partagé entre les runs en cours ; DuckDB en reçoit 60 % (`memory_limit`, partagés entre les nœuds lourds du run : un seul les reçoit entiers), le reste va aux lots Arrow (leur taille en découle) |
 | `ETL_CACHE_DIR` | dossier du cache des runs, où les calculs débordent aussi au-delà du budget mémoire (*Paramètres → Calcul → Dossier du cache* ; `%LOCALAPPDATA%\Carriole\cache` par défaut) : un disque local avec de la place |

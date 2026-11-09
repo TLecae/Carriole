@@ -25,6 +25,7 @@ from urllib.parse import unquote, urlsplit
 
 import duckdb
 import psutil
+import pyarrow as pa
 import pyarrow.parquet as pq
 
 _lock = threading.Lock()
@@ -94,16 +95,38 @@ def spatial_available() -> bool:
 # ------------------------------------------------------------------------------------------ ressources
 
 
+MEMORY_SHARE = 0.75  # mémoire du poste donnée au moteur par défaut
+
+
 def machine_budget_mb() -> int:
     """Mémoire que les runs peuvent utiliser : `ETL_MEMORY_BUDGET_MB` (Paramètres), sinon 75 % du poste."""
     env = os.environ.get("ETL_MEMORY_BUDGET_MB")
     if env:
         return max(512, int(env))
-    return max(512, int(psutil.virtual_memory().total / 2**20 * 0.75))
+    return max(512, int(psutil.virtual_memory().total / 2**20 * MEMORY_SHARE))
+
+
+CPU_SHARE = 0.6  # cœurs du poste donnés au moteur par défaut : le reste pour Windows, l'interface, les autres logiciels
+
+
+def machine_cores() -> int:
+    """Cœurs logiques du poste."""
+    return max(1, psutil.cpu_count() or 1)
+
+
+def default_threads() -> int:
+    """Cœurs du moteur sans réglage : `CPU_SHARE` des cœurs du poste, arrondis, au moins un."""
+    return max(1, round(machine_cores() * CPU_SHARE))
 
 
 def machine_threads() -> int:
-    return max(1, psutil.cpu_count() or 1)
+    """Cœurs que les runs peuvent utiliser : `ETL_CPU_BUDGET` (*Paramètres → Calcul*), sinon `default_threads`. Tout
+    calcul parallèle en découle : part de chaque run, threads de DuckDB, lots et nœuds en parallèle, fenêtres raster,
+    calculs d'Arrow et de GDAL, inspecteur et carte."""
+    env = os.environ.get("ETL_CPU_BUDGET")
+    if env:
+        return max(1, min(int(env), machine_cores()))
+    return default_threads()
 
 
 def configure_run(memory_mb: int | None = None, threads: int | None = None, spill_dir: Path | None = None) -> None:
@@ -116,6 +139,8 @@ def configure_run(memory_mb: int | None = None, threads: int | None = None, spil
     _run["threads"] = max(1, threads or (int(env_threads) if env_threads else machine_threads()))
     _run["spill_dir"] = spill_dir
     _run.pop("heavy_nodes", None)
+    pa.set_cpu_count(int(_run["threads"]))  # calculs d'Arrow (lecture Parquet, concaténations, `compute`)
+    pa.set_io_thread_count(int(_run["threads"]))
 
 
 def configure_heavy_nodes(count: int) -> None:
@@ -150,11 +175,12 @@ DUCK_SHARE = 0.6  # part du budget du run donnée à DuckDB (`memory_limit`) ; l
 
 
 def batch_workers(threads: int | None = None) -> int:
-    """Lots traités en parallèle par nœud : `ETL_BATCH_WORKERS`, sinon la moitié des cœurs du run (2 à 8)."""
+    """Lots (ou paquets) traités en parallèle par nœud : `ETL_BATCH_WORKERS`, sinon les cœurs du run partagés entre
+    les nœuds lourds qui tournent ensemble (`heavy_share` : un nœud lourd seul les a tous)."""
     env = os.environ.get("ETL_BATCH_WORKERS")
     if env:
         return max(1, int(env))
-    return max(2, min(8, (threads or run_threads()) // 2))
+    return max(1, (threads or run_threads()) // heavy_share())
 
 
 def batch_bytes() -> int:

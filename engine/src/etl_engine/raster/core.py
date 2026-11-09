@@ -30,6 +30,7 @@ import rasterio
 import shapely
 from rasterio.windows import Window
 
+from etl_engine import duck
 from etl_engine.data import GEOM, get_crs, transformer, with_crs
 from etl_engine.sdk import ConfigError
 
@@ -59,7 +60,6 @@ GDAL_OPTIONS: dict[str, Any] = {
     "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
     "VSI_CACHE": "TRUE",
     "VSI_CACHE_SIZE": 64 * 1024 * 1024,
-    "GDAL_NUM_THREADS": "ALL_CPUS",
     # en octets : rasterio passe un entier tel quel à GDALSetCacheMax64 (512 seul donnait un cache de 512 octets, et
     # une lecture réduite décompressait chaque bloc des centaines de fois)
     "GDAL_CACHEMAX": 512 * 2**20,
@@ -68,7 +68,7 @@ GDAL_OPTIONS: dict[str, Any] = {
 
 def gdal_env(**extra: Any) -> rasterio.Env:
     """Environnement GDAL des opérations raster (proxy du poste compris, s'il est configuré)."""
-    options = dict(GDAL_OPTIONS)
+    options = {**GDAL_OPTIONS, "GDAL_NUM_THREADS": str(duck.run_threads())}  # cœurs du run (*Paramètres → Calcul*)
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or os.environ.get("HTTP_PROXY")
     if proxy:
         options["GDAL_HTTP_PROXY"] = proxy
@@ -183,7 +183,7 @@ def profile_like(desc: dict[str, Any], **override: Any) -> dict[str, Any]:
         "compress": "DEFLATE",
         "predictor": 2 if np.issubdtype(np.dtype(desc["dtype"]), np.integer) else 3,
         "BIGTIFF": "IF_SAFER",
-        "NUM_THREADS": "ALL_CPUS",
+        "NUM_THREADS": str(duck.run_threads()),  # compression des tuiles écrites : cœurs du run
     }
     profile.update(override)
     if profile["width"] < BLOCK or profile["height"] < BLOCK:
@@ -288,10 +288,11 @@ def same_grid_as(ds: Any, grid: dict[str, Any]) -> bool:
 
 
 def worker_count() -> int:
+    """Fenêtres calculées en parallèle : `ETL_RASTER_THREADS`, sinon les cœurs du run (*Paramètres → Calcul*)."""
     configured = os.environ.get("ETL_RASTER_THREADS")
     if configured:
         return max(1, int(configured))
-    return max(1, min(8, (os.cpu_count() or 2) // 2 + 1))
+    return duck.run_threads()
 
 
 def map_windows(

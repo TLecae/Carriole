@@ -87,7 +87,7 @@ def execute_run(
         flow = Flow.model_validate(run["flow"])
         reuse = options.get("reuse_from")
         running = max(1, store.count_running())  # ce run compris : il partage la machine avec les autres
-        memory_mb, threads = duck.machine_budget_mb() // running, max(2, duck.machine_threads() // running)
+        memory_mb, threads = duck.machine_budget_mb() // running, max(1, duck.machine_threads() // running)
         result = run_flow(
             flow,
             registry,

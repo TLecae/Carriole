@@ -96,7 +96,7 @@ def run_one(
     env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
     if share > 1:
         env["ETL_RUN_MEMORY_MB"] = str(max(512, duck.machine_budget_mb() // share))
-        env["ETL_RUN_THREADS"] = str(max(2, duck.machine_threads() // share))
+        env["ETL_RUN_THREADS"] = str(max(1, duck.machine_threads() // share))
     proc = subprocess.Popen(  # noqa: S603 - commande construite ici, sans interpréteur de commandes
         command_for(flow_path, item.params, extra, python),
         stdin=subprocess.DEVNULL,

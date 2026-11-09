@@ -244,8 +244,16 @@ function General({ data, fail }: { data: AppSettings | null; fail: (err: unknown
 function Compute({ data, save }: { data: AppSettings; save: (p: Patch) => Promise<boolean> }) {
   const [workers, setWorkers] = useState(String(data.values.workers ?? ""));
   const [memory, setMemory] = useState(String(data.values.memory_budget_mb ?? ""));
+  const [cores, setCores] = useState(String(data.values.cpu_budget ?? ""));
   const [cache, setCache] = useState(data.values.cache_dir);
   const number = (text: string) => (text.trim() === "" ? null : Number(text));
+  const m = data.machine;
+  const pct = (share: number) => Math.round(share * 100);
+  const defaultMemory = Math.round(m.memory_mb * m.memory_share);
+  // la répartition, recalculée pendant la saisie : ce que reçoit un run quand tous tournent, un nœud lourd dans un run
+  const engineCores = Math.min(m.cores, Math.max(1, number(cores) ?? data.defaults.cpu_budget));
+  const runs = Math.max(1, number(workers) ?? data.defaults.workers);
+  const perRun = Math.max(1, Math.floor(engineCores / runs));
   return (
     <>
       <Field label={t("Runs en parallèle")} hint={t("Nombre de runs exécutés en même temps (un par worker). Par défaut : {{n}}.", { n: data.defaults.workers })}>
@@ -260,17 +268,57 @@ function Compute({ data, save }: { data: AppSettings; save: (p: Patch) => Promis
           onBlur={() => void save({ workers: number(workers) })}
         />
       </Field>
-      <Field label={t("Mémoire maximale du moteur (Mo)")} hint={t("Au-delà, les calculs débordent sur le disque, dans le dossier du cache. Vide : 75 % de la mémoire du poste.")}>
+      <Field
+        label={t("Mémoire maximale du moteur (Mo)")}
+        hint={t("Au-delà, les calculs débordent sur le disque, dans le dossier du cache. Vide : {{pct}} % de la mémoire du poste ({{total}} Mo), soit {{n}} Mo.", {
+          pct: pct(m.memory_share),
+          total: m.memory_mb,
+          n: defaultMemory,
+        })}
+      >
         <input
           type="number"
           min={256}
           step={256}
           value={memory}
+          placeholder={String(defaultMemory)}
           aria-label={t("Mémoire maximale du moteur (Mo)")}
           onChange={(e) => setMemory(e.target.value)}
           onBlur={() => void save({ memory_budget_mb: number(memory) })}
         />
       </Field>
+      <Field
+        label={t("Cœurs du moteur")}
+        hint={t("Tous les calculs en parallèle se partagent ce nombre : requêtes DuckDB, lots d'un modificateur, nœuds d'un run, rasters, carte. Vide : {{pct}} % des {{total}} cœurs du poste, soit {{n}}.", {
+          pct: pct(m.cpu_share),
+          total: m.cores,
+          n: data.defaults.cpu_budget,
+        })}
+      >
+        <input
+          type="number"
+          min={1}
+          max={m.cores}
+          value={cores}
+          placeholder={String(data.defaults.cpu_budget)}
+          aria-label={t("Cœurs du moteur")}
+          onChange={(e) => setCores(e.target.value)}
+          onBlur={() => void save({ cpu_budget: number(cores) })}
+        />
+      </Field>
+      <div className="field" data-testid="compute-share">
+        <small className="muted">
+          {t("Répartition : {{cores}} cœur(s) pour le moteur sur {{total}}. Avec {{runs}} run(s) en même temps, chacun en reçoit {{perRun}} ; dans un run, deux nœuds lourds (tri, jointure, fusion, superposition) au plus tournent ensemble et se partagent ces cœurs, un nœud seul les a tous.", {
+            cores: engineCores,
+            total: m.cores,
+            runs,
+            perRun,
+          })}
+        </small>
+        <small className="muted">
+          {t("Pour choisir : plus de cœurs, des runs plus rapides mais un poste moins réactif pendant les calculs ; garder 2 ou 3 cœurs libres pour travailler à côté. Les changements s'appliquent au redémarrage du moteur.")}
+        </small>
+      </div>
       <Field
         label={t("Dossier du cache")}
         hint={t("Résultats des runs et données temporaires des calculs qui dépassent la mémoire : un disque local avec de la place. Actuellement : {{path}}", { path: data.paths.cache })}

@@ -23,6 +23,11 @@ def test_defaults_and_paths(client):
     assert state["values"]["workers"] is None and state["defaults"]["workers"] == 3
     assert state["values"]["component_dirs"] == [] and state["values"]["variables"] == {}
     assert state["paths"]["settings"].endswith("settings.json") and state["version"]
+    machine = state["machine"]  # aide du panneau Calcul : le poste et les parts par défaut
+    assert machine["cores"] >= 1 and machine["memory_mb"] > 0 and machine["cpu_share"] == 0.6
+    assert state["values"]["cpu_budget"] is None and state["defaults"]["cpu_budget"] == max(
+        1, round(machine["cores"] * 0.6)
+    )
 
 
 def test_patch_changes_only_the_sent_fields_and_flags_what_needs_a_restart(client, tmp_path):
@@ -61,6 +66,7 @@ def test_keep_running_is_saved_for_the_desktop_application(client):
         {"workers": 0},
         {"workers": 500},
         {"memory_budget_mb": 10},
+        {"cpu_budget": 0},
         {"proxy": "proxy.local:3128"},
         {"tile_hosts": ["https://tuiles.example.org/path"]},
         {"tile_hosts": ["https://a.example.org; script-src *"]},
@@ -82,13 +88,14 @@ def test_tile_hosts_reach_the_content_security_policy(client):
 
 def test_proxy_and_memory_budget_are_exported_to_the_environment(client):
     with patch.dict(os.environ):  # l'environnement du processus de test est restauré en sortie
-        for name in ("HTTPS_PROXY", "HTTP_PROXY", "ETL_MEMORY_BUDGET_MB"):
+        for name in ("HTTPS_PROXY", "HTTP_PROXY", "ETL_MEMORY_BUDGET_MB", "ETL_CPU_BUDGET"):
             os.environ.pop(name, None)
-        body = {"proxy": "http://proxy.local:3128", "memory_budget_mb": 2048}
-        assert client.patch("/api/settings", json=body).json()["restart_required"] == ["memory_budget_mb", "proxy"]
+        body = {"proxy": "http://proxy.local:3128", "memory_budget_mb": 2048, "cpu_budget": 3}
+        restart = client.patch("/api/settings", json=body).json()["restart_required"]
+        assert restart == ["cpu_budget", "memory_budget_mb", "proxy"]
         settings.apply_environment()
         assert os.environ["HTTPS_PROXY"] == "http://proxy.local:3128"
-        assert os.environ["ETL_MEMORY_BUDGET_MB"] == "2048"
+        assert os.environ["ETL_MEMORY_BUDGET_MB"] == "2048" and os.environ["ETL_CPU_BUDGET"] == "3"
 
 
 def test_cache_folder_is_exported_to_the_environment(client, tmp_path):

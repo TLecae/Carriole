@@ -5,6 +5,11 @@
 - Site: home page reorganized for GIS users who do not code: number of modifiers by category (read from the
   published catalogue), formats by family, build / check / automate, video and screenshots; the Python section is
   reduced to one line.
+- *Settings → Computation → Engine cores*: the number of cores the engine uses, 60 % of the computer's cores by
+  default. Every parallel computation follows it (share of each run, DuckDB, batches and nodes in parallel, Arrow,
+  GDAL, rasters, inspector); the fixed limits of 8 batches and 8 nodes are gone, and a heavy node alone in its run
+  uses all the run's cores. The panel shows how the cores are shared and how to choose
+  ([ADR 0050](docs/decisions/0050-budget-de-coeurs.md)).
 
 ## 0.1.6
 

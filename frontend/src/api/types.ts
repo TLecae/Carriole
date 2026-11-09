@@ -149,6 +149,7 @@ export interface Preferences {
 export interface AppSettingsValues {
   workers: number | null;
   memory_budget_mb: number | null;
+  cpu_budget: number | null; // cœurs du moteur ; null : `defaults.cpu_budget`
   cache_dir: string; // vide : le dossier par défaut (`paths.cache`)
   proxy: string;
   component_dirs: string[];
@@ -160,7 +161,9 @@ export interface AppSettingsValues {
 export interface AppSettings {
   version: string;
   values: AppSettingsValues;
-  defaults: { workers: number };
+  defaults: { workers: number; cpu_budget: number };
+  /** Le poste : cœurs logiques, mémoire, parts données au moteur par défaut (aide du panneau Calcul). */
+  machine: { cores: number; memory_mb: number; cpu_share: number; memory_share: number };
   component_dirs_found: Record<string, boolean>;
   paths: { data: string; settings: string; logs: string; plugins: string; cache: string };
   restart_required?: string[];

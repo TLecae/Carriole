@@ -7,6 +7,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pytest
+from etl_engine import duck
 from etl_engine.executor import run_flow
 from etl_engine.sdk import Context, Modifier, Params
 
@@ -105,4 +106,28 @@ def test_default_workers_come_from_environment(monkeypatch):
     monkeypatch.setenv("ETL_BATCH_WORKERS", "3")
     assert batch_workers(12) == 3
     monkeypatch.delenv("ETL_BATCH_WORKERS")
-    assert batch_workers(12) == 6 and batch_workers(2) == 2 and batch_workers(64) == 8
+    duck.configure_heavy_nodes(2)  # deux nœuds lourds ensemble : ils se partagent les cœurs du run
+    assert batch_workers(12) == 6 and batch_workers(1) == 1 and batch_workers(64) == 32  # plus de plafond à 8
+    duck.configure_heavy_nodes(1)  # un nœud lourd seul : tous les cœurs du run
+    assert batch_workers(12) == 12
+
+
+def test_cpu_budget_is_sixty_percent_of_the_cores_unless_set(monkeypatch):
+    """Budget de cœurs (ADR 0050) : réglage de *Paramètres → Calcul*, sinon 60 % du poste ; la part d'un run et les
+    threads d'Arrow en découlent."""
+    import pyarrow as pa
+
+    monkeypatch.setattr(duck, "machine_cores", lambda: 20)
+    monkeypatch.delenv("ETL_CPU_BUDGET", raising=False)
+    monkeypatch.delenv("ETL_RUN_THREADS", raising=False)
+    assert duck.machine_threads() == duck.default_threads() == 12
+    monkeypatch.setenv("ETL_CPU_BUDGET", "5")
+    assert duck.machine_threads() == 5
+    monkeypatch.setenv("ETL_CPU_BUDGET", "64")
+    assert duck.machine_threads() == 20  # jamais plus que le poste
+    monkeypatch.setenv("ETL_CPU_BUDGET", "5")
+    duck.configure_run(memory_mb=1024)
+    assert duck.run_threads() == 5 and pa.cpu_count() == 5
+    monkeypatch.setattr(duck, "machine_cores", lambda: 1)
+    monkeypatch.delenv("ETL_CPU_BUDGET")
+    assert duck.default_threads() == 1

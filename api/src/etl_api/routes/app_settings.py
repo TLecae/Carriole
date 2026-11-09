@@ -7,14 +7,15 @@ import re
 from pathlib import Path
 from typing import Annotated, Any
 
-from etl_engine import __version__, drives, settings
+import psutil
+from etl_engine import __version__, drives, duck, settings
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 router = APIRouter(tags=["réglages"])
 
 DEFAULT_WORKERS = 3
-RESTART_KEYS = frozenset({"workers", "memory_budget_mb", "proxy", "cache_dir"})  # lus au démarrage du moteur
+RESTART_KEYS = frozenset({"workers", "memory_budget_mb", "cpu_budget", "proxy", "cache_dir"})  # lus au démarrage
 _TILE_HOST = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d{1,5})?$")
 _VARIABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -26,6 +27,7 @@ class SettingsIn(BaseModel):
 
     workers: int | None = Field(None, ge=1, le=32)
     memory_budget_mb: int | None = Field(None, ge=256, le=4_194_304)
+    cpu_budget: int | None = Field(None, ge=1, le=4096)  # cœurs du moteur ; au plus ceux du poste (`duck`)
     cache_dir: str | None = None  # dossier du cache des runs (et du débordement des calculs) ; vide : celui par défaut
     proxy: str | None = None
     component_dirs: list[str] | None = None
@@ -97,6 +99,7 @@ def _state() -> dict[str, Any]:
         "values": {
             "workers": settings.get("workers") if settings.get("workers") is not None else None,
             "memory_budget_mb": settings.get("memory_budget_mb"),
+            "cpu_budget": settings.get("cpu_budget"),
             "cache_dir": settings.get("cache_dir") or "",
             "proxy": settings.get("proxy") or "",
             "component_dirs": component_dirs,
@@ -104,7 +107,14 @@ def _state() -> dict[str, Any]:
             "variables": {str(k): str(v) for k, v in (settings.get("variables", {}) or {}).items()},
             "keep_running": settings.get("keep_running"),
         },
-        "defaults": {"workers": DEFAULT_WORKERS},
+        "defaults": {"workers": DEFAULT_WORKERS, "cpu_budget": duck.default_threads()},
+        # le poste, pour l'aide du panneau : ce que donnent les valeurs par défaut, comment le budget se partage
+        "machine": {
+            "cores": duck.machine_cores(),
+            "memory_mb": int(psutil.virtual_memory().total // 2**20),
+            "cpu_share": duck.CPU_SHARE,
+            "memory_share": duck.MEMORY_SHARE,
+        },
         "component_dirs_found": {d: Path(d).is_dir() for d in component_dirs},
         "paths": {
             "data": str(dirs.data),

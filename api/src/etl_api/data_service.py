@@ -18,7 +18,6 @@ import gzip
 import hashlib
 import json
 import math
-import os
 import re
 import threading
 import time
@@ -136,7 +135,7 @@ class _Gate:
                 self._cond.notify_all()
 
 
-_GATE = _Gate(max(2, (os.cpu_count() or 2) // 2))
+_GATE = _Gate(max(2, duck.machine_threads() // 2))  # requêtes de l'inspecteur en même temps : budget de cœurs
 
 
 # ------------------------------------------------------------------------------------------ requêtes

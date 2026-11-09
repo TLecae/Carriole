@@ -191,8 +191,9 @@ def language() -> str:
 
 
 def apply_environment() -> None:
-    """Réglages qui passent par l'environnement du processus (proxy, budget mémoire), pour le backend, ses workers
-    (qui héritent de l'environnement) et la ligne de commande. Une variable déjà définie l'emporte."""
+    """Réglages qui passent par l'environnement du processus (proxy, budgets de mémoire et de cœurs), pour le
+    backend, ses workers (qui héritent de l'environnement) et la ligne de commande. Une variable déjà définie
+    l'emporte."""
     proxy = str(get("proxy", "") or "").strip()
     if proxy:
         for name in ("HTTPS_PROXY", "HTTP_PROXY"):
@@ -200,6 +201,9 @@ def apply_environment() -> None:
     budget = get("memory_budget_mb")
     if isinstance(budget, int) and not isinstance(budget, bool) and budget > 0:
         os.environ.setdefault("ETL_MEMORY_BUDGET_MB", str(budget))
+    cores = get("cpu_budget")  # cœurs du moteur (`duck.machine_threads`)
+    if isinstance(cores, int) and not isinstance(cores, bool) and cores > 0:
+        os.environ.setdefault("ETL_CPU_BUDGET", str(cores))
     cache = str(get("cache_dir", "") or "").strip()  # résultats des runs et débordement des calculs : un disque local
     if cache:
         os.environ.setdefault("ETL_CACHE_DIR", cache)

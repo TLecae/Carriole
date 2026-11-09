@@ -58,6 +58,9 @@ simples. Les comportements suivent ceux des ETL géographiques établis, sous de
   géométrie en WKB, entier de 128 bits en DOUBLE comme l'écrit Parquet).
 - Transformations pyproj en cache partagé (`data.transformer`, `data.to_crs`).
 
+## Appliqué le 2026-11-08
+- Cœurs : tout parallélisme découle du budget de cœurs ([ADR 0050](0050-budget-de-coeurs.md)).
+
 ## Reste à faire
 - Voies SQL : ConvertDate (formats de date), ExtractText (positions négatives, regex sans correspondance : vide
   pour Arrow, texte vide pour DuckDB), SplitText (pas de nombre maximal de coupures dans `string_split`),
