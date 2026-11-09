@@ -73,7 +73,7 @@
   --chip-text: #cddcf0;
   --canvas: #12171d;
   --node-border: #5d6b7e;
-  --edge: #7d8ba0;
+  --edge: #f1f5f9; /* liens entre nœuds : presque blancs, visibles sur le fond sombre */
   --handle: #9aa6b6;
   --glass: rgba(24,30,37,.92);
   --veil: rgba(15,20,25,.6);

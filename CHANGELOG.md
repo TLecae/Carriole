@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Canvas: links between nodes are near white in the dark theme (they were grey, hard to see).
 - DXF (AutoCAD): *DxfReader* reads the entities of a drawing (layer, line type, text; blocks exploded; closed
   polylines as polygons; layers to read; coordinate system to declare). *DxfWriter* writes each geometry on the
   layer given by an attribute, points with a text as TEXT entities, polygons as closed polylines or hatches; the
