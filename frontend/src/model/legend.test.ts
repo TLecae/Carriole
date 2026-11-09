@@ -27,6 +27,14 @@ describe("classes d'un attribut numérique", () => {
 });
 
 describe("catégories", () => {
+  it("20 couleurs, toutes différentes, aucune grise comme les valeurs absentes", () => {
+    expect(CATEGORY_COLORS).toHaveLength(20);
+    expect(new Set(CATEGORY_COLORS.map((c) => c.toLowerCase())).size).toBe(20);
+    expect(CATEGORY_COLORS).not.toContain(NO_VALUE);
+    const values = Array.from({ length: 20 }, (_, i) => ({ value: `v${i}`, count: 20 - i }));
+    expect(categoriesColoring(values)!.items.map((i) => i.color)).toEqual(CATEGORY_COLORS); // 20 valeurs : pas d'« Autres »
+  });
+
   it("les valeurs les plus fréquentes en couleur, le reste et les vides en gris", () => {
     const values = [{ value: "31", count: 9 }, { value: null, count: 3 }, { value: "09", count: 2 }];
     const c = categoriesColoring(values)!;

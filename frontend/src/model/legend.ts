@@ -1,8 +1,15 @@
 import type { ExpressionSpecification } from "maplibre-gl";
 import { formatNumber, t } from "../i18n";
 
-/** Couleurs des catégories (valeurs les plus fréquentes d'abord). */
-export const CATEGORY_COLORS = ["#1d6fb8", "#d9480f", "#2b8a3e", "#862e9c", "#c2255c", "#e67700", "#0b7285", "#5f3dc4", "#868e96", "#a61e4d"];
+/**
+ * Couleurs des catégories (valeurs les plus fréquentes d'abord) : 20 teintes distinctes. Les dix premières sont
+ * soutenues, les dix suivantes plus claires ou d'autres familles (ciel, abricot, menthe, orchidée, jaune, olive, brun,
+ * rouge, marine) ; aucune ne ressemble au gris des valeurs absentes.
+ */
+export const CATEGORY_COLORS = [
+  "#1d6fb8", "#d9480f", "#2b8a3e", "#862e9c", "#c2255c", "#e67700", "#0b7285", "#5f3dc4", "#5c4b51", "#a61e4d",
+  "#74c0fc", "#ffa94d", "#8ce99a", "#e599f7", "#ffe066", "#66d9e8", "#5c940d", "#8b5a2b", "#f03e3e", "#1b1f8a",
+];
 /** Rampe des classes d'un attribut numérique, de la plus petite valeur à la plus grande. */
 export const RAMP = ["#ffffcc", "#a1dab4", "#41b6c4", "#2c7fb8", "#253494"];
 /** Entités sans valeur, ou d'une catégorie hors des plus fréquentes. */
