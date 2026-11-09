@@ -15,6 +15,8 @@
   the cores of the run.
 - *JoinByLocation*: the list of related values is built without a loop per feature. *Counter* with groups has an
   SQL route (computed by DuckDB, ports defined on demand).
+- *StatisticsByGroup*: the `summary` port (one row per group) comes first, so the inspector shows it rather than all
+  the features; saved flows are unchanged (links name their ports).
 - *Settings → Computation → Engine cores*: the number of cores the engine uses, 60 % of the computer's cores by
   default. Every parallel computation follows it (share of each run, DuckDB, batches and nodes in parallel, Arrow,
   GDAL, rasters, inspector); the fixed limits of 8 batches and 8 nodes are gone, and a heavy node alone in its run

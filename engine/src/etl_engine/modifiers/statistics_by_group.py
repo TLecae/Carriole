@@ -36,13 +36,13 @@ class StatisticsByGroup(Modifier):
     category = "Calculs"
     description = "Calcule des statistiques par groupe : somme, moyenne, min, max, médiane, comptage…"
     help = (
-        "Les entités sortent sur « output » (avec les statistiques de leur groupe si « Ajouter aux entités » est "
-        "coché) et une ligne par groupe sort sur « summary ». Les colonnes s'appellent `attribut_fonction` "
+        "Une ligne par groupe sort sur « summary », le premier port (celui que l'inspecteur montre) ; les entités "
+        "sortent sur « output », avec les statistiques de leur groupe si « Ajouter aux entités » est coché. Les colonnes s'appellent `attribut_fonction` "
         "(ex. pop_sum) ; `_count` est le nombre d'entités du groupe. Somme, moyenne, médiane et écart-type "
         "convertissent la valeur en nombre (non convertible = ignorée). Sans groupe, tout est un seul groupe."
     )
     mode = "blocking"
-    outputs = ("output", "summary")
+    outputs = ("summary", "output")  # la synthèse d'abord : c'est elle qu'on regarde (inspecteur, liens par défaut)
     rejected = False
 
     class Params(Params):

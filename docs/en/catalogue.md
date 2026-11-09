@@ -466,9 +466,9 @@ The attributes of the aggregated feature are those of the first feature of the g
 
 Computes statistics per group: sum, mean, min, max, median, count…
 
-- **Inputs** : `input` — **Outputs** : `output`, `summary` — **Processing** : blocking (reads all the data before producing)
+- **Inputs** : `input` — **Outputs** : `summary`, `output` — **Processing** : blocking (reads all the data before producing)
 
-Features leave on "output" (with their group's statistics if "Add to features" is checked) and one row per group leaves on "summary". Columns are named `attribute_function` (e.g. pop_sum); `_count` is the number of features in the group. Sum, mean, median and standard deviation convert the value to a number (non-convertible = ignored). Without a group, everything is one group.
+One row per group leaves on "summary", the first port (the one the inspector shows); features leave on "output", with their group's statistics if "Add to features" is checked. Columns are named `attribute_function` (e.g. pop_sum); `_count` is the number of features in the group. Sum, mean, median and standard deviation convert the value to a number (non-convertible = ignored). Without a group, everything is one group.
 
 | Parameter | Role | Default |
 | --- | --- | --- |

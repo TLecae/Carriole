@@ -360,9 +360,9 @@ Les attributs de l'entité agrégée sont ceux de la première entité du groupe
 
 Calcule des statistiques par groupe : somme, moyenne, min, max, médiane, comptage…
 
-- **Entrées** : `input` — **Sorties** : `output`, `summary` — **Traitement** : bloquant (lit toutes les données avant de produire)
+- **Entrées** : `input` — **Sorties** : `summary`, `output` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
-Les entités sortent sur « output » (avec les statistiques de leur groupe si « Ajouter aux entités » est coché) et une ligne par groupe sort sur « summary ». Les colonnes s'appellent `attribut_fonction` (ex. pop_sum) ; `_count` est le nombre d'entités du groupe. Somme, moyenne, médiane et écart-type convertissent la valeur en nombre (non convertible = ignorée). Sans groupe, tout est un seul groupe.
+Une ligne par groupe sort sur « summary », le premier port (celui que l'inspecteur montre) ; les entités sortent sur « output », avec les statistiques de leur groupe si « Ajouter aux entités » est coché. Les colonnes s'appellent `attribut_fonction` (ex. pop_sum) ; `_count` est le nombre d'entités du groupe. Somme, moyenne, médiane et écart-type convertissent la valeur en nombre (non convertible = ignorée). Sans groupe, tout est un seul groupe.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
