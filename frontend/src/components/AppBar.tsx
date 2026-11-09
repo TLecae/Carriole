@@ -4,7 +4,8 @@ import { t } from "../i18n";
 import { Icon } from "./Icon";
 import { Menu, MenuItem } from "./Menu";
 
-/** Barre du haut commune à l'accueil et à l'éditeur : marque, menus, zone d'actions, outils de l'application. */
+/** Barre du haut commune à l'accueil et à l'éditeur : menus, zone d'actions, outils de l'application. Le nom de
+ * l'application est dans la barre de titre de la fenêtre : la barre ne le répète pas. */
 export function AppBar({ children }: { children: React.ReactNode }) {
   return <header className="appbar">{children}</header>;
 }
@@ -12,22 +13,12 @@ export function AppBar({ children }: { children: React.ReactNode }) {
 export const Divider = () => <span className="divider" role="separator" aria-orientation="vertical" />;
 export const Spacer = () => <span className="grow" />;
 
-export function Brand({ onClick }: { onClick?: () => void }) {
-  // carriole : la charrette, « carry all », et i/o (entrées, sorties) : le « i/o » du nom est celui du logo
-  const inner = (
-    <>
-      <img className="brand-logo" src="/logo.svg" alt="" width={22} height={22} />
-      <strong className="brand-name" aria-label="Carriole">
-        Carr<span className="brand-io">i/o</span>le
-      </strong>
-    </>
-  );
-  return onClick ? (
-    <button className="brand ghost" onClick={onClick} title={t("Retour à la liste des flux")} aria-label={t("Accueil")}>
-      {inner}
+/** Retour à l'accueil (liste des flux), en tête de la barre de l'éditeur. */
+export function HomeButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="ghost icon-only" onClick={onClick} title={t("Retour à la liste des flux")} aria-label={t("Accueil")}>
+      <Icon name="home" size={18} />
     </button>
-  ) : (
-    <span className="brand">{inner}</span>
   );
 }
 

@@ -8,7 +8,6 @@
   --danger: #b42318;
   --warn: #b7791f;
   --ok: #1f8a4c;
-  --brand-io: #c98a00; /* « i/o » de Carri/ole : l'ambre du logo, assombri pour se lire sur fond blanc */
   --surface-2: #f3f5f8; /* fonds discrets : en-tête de table, code */
   --surface-3: #e5e7eb;
   --line-soft: #eef0f3; /* séparateurs des lignes de table */
@@ -55,7 +54,6 @@
   --danger: #e5534b;
   --warn: #d29922;
   --ok: #2ea05f;
-  --brand-io: #e0a52a;
   --surface-2: #1f262f;
   --surface-3: #2b333e;
   --line-soft: #242b34;
@@ -114,11 +112,11 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .grow { flex: 1; }
 .run-chip { padding: 2px 8px; border-radius: 10px; background: var(--surface-3); font-size: 12px; }
 .run-chip:empty { display: none; }
+.run-chip.running, .run-chip.queued { background: var(--selected); }
+.run-chip.done { background: var(--ok-soft); }
 .run-chip.paused { background: var(--warn-soft); }
 /* run en pause : les nœuds en cours ne s'animent plus (le moteur est arrêté au point sûr suivant) */
 .canvas.run-paused .spinner { animation-play-state: paused; }
-.run-chip.running, .run-chip.queued { background: var(--selected); }
-.run-chip.done { background: var(--ok-soft); }
 .run-chip.error, .run-chip.interrupted { background: var(--danger-soft); }
 
 .palette { background: var(--panel); border-right: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
@@ -138,9 +136,9 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .etl-node.disabled { opacity: .45; border-style: dashed; }
 .etl-node.unknown { border-color: var(--danger); }
 .etl-node.has-error { border-color: var(--danger); }
-.etl-node.st-paused { border-color: var(--warn); border-style: dashed; }
 .etl-node.has-warning:not(.has-error) { border-color: var(--warn); }
 .etl-node.st-running { border-color: var(--primary); animation: pulse 1.2s infinite; }
+.etl-node.st-paused { border-color: var(--warn); border-style: dashed; }
 .etl-node.st-error { border-color: var(--danger); background: var(--danger-soft); }
 .etl-node.st-done, .etl-node.st-cached { border-color: var(--ok); }
 /* sélection : après les états (la bordure verte d'un nœud terminé ne la masque plus), bien visible */
@@ -544,11 +542,6 @@ label.inline input { width: auto; }
 /* ---- barre du haut -------------------------------------------------------------------------- */
 .appbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 46px; padding: 5px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .appbar .grow { flex: 1; }
-.appbar .brand { display: inline-flex; align-items: center; gap: 7px; margin: 0 2px 0 0; }
-.appbar .brand strong { font-size: 14px; }
-.appbar .brand-logo { display: block; flex: none; }
-.appbar .brand-name { font-size: 15px; letter-spacing: 0.2px; }
-.appbar .brand-io { color: var(--brand-io); }
 .divider { width: 1px; height: 22px; background: var(--line); margin: 0 8px; }
 button.ghost { border-color: transparent; background: transparent; display: inline-flex; align-items: center; gap: 5px; }
 button.ghost:hover:not(:disabled) { background: var(--hover); }

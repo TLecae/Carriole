@@ -24,6 +24,8 @@
   pause, *Resume* stops the run and starts it again: finished nodes that did not change are taken from the cache,
   changed nodes and everything downstream are recomputed
   ([ADR 0051](docs/decisions/0051-pause-d-un-run.md)). Metadata database schema v8 (`runs.paused`).
+- Editor: the logo is removed from the top bar (the window title shows the name); a home button returns to the flow
+  list.
 - *Settings → Computation → Engine cores*: the number of cores the engine uses, 60 % of the computer's cores by
   default. Every parallel computation follows it (share of each run, DuckDB, batches and nodes in parallel, Arrow,
   GDAL, rasters, inspector); the fixed limits of 8 batches and 8 nodes are gone, and a heavy node alone in its run

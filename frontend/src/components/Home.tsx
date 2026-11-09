@@ -5,7 +5,7 @@ import { enterEditor, newFlowFromHome, openExampleFromHome, openFlowFileFromHome
 import { pickPath } from "../platform";
 import { useEditor } from "../store/editor";
 import { useUi } from "../store/ui";
-import { AppBar, Brand, Divider, RunsButton, SettingsButton, Spacer, ToolsMenu } from "./AppBar";
+import { AppBar, Divider, RunsButton, SettingsButton, Spacer, ToolsMenu } from "./AppBar";
 import { Loading } from "./Spinner";
 import { formatDateTime, t } from "../i18n";
 
@@ -130,8 +130,6 @@ export function Home() {
   return (
     <div className="home">
       <AppBar>
-        <Brand />
-        <Divider />
         <button className="primary" onClick={newFlowFromHome}>
           {t("+ Nouveau flux")}
         </button>
