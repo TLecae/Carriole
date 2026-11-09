@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
 import duckdb
 import numpy as np
@@ -81,8 +81,11 @@ class OverlayPolygons(Modifier):
     help = (
         "Tous les polygones reçus sont superposés : leurs contours découpent le plan en morceaux, et chaque morceau sort "
         "sur « output » avec `_overlap_count` (le nombre de polygones d'origine qui le recouvrent), `_origins` (leurs numéros, "
-        "de 0, dans l'ordre d'arrivée) et, pour chaque attribut de « Attributs à lister », la liste des valeurs des "
-        "polygones qui le recouvrent. Les morceaux qu'aucun polygone ne recouvre (trous, vide autour) ne sont pas produits. "
+        "de 0, dans l'ordre d'arrivée) et les attributs choisis des polygones qui le recouvrent. Selon « Valeurs des "
+        "attributs » : la liste de leurs valeurs (list), ou une seule valeur, la première (first) ou la dernière (last) "
+        "renseignée dans l'ordre d'arrivée. Pour superposer deux couches (communes et occupation du sol, par exemple), "
+        "first donne à chaque morceau la valeur de la couche qui a l'attribut : le résultat se regroupe ensuite par ces "
+        "attributs. Les morceaux qu'aucun polygone ne recouvre (trous, vide autour) ne sont pas produits. "
         "« Recouvrement minimal » ne garde que les morceaux recouverts au moins N fois (2 = les zones de conflit). "
         "Les entités qui ne sont pas des polygones partent sur « Rejected ». Toutes les entités sont lues avant le calcul."
     )
@@ -92,8 +95,16 @@ class OverlayPolygons(Modifier):
     class Params(Params):
         attributes: AttributeList = Field(
             default_factory=list,
-            title="Attributs à lister",
-            description="Pour chaque morceau : la liste des valeurs de ces attributs sur les polygones qui le recouvrent.",
+            title="Attributs",
+            description="Attributs des polygones qui recouvrent chaque morceau, repris sur le morceau.",
+        )
+        values: Literal["list", "first", "last"] = Field(
+            "list",
+            title="Valeurs des attributs",
+            description=(
+                "list : la liste des valeurs des polygones qui recouvrent le morceau ; first : la première valeur "
+                "renseignée (non vide), dans l'ordre d'arrivée ; last : la dernière."
+            ),
         )
         min_overlap: int = Field(
             1,
@@ -129,7 +140,10 @@ class OverlayPolygons(Modifier):
         fields = [pa.field(p.count_attribute, pa.int64())]
         if p.origins_attribute:
             fields.append(pa.field(p.origins_attribute, pa.list_(pa.int64())))
-        fields += [pa.field(a, pa.list_(schema.field(a).type)) for a in p.attributes]
+        listed = p.values == "list"
+        fields += [
+            pa.field(a, pa.list_(schema.field(a).type) if listed else schema.field(a).type) for a in p.attributes
+        ]
         return {"output": pa.schema([*fields, schema.field(GEOM)], metadata=schema.metadata)}
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
@@ -421,8 +435,26 @@ class _Overlay:
         yield from ordered_map(join, batches, workers, ctx)
 
 
+def _picked(values: pa.Array, offsets: np.ndarray, last: bool) -> pa.Array:
+    """Une valeur par morceau : la première (ou la dernière) renseignée parmi `values[offsets[k]:offsets[k + 1]]`,
+    nulle s'il n'y en a aucune. Sans boucle : un minimum (maximum) par segment des positions des valeurs renseignées.
+    Chaque morceau a au moins un polygone (`min_overlap` ≥ 1) : aucun segment n'est vide."""
+    n = len(offsets) - 1
+    if not n:
+        return values.slice(0, 0)
+    at = np.arange(len(values), dtype=np.int64)
+    filled = np.asarray(values.is_valid().to_numpy(zero_copy_only=False), dtype=bool)
+    if last:
+        found = np.maximum.reduceat(np.where(filled, at, -1), offsets[:-1])
+        missing = found < 0
+    else:
+        found = np.minimum.reduceat(np.where(filled, at, len(values)), offsets[:-1])
+        missing = found >= len(values)
+    return values.take(pa.array(np.where(missing, 0, found), pa.int64(), mask=missing))
+
+
 class _Columns:
-    """Colonnes de sortie d'un paquet de morceaux : nombre, origines, listes d'attributs."""
+    """Colonnes de sortie d'un paquet de morceaux : nombre, origines, attributs (listes ou une valeur)."""
 
     def __init__(self, table: pa.Table, positions: np.ndarray, p: Any) -> None:
         self.table, self.positions, self.p = table, positions, p
@@ -436,5 +468,8 @@ class _Columns:
             columns[p.origins_attribute] = pa.ListArray.from_arrays(offsets_arr, rows)
         for a in p.attributes:
             values = self.table.column(a).take(rows).combine_chunks()
-            columns[a] = pa.ListArray.from_arrays(offsets_arr, values)
+            if p.values == "list":
+                columns[a] = pa.ListArray.from_arrays(offsets_arr, values)
+            else:  # sources triées par numéro d'origine : first / last suivent l'ordre d'arrivée
+                columns[a] = _picked(values, offsets, p.values == "last")
         return pa.table({**columns, GEOM: pa.nulls(len(offsets) - 1, pa.binary())})

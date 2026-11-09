@@ -5,6 +5,9 @@
 - Site: home page reorganized for GIS users who do not code: number of modifiers by category (read from the
   published catalogue), formats by family, build / check / automate, video and screenshots; the Python section is
   reduced to one line.
+- *OverlayPolygons*: new *Attribute values* option. `list` keeps one list per attribute (as before); `first` /
+  `last` give a single value, the first or last one filled in, in arrival order. Overlaying two layers (municipalities
+  and land cover) gives each piece the values of both, ready to group by them.
 - Modifiers sized from the memory budget of *Settings → Computation* instead of fixed caps
   ([ADR 0045](docs/decisions/0045-conventions-des-modificateurs.md)): *CreateGrid* produces its cells by slices on all
   cores (no 5 million cell limit; only a grid that would not fit on the disk is refused); *Dissolve* packs groups

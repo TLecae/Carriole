@@ -888,11 +888,12 @@ Cuts overlapping polygons into disjoint pieces, with the number of polygons cove
 
 - **Inputs** : `input` — **Outputs** : `output`, `Rejected` — **Processing** : blocking (reads all the data before producing)
 
-All received polygons are overlaid: their outlines cut the plane into pieces, and each piece leaves on "Area" with `_overlap_count` (the number of original polygons covering it), `_origins` (their numbers, from 0, in arrival order) and, for each attribute of "Attributes to list", the list of the values of the polygons covering it. Pieces that no polygon covers (holes, empty space around) are not produced. "Minimum overlap" only keeps the pieces covered at least N times (2 = conflict zones). Features that are not polygons go to "Rejected". All features are read before the computation.
+All received polygons are overlaid: their outlines cut the plane into pieces, and each piece leaves on "output" with `_overlap_count` (the number of original polygons covering it), `_origins` (their numbers, from 0, in arrival order) and the chosen attributes of the polygons covering it. Depending on "Attribute values": the list of their values (list), or a single value, the first (first) or the last (last) one filled in, in arrival order. To overlay two layers (municipalities and land cover, for example), first gives each piece the value of the layer that has the attribute: the result can then be grouped by these attributes. Pieces that no polygon covers (holes, empty space around) are not produced. "Minimum overlap" only keeps the pieces covered at least N times (2 = conflict zones). Features that are not polygons go to "Rejected". All features are read before the computation.
 
 | Parameter | Role | Default |
 | --- | --- | --- |
-| <a id="overlaypolygons-attributes"></a>Attributes to list | For each piece: the list of the values of these attributes on the polygons that cover it. |  |
+| <a id="overlaypolygons-attributes"></a>Attributes | Attributes of the polygons covering each piece, carried over to the piece. |  |
+| <a id="overlaypolygons-values"></a>Attribute values | list: the list of the values of the polygons covering the piece; first: the first value filled in (not empty), in arrival order; last: the last one. | `list` |
 | <a id="overlaypolygons-min_overlap"></a>Minimum overlap | Only keeps the pieces covered at least this number of times. | `1` |
 | <a id="overlaypolygons-count_attribute"></a>Count attribute | Number of polygons that cover the piece. | `_overlap_count` |
 | <a id="overlaypolygons-origins_attribute"></a>Origins attribute | Numbers (from 0) of the polygons that cover the piece; empty = none. | `_origins` |

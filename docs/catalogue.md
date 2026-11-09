@@ -845,11 +845,12 @@ Découpe des polygones qui se chevauchent en morceaux disjoints, avec le nombre 
 
 - **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
-Tous les polygones reçus sont superposés : leurs contours découpent le plan en morceaux, et chaque morceau sort sur « output » avec `_overlap_count` (le nombre de polygones d'origine qui le recouvrent), `_origins` (leurs numéros, de 0, dans l'ordre d'arrivée) et, pour chaque attribut de « Attributs à lister », la liste des valeurs des polygones qui le recouvrent. Les morceaux qu'aucun polygone ne recouvre (trous, vide autour) ne sont pas produits. « Recouvrement minimal » ne garde que les morceaux recouverts au moins N fois (2 = les zones de conflit). Les entités qui ne sont pas des polygones partent sur « Rejected ». Toutes les entités sont lues avant le calcul.
+Tous les polygones reçus sont superposés : leurs contours découpent le plan en morceaux, et chaque morceau sort sur « output » avec `_overlap_count` (le nombre de polygones d'origine qui le recouvrent), `_origins` (leurs numéros, de 0, dans l'ordre d'arrivée) et les attributs choisis des polygones qui le recouvrent. Selon « Valeurs des attributs » : la liste de leurs valeurs (list), ou une seule valeur, la première (first) ou la dernière (last) renseignée dans l'ordre d'arrivée. Pour superposer deux couches (communes et occupation du sol, par exemple), first donne à chaque morceau la valeur de la couche qui a l'attribut : le résultat se regroupe ensuite par ces attributs. Les morceaux qu'aucun polygone ne recouvre (trous, vide autour) ne sont pas produits. « Recouvrement minimal » ne garde que les morceaux recouverts au moins N fois (2 = les zones de conflit). Les entités qui ne sont pas des polygones partent sur « Rejected ». Toutes les entités sont lues avant le calcul.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
-| <a id="overlaypolygons-attributes"></a>Attributs à lister | Pour chaque morceau : la liste des valeurs de ces attributs sur les polygones qui le recouvrent. |  |
+| <a id="overlaypolygons-attributes"></a>Attributs | Attributs des polygones qui recouvrent chaque morceau, repris sur le morceau. |  |
+| <a id="overlaypolygons-values"></a>Valeurs des attributs | list : la liste des valeurs des polygones qui recouvrent le morceau ; first : la première valeur renseignée (non vide), dans l'ordre d'arrivée ; last : la dernière. | `list` |
 | <a id="overlaypolygons-min_overlap"></a>Recouvrement minimal | Ne garde que les morceaux recouverts au moins ce nombre de fois. | `1` |
 | <a id="overlaypolygons-count_attribute"></a>Attribut du nombre | Nombre de polygones qui recouvrent le morceau. | `_overlap_count` |
 | <a id="overlaypolygons-origins_attribute"></a>Attribut des origines | Numéros (de 0) des polygones qui recouvrent le morceau ; vide = aucun. | `_origins` |

@@ -1,5 +1,6 @@
 import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 import pytest
 import shapely
 from etl_engine.data import GEOM, get_crs, with_crs
@@ -127,7 +128,6 @@ def test_hexagon_grid_covers_the_extent():
     assert shapely.box(50, 50, 950, 950).difference(union).area < 1e-6  # aucun trou dans l'emprise
 
 
-def test_grid_from_incoming_features_and_limits():
 @pytest.mark.parametrize("shape", ["square", "hexagon"])
 def test_grid_is_the_same_whatever_the_slices(shape):
     """Grille produite par tranches (sur plusieurs cœurs) : mêmes cellules, numéros et ordre qu'en une seule fois."""
@@ -145,6 +145,7 @@ def test_grid_is_the_same_whatever_the_slices(shape):
     assert one.column("cell_id").to_pylist() == list(range(one.num_rows))
 
 
+def test_grid_from_incoming_features_and_limits():
     data = shapes([shapely.box(0, 0, 250, 100), shapely.box(1000, 1000, 1010, 1010)])
     full = run_modifier(CreateGrid, {"from_input": True, "size": 500}, data)["output"]
     assert full.num_rows == 9  # emprise 1010 x 1010 : 3 colonnes x 3 lignes de 500
@@ -218,6 +219,33 @@ def test_overlay_cuts_overlapping_polygons_into_pieces():
     assert sorted(map(tuple, out.column("_origins").to_pylist())) == [(0,), (0, 1), (1,)]
     conflicts = run_modifier(OverlayPolygons, {"min_overlap": 2}, data)["output"]
     assert conflicts.num_rows == 1 and round(geoms_of(conflicts)[0].area) == 50
+
+
+def test_overlay_first_and_last_values_merge_two_layers():
+    """Deux couches superposées (communes, occupation du sol) : une valeur par morceau, regroupable ensuite."""
+    commune, foret, champ = shapely.box(0, 0, 10, 10), shapely.box(5, 0, 15, 10), shapely.box(-5, 0, 2, 10)
+    data = shapes([commune, foret, champ], insee=["31555", None, None], couv=[None, "CS2.1", "CS1.1"])
+    params = {"attributes": ["insee", "couv"], "values": "first"}
+    out = run_modifier(OverlayPolygons, params, data)["output"]
+    assert out.schema.field("insee").type == pa.string() and out.schema.field("couv").type == pa.string()
+    pieces = sorted(
+        zip(
+            [round(g.area) for g in geoms_of(out)],
+            out.column("insee").to_pylist(),
+            out.column("couv").to_pylist(),
+            strict=True,
+        ),
+        key=str,
+    )
+    assert pieces == sorted(
+        [(50, None, "CS1.1"), (20, "31555", "CS1.1"), (30, "31555", None), (50, "31555", "CS2.1"), (50, None, "CS2.1")],
+        key=str,
+    )
+    overlap = shapes([foret, shapely.box(8, 0, 20, 10)], couv=["CS2.1", "CS1.1"])
+    for mode, expected in (("first", "CS2.1"), ("last", "CS1.1")):
+        got = run_modifier(OverlayPolygons, {"attributes": ["couv"], "values": mode}, overlap)["output"]
+        both = got.filter(pc.equal(got.column("_overlap_count"), 2))
+        assert both.column("couv").to_pylist() == [expected]
 
 
 def test_overlay_ignores_holes_and_rejects_non_polygons():
