@@ -11,10 +11,10 @@ Page générée par `etl modifiers doc` : ne pas la modifier à la main.
 | Filtres | [Filtre par type de géométrie](#splitbygeometrytype), [Filtre spatial](#extractbylocation), [Filtre à plusieurs sorties](#routebyexpression), [Filtrer les doublons](#findduplicates), [Filtrer par expression](#extractbyexpression), [Échantillonner](#sample) |
 | Géométrie | [Attribut vers géométrie](#geometryfromattribute), [Carroyage](#creategrid), [Créer un point / un sommet](#pointfromxy), [Découper](#clip), [Enveloppe des géométries](#hull), [Extraire des coordonnées](#extractcoordinates), [Fusionner (dissoudre)](#dissolve), [Géométrie vers attribut](#geometrytoattribute), [Longueur de lignes](#measurelength), [Remplacer par un point central](#centroids), [Reprojeter](#reproject), [Réparer les géométries](#fixgeometries), [Simplifier les géométries](#simplify), [Superposition de polygones](#overlaypolygons), [Surface et périmètre](#measurearea), [Valider les géométries](#checkvalidity), [Zone tampon](#buffer), [Éclater les géométries multiples](#multiparttosingleparts) |
 | Jointures | [Jointure attributaire](#joinbyfield), [Plus proches voisines](#joinbynearest), [Point dans polygone](#pointsinpolygons), [Relateur spatial](#joinbylocation), [SQL (par entité)](#databasequeryperfeature) |
-| Lecture | [Lecture CSV](#csvreader), [Lecture Excel](#excelreader), [Lecture FlatGeobuf](#flatgeobufreader), [Lecture GeoJSON](#geojsonreader), [Lecture GeoPackage](#geopackagereader), [Lecture (Geo)Parquet](#geoparquetreader), [Lecture MapInfo](#mapinforeader), [Lecture Oracle](#oraclereader), [Lecture PostgreSQL / PostGIS](#postgresreader), [Lecture SQLite / SpatiaLite](#spatialitereader), [Lecture Shapefile](#shapefilereader) |
+| Lecture | [Lecture CSV](#csvreader), [Lecture DXF (AutoCAD)](#dxfreader), [Lecture Excel](#excelreader), [Lecture FlatGeobuf](#flatgeobufreader), [Lecture GeoJSON](#geojsonreader), [Lecture GeoPackage](#geopackagereader), [Lecture (Geo)Parquet](#geoparquetreader), [Lecture MapInfo](#mapinforeader), [Lecture Oracle](#oraclereader), [Lecture PostgreSQL / PostGIS](#postgresreader), [Lecture SQLite / SpatiaLite](#spatialitereader), [Lecture Shapefile](#shapefilereader) |
 | Lots et variables | [Lancer un flux](#runflow), [Lire les fichiers listés](#readlistedfiles), [Lister des fichiers](#listfiles), [Poser des variables](#setvariables), [Écrire un fichier par groupe](#splittofiles) |
 | Rasters | [Analyse de terrain (pente, exposition, ombrage)](#terrainanalysis), [Calculatrice de rasters](#rastercalculator), [Courbes de niveau](#contour), [Découpe de rasters](#cliprasterbymask), [Empiler des bandes](#stackbands), [Entités vers raster](#rasterize), [Lecture de rasters](#rasterreader), [Mosaïque et composite de rasters](#mergerasters), [Raster vers polygones](#polygonize), [Recherche STAC](#stacsearch), [Reclasser un raster](#reclassifyraster), [Reprojection de rasters](#warpraster), [Rééchantillonner / aligner](#resampleraster), [Statistiques de rasters](#rasterstatistics), [Statistiques zonales](#zonalstatistics), [Valeur du raster sous des points](#samplerastervalues), [Écriture de rasters](#rasterwriter) |
-| Écriture | [Écriture CSV](#csvwriter), [Écriture Excel](#excelwriter), [Écriture FlatGeobuf](#flatgeobufwriter), [Écriture GeoJSON](#geojsonwriter), [Écriture GeoPackage](#geopackagewriter), [Écriture (Geo)Parquet](#geoparquetwriter), [Écriture MapInfo](#mapinfowriter), [Écriture Oracle](#oraclewriter), [Écriture PostgreSQL / PostGIS](#postgreswriter), [Écriture SQLite / SpatiaLite](#spatialitewriter), [Écriture Shapefile](#shapefilewriter) |
+| Écriture | [Écriture CSV](#csvwriter), [Écriture DXF (AutoCAD)](#dxfwriter), [Écriture Excel](#excelwriter), [Écriture FlatGeobuf](#flatgeobufwriter), [Écriture GeoJSON](#geojsonwriter), [Écriture GeoPackage](#geopackagewriter), [Écriture (Geo)Parquet](#geoparquetwriter), [Écriture MapInfo](#mapinfowriter), [Écriture Oracle](#oraclewriter), [Écriture PostgreSQL / PostGIS](#postgreswriter), [Écriture SQLite / SpatiaLite](#spatialitewriter), [Écriture Shapefile](#shapefilewriter) |
 
 ## Attributs
 
@@ -1052,6 +1052,27 @@ Les colonnes sont lues comme du texte (les codes à zéro initial sont conservé
 | <a id="csvreader-where"></a>Filtre (WHERE) | Condition SQL (DuckDB) appliquée à la lecture : seules les entités qui la vérifient sont lues, et DuckDB ne lit du fichier que les parties utiles ; vide = toutes les entités. |  |
 | <a id="csvreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
 
+<a id="dxfreader"></a>
+
+### Lecture DXF (AutoCAD) — `DxfReader`
+
+Lit les entités d'un dessin DXF : points, lignes, polylignes, polygones, textes, blocs éclatés.
+
+- **Entrées** : aucune — **Sorties** : `output` — **Traitement** : au fil de l'eau
+
+Toutes les entités sont dans une seule couche, de tous types de géométrie. Attributs : Layer (calque), Linetype, Text (texte d'une entité TEXT ou MTEXT, motif d'une hachure), EntityHandle, SubClasses, PaperSpace. Un DXF ne porte pas de système de coordonnées : l'indiquer dans « Système de coordonnées ». Les blocs (INSERT) sont éclatés en géométries. Pour un DWG, l'enregistrer d'abord en DXF depuis le logiciel de DAO.
+
+| Paramètre | Rôle | Défaut |
+| --- | --- | --- |
+| <a id="dxfreader-path"></a>Fichier | Chemin du fichier ; motifs acceptés (*.ext, dossier/**/*.ext) : tous les fichiers trouvés. |  |
+| <a id="dxfreader-crs"></a>Système de coordonnées | Celui des coordonnées du dessin (le DXF ne le dit pas) ; vide = aucun. |  |
+| <a id="dxfreader-layers"></a>Calques | Calques lus ; vide = tous. |  |
+| <a id="dxfreader-closed_as_polygons"></a>Polylignes fermées en polygones | Une polyligne fermée devient un polygone ; décoché : une ligne. | true |
+| <a id="dxfreader-where"></a>Filtre attributaire | Condition SQL appliquée à la lecture ; vide = toutes les entités. |  |
+| <a id="dxfreader-max_rows"></a>Lignes lues au plus | Pour essayer un flux sur un extrait : seules les N premières entités sont lues ; 0 = toutes. | `0` |
+| <a id="dxfreader-paths"></a>Autres fichiers | Fichiers ou motifs lus en plus de « Fichier » (leurs schémas doivent être compatibles). |  |
+| <a id="dxfreader-add_filename"></a>Ajouter le nom du fichier | Ajoute la colonne « filename » (utile avec un motif de fichiers). | false |
+
 <a id="excelreader"></a>
 
 ### Lecture Excel — `ExcelReader`
@@ -1683,6 +1704,25 @@ Encodage utf-8. Sur un partage réseau, le fichier est écrit en local puis publ
 | <a id="csvwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="csvwriter-delimiter"></a>Séparateur | Séparateur de colonnes. | `,` |
 | <a id="csvwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+
+<a id="dxfwriter"></a>
+
+### Écriture DXF (AutoCAD) — `DxfWriter`
+
+Écrit les géométries dans un dessin DXF, chacune sur un calque ; les points peuvent porter un texte.
+
+- **Entrées** : `input` — **Sorties** : aucune — **Traitement** : au fil de l'eau
+
+Un DXF n'a pas de table attributaire : seuls le calque et le texte des points sont écrits (le journal nomme les attributs laissés de côté). Les coordonnées sont écrites telles quelles : reprojeter avant dans un système en mètres (Lambert-93…) ; l'unité du dessin en découle. Polygones : contours (polylignes fermées, trous compris) ou hachures pleines. Le fichier s'écrit d'un bloc à la fin. Sur un partage réseau, le fichier est écrit en local puis publié d'un bloc : une erreur ou un arrêt en cours de route laisse le fichier existant intact.
+
+| Paramètre | Rôle | Défaut |
+| --- | --- | --- |
+| <a id="dxfwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
+| <a id="dxfwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace. | `overwrite` |
+| <a id="dxfwriter-layer_attribute"></a>Calque (attribut) | Attribut dont la valeur donne le calque de chaque entité ; vide = « Layer » s'il existe, sinon le calque 0. |  |
+| <a id="dxfwriter-text_attribute"></a>Texte des points (attribut) | Un point dont cet attribut est rempli devient un texte (entité TEXT) ; vide = des points. |  |
+| <a id="dxfwriter-text_height"></a>Hauteur du texte | En unités du dessin. | `2.5` |
+| <a id="dxfwriter-polygons"></a>Polygones | contour : polylignes fermées (trous compris) ; hachure : surfaces pleines (HATCH). | `contour` |
 
 <a id="excelwriter"></a>
 

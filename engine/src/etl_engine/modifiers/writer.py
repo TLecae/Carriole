@@ -113,6 +113,9 @@ def open_target(p: Any, path: str, fmt: str | None = None) -> tuple[Any, staging
         opts["compression"] = getattr(p, "compression", "zstd")
         if partition_by:
             opts["partition_by"] = partition_by
+    elif fmt == "dxf":
+        names = ("layer_attribute", "text_attribute", "text_height", "polygons")
+        opts.update({name: getattr(p, name) for name in names if hasattr(p, name)})
     else:
         opts["layer"] = getattr(p, "layer", None) or getattr(p, "sheet", None) or None
     if fmt not in ("parquet", "csv", "xlsx") and encoding:

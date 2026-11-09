@@ -97,9 +97,16 @@ def _sql(sql: str | None) -> dict[str, Any]:
 
 
 def read_schema(
-    path: str, layer: str | None = None, encoding: str | None = None, sql: str | None = None, **_: Any
+    path: str,
+    layer: str | None = None,
+    encoding: str | None = None,
+    sql: str | None = None,
+    open_options: dict[str, str] | None = None,
+    **_: Any,
 ) -> pa.Schema:
-    with _open(path, None if sql else layer, 1, encoding=encoding, **_sql(sql)) as (meta, reader):
+    """`open_options` : options d'ouverture du pilote GDAL (DXF : polylignes fermées en polygones…)."""
+    kw = {"encoding": encoding, **_sql(sql), **(open_options or {})}
+    with _open(path, None if sql else layer, 1, **kw) as (meta, reader):
         return _internal(reader.schema.empty_table(), meta).schema
 
 
@@ -112,9 +119,10 @@ def read_batches(
     bbox: tuple[float, float, float, float] | None = None,
     columns: list[str] | None = None,
     sql: str | None = None,
+    open_options: dict[str, str] | None = None,
     **_: Any,
 ) -> Iterator[pa.Table]:
-    kw: dict[str, Any] = {"encoding": encoding, **_sql(sql)}
+    kw: dict[str, Any] = {"encoding": encoding, **_sql(sql), **(open_options or {})}
     if sql and sql.strip():
         layer = None
     if where:

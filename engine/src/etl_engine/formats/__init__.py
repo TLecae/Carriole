@@ -15,7 +15,7 @@ import pyarrow as pa
 
 from etl_engine import duck
 from etl_engine.data import GEOM, has_geometry
-from etl_engine.formats import csvfmt, ogr, parquet, xlsx
+from etl_engine.formats import csvfmt, dxf, ogr, parquet, xlsx
 from etl_engine.sdk import ConfigError
 
 EXTENSIONS = {
@@ -35,6 +35,7 @@ EXTENSIONS = {
     ".sqlite": "sqlite",
     ".spatialite": "sqlite",
     ".db": "sqlite",
+    ".dxf": "dxf",
 }
 FORMATS = sorted(set(EXTENSIONS.values()))
 
@@ -78,6 +79,8 @@ def _module(fmt: str):
         return csvfmt
     if fmt == "xlsx":
         return xlsx
+    if fmt == "dxf":
+        return dxf
     if fmt in ogr.DRIVERS:
         return ogr
     raise ConfigError(f"format inconnu : {fmt}")
@@ -229,6 +232,8 @@ def open_writer(fmt: str, path: str, **opts: Any) -> Writer:
         return csvfmt.CsvWriter(path, **opts)
     if fmt == "xlsx":
         return xlsx.XlsxWriter(path, **opts)
+    if fmt == "dxf":
+        return dxf.DxfWriter(path, **opts)
     if fmt in ogr.DRIVERS:
         return ogr.OgrWriter(path, fmt=fmt, **opts)
     raise ConfigError(f"format inconnu : {fmt}")

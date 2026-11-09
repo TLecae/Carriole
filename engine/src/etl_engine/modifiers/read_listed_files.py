@@ -23,7 +23,7 @@ from etl_engine.sdk import (
     missing_attributes,
 )
 
-Format = Literal["auto", "parquet", "gpkg", "csv", "geojson", "fgb", "shp", "tab", "mif", "xlsx"]
+Format = Literal["auto", "parquet", "gpkg", "csv", "geojson", "fgb", "shp", "tab", "mif", "xlsx", "dxf"]
 
 
 def conform(batch: pa.Table, schema: pa.Schema) -> pa.Table:

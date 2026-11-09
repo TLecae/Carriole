@@ -24,7 +24,7 @@ modifiers; the output of every node can be checked on a table and a map.</p>
 
 ## Features
 
-- **Formats**, read and written: PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo (TAB, MIF), GeoJSON,
+- **Formats**, read and written: PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo (TAB, MIF), DXF (AutoCAD), GeoJSON,
   (Geo)Parquet (local or over https), FlatGeobuf, CSV with WKT or X/Y columns, Excel; Oracle and SQLite / SpatiaLite
   databases. [Formats](docs/formats.md)
 - **About a hundred modifiers**: attributes, filters, joins, statistics; vector geometry (buffer, clip, dissolve,

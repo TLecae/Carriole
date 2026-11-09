@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- DXF (AutoCAD): *DxfReader* reads the entities of a drawing (layer, line type, text; blocks exploded; closed
+  polylines as polygons; layers to read; coordinate system to declare). *DxfWriter* writes each geometry on the
+  layer given by an attribute, points with a text as TEXT entities, polygons as closed polylines or hatches; the
+  other attributes are not written (a DXF has no attribute table) and the log names them.
 - Writing into an existing layer or table: attributes it cannot receive are a flow error, shown on the node, and
   the run stops before reading any data (GDAL used to stop on "Cannot find OGR field" after reading). File
   writers in `append` mode (GeoPackage, SpatiaLite, Shapefile, GeoJSON, FlatGeobuf, MapInfo, CSV, Excel) list the

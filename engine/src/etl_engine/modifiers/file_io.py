@@ -30,6 +30,7 @@ from etl_engine.expr import (
 )
 from etl_engine.modifiers.writer import abort_target, finish_target, open_target
 from etl_engine.sdk import (
+    Attribute,
     AttributeList,
     ConfigError,
     Crs,
@@ -45,7 +46,7 @@ from etl_engine.sdk import (
 # réglages que les modules de formats savent lire (nom du paramètre -> option de lecture)
 READ_OPTIONS = (
     "layer", "cell_range", "encoding", "where", "delimiter", "header", "detect_types", "add_filename",
-    "wkt_column", "x_column", "y_column", "crs", "sql",
+    "wkt_column", "x_column", "y_column", "crs", "sql", "layers", "closed_as_polygons",
 )  # fmt: skip
 
 
@@ -543,6 +544,41 @@ class MapInfoReader(FileReader):
         add_filename: bool = filename_column()
 
 
+class DxfReader(FileReader):
+    name = "DxfReader"
+    label = "Lecture DXF (AutoCAD)"
+    description = "Lit les entités d'un dessin DXF : points, lignes, polylignes, polygones, textes, blocs éclatés."
+    help = (
+        "Toutes les entités sont dans une seule couche, de tous types de géométrie. Attributs : Layer (calque), "
+        "Linetype, Text (texte d'une entité TEXT ou MTEXT, motif d'une hachure), EntityHandle, SubClasses, "
+        "PaperSpace. Un DXF ne porte pas de système de coordonnées : l'indiquer dans « Système de coordonnées ». "
+        "Les blocs (INSERT) sont éclatés en géométries. Pour un DWG, l'enregistrer d'abord en DXF depuis le logiciel "
+        "de DAO."
+    )
+    formats = ("dxf",)
+
+    class Params(Params):
+        path: str = path_field((".dxf",), "D:/donnees/plan.dxf")
+        crs: Crs = Field(
+            "",
+            title="Système de coordonnées",
+            description="Celui des coordonnées du dessin (le DXF ne le dit pas) ; vide = aucun.",
+            examples=["EPSG:2154"],
+        )
+        layers: list[str] = Field(
+            default_factory=list, title="Calques", description="Calques lus ; vide = tous.", examples=[["BATI"]]
+        )
+        closed_as_polygons: bool = Field(
+            True,
+            title="Polylignes fermées en polygones",
+            description="Une polyligne fermée devient un polygone ; décoché : une ligne.",
+        )
+        where: str = where()
+        max_rows: int = row_limit()
+        paths: list[FilePath] = other_files()
+        add_filename: bool = filename_column()
+
+
 class FileWriter(Modifier):
     """Écrivain d'un format de fichier (classe de base : sans nom, elle n'est pas dans la palette)."""
 
@@ -754,6 +790,42 @@ class MapInfoWriter(FileWriter):
         mode: Literal["create", "overwrite", "append"] = mode()
 
 
+class DxfWriter(FileWriter):
+    name = "DxfWriter"
+    label = "Écriture DXF (AutoCAD)"
+    description = "Écrit les géométries dans un dessin DXF, chacune sur un calque ; les points peuvent porter un texte."
+    help = (
+        "Un DXF n'a pas de table attributaire : seuls le calque et le texte des points sont écrits (le journal nomme "
+        "les attributs laissés de côté). Les coordonnées sont écrites telles quelles : reprojeter avant dans un "
+        "système en mètres (Lambert-93…) ; l'unité du dessin en découle. Polygones : contours (polylignes fermées, "
+        "trous compris) ou hachures pleines. Le fichier s'écrit d'un bloc à la fin. " + SHARE
+    )
+    formats = ("dxf",)
+
+    class Params(Params):
+        path: str = path_field((".dxf",), "D:/sorties/plan.dxf", "write")
+        mode: Literal["create", "overwrite"] = Field(
+            "overwrite", title="Mode", description="create : échoue si le fichier existe ; overwrite : le remplace."
+        )
+        layer_attribute: Attribute = Field(
+            "",
+            title="Calque (attribut)",
+            description="Attribut dont la valeur donne le calque de chaque entité ; vide = « Layer » s'il existe, "
+            "sinon le calque 0.",
+        )
+        text_attribute: Attribute = Field(
+            "",
+            title="Texte des points (attribut)",
+            description="Un point dont cet attribut est rempli devient un texte (entité TEXT) ; vide = des points.",
+        )
+        text_height: float = Field(2.5, title="Hauteur du texte", description="En unités du dessin.", gt=0)
+        polygons: Literal["contour", "hachure"] = Field(
+            "contour",
+            title="Polygones",
+            description="contour : polylignes fermées (trous compris) ; hachure : surfaces pleines (HATCH).",
+        )
+
+
 class SpatiaLiteReader(FileReader):
     name = "SpatiaLiteReader"
     label = "Lecture SQLite / SpatiaLite"
@@ -804,13 +876,13 @@ class SpatiaLiteWriter(FileWriter):
 READERS: dict[str, type[FileReader]] = {
     fmt: cls
     for cls in (CsvReader, ExcelReader, GeoPackageReader, ShapefileReader, GeoJsonReader, FlatGeobufReader,
-                GeoParquetReader, MapInfoReader, SpatiaLiteReader)
+                GeoParquetReader, MapInfoReader, SpatiaLiteReader, DxfReader)
     for fmt in cls.formats
 }  # fmt: skip
 WRITERS: dict[str, type[FileWriter]] = {
     fmt: cls
     for cls in (CsvWriter, ExcelWriter, GeoPackageWriter, ShapefileWriter, GeoJsonWriter, FlatGeobufWriter,
-                GeoParquetWriter, MapInfoWriter, SpatiaLiteWriter)
+                GeoParquetWriter, MapInfoWriter, SpatiaLiteWriter, DxfWriter)
     for fmt in cls.formats
 }  # fmt: skip
 

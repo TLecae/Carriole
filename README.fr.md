@@ -24,7 +24,7 @@ installer.
 
 ## Ce que ça fait
 
-- **Formats**, en lecture et en écriture : PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo, GeoJSON,
+- **Formats**, en lecture et en écriture : PostgreSQL/PostGIS, GeoPackage, Shapefile, MapInfo, DXF (AutoCAD), GeoJSON,
   (Geo)Parquet (local ou en https), FlatGeobuf, CSV (WKT ou X/Y), Excel ; bases Oracle et SQLite / SpatiaLite ;
   rasters GeoTIFF / COG, JPEG 2000, NetCDF, catalogues STAC : [formats](docs/formats.md).
 - **Une centaine de modificateurs** : attributs, filtres, jointures, statistiques ; géométrie (zone tampon,

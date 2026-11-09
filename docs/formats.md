@@ -6,6 +6,7 @@
 | GeoPackage | oui (couche) | oui (plusieurs couches, ajout) | GeoPackageReader / GeoPackageWriter | un Writer par couche dans le même fichier |
 | Shapefile | oui | oui | ShapefileReader / ShapefileWriter | voir limites ci-dessous |
 | MapInfo TAB / MIF-MID | oui | oui | MapInfoReader / MapInfoWriter | précision ~1 cm en Lambert-93 |
+| DXF (AutoCAD) | oui (entités, blocs éclatés) | oui (calques, textes) | DxfReader / DxfWriter | pas de table attributaire ni de système de coordonnées : voir ci-dessous |
 | GeoJSON, FlatGeobuf | oui | oui | GeoJsonReader, FlatGeobufReader / GeoJsonWriter, FlatGeobufWriter | |
 | CSV | oui (WKT ou X/Y) | oui | CsvReader / CsvWriter | colonnes lues en texte par défaut ; lu par DuckDB, sur tous les cœurs |
 | Excel (.xlsx) | oui (feuille, plage) | oui (feuilles multiples) | ExcelReader / ExcelWriter | géométrie écrite en WKT |
@@ -27,6 +28,24 @@
 TAB s'écrit par lots. MIF/MID ne s'ouvre pas en ajout : le Writer garde les lots en mémoire et écrit à la
 fermeture (à réserver à des volumes raisonnables). Les coordonnées sont stockées en entiers dans les limites
 de la table : précision de l'ordre du centimètre en Lambert-93.
+
+## DXF (AutoCAD)
+
+- Lecture : une seule couche, toutes géométries mêlées (points, lignes, polygones, textes). Attributs : `Layer`
+  (calque), `Linetype`, `Text` (texte d'une entité TEXT ou MTEXT, motif d'une hachure), `EntityHandle`,
+  `SubClasses`, `PaperSpace`. Les blocs (INSERT) sont éclatés en géométries. « Calques » limite la lecture à
+  certains calques ; « Polylignes fermées en polygones » (coché par défaut) lit une polyligne fermée comme un
+  polygone.
+- Un DXF ne porte pas de système de coordonnées : le déclarer dans « Système de coordonnées » du lecteur.
+- Écriture : le DXF n'a pas de table attributaire. Chaque entité va sur le calque que donne un attribut (vide :
+  `Layer` s'il existe, sinon le calque `0`) ; un point dont l'attribut de texte est rempli devient une entité
+  TEXT. Les autres attributs ne sont pas écrits : le journal les nomme. Polygones : polylignes fermées (une par
+  anneau, trous compris) ou hachures pleines (HATCH).
+- Coordonnées écrites telles quelles, unité du dessin déduite du système (mètres en Lambert-93) : reprojeter
+  avant si les données sont en degrés. Textes en Windows-1252, le jeu que déclare l'en-tête du dessin ; un
+  caractère hors de ce jeu devient « ? ».
+- Le fichier s'écrit d'un bloc à la fin du run (GDAL ne complète pas un DXF) : pas de mode `append`.
+- DWG : pas de lecture directe ; l'enregistrer en DXF depuis le logiciel de DAO.
 
 ## Excel
 
