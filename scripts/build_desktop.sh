@@ -60,7 +60,14 @@ printf '{"version": "%s"}\n' "$version" > "$desktop/build/install.json"
 cd "$desktop"
 npm ci --no-audit --no-fund
 npx tsc
-if [ "$dir_only" -eq 1 ]; then npx electron-builder --linux --dir; else npx electron-builder --linux --publish never; fi
+# electron-builder télécharge ses outils de paquetage (AppImage) : une coupure réseau passagère est réessayée
+for try in 1 2 3; do
+  if [ "$dir_only" -eq 1 ]; then args=(--linux --dir); else args=(--linux --publish never); fi
+  if npx electron-builder "${args[@]}"; then break; fi
+  if [ "$try" -eq 3 ]; then echo "electron-builder a échoué après 3 essais" >&2; exit 1; fi
+  echo "electron-builder a échoué, essai $try sur 3 : nouvel essai dans 30 s" >&2
+  sleep 30
+done
 
 step "Résultat"
 ls -lh "$desktop/release/"*.AppImage 2>/dev/null || ls -d "$desktop/release/linux-unpacked"

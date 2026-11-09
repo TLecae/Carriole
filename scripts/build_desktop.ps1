@@ -76,7 +76,13 @@ Check "npm ci (desktop)"
 if (-not (Test-Path "node_modules\electron\dist")) { node node_modules\electron\install.js; Check "téléchargement d'Electron" }
 npx tsc
 Check "tsc"
-if ($DirOnly) { npx electron-builder --dir } else { npx electron-builder --publish never }
+# electron-builder télécharge ses outils de paquetage (NSIS, signature) : une coupure réseau passagère est réessayée
+for ($try = 1; $try -le 3; $try++) {
+  if ($DirOnly) { npx electron-builder --dir } else { npx electron-builder --publish never }
+  if ($LASTEXITCODE -eq 0 -or $try -eq 3) { break }
+  Write-Host "electron-builder a échoué (code $LASTEXITCODE), essai $try sur 3 : nouvel essai dans 30 s" -ForegroundColor Yellow
+  Start-Sleep -Seconds 30
+}
 Check "electron-builder"
 Pop-Location
 

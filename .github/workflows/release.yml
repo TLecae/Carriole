@@ -23,6 +23,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - uses: actions/cache@v6   # Electron and its packaging tools: fewer downloads from GitHub
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-windows-${{ hashFiles('desktop/package-lock.json', 'desktop/electron-builder.yml') }}
+          restore-keys: electron-windows-
       - run: powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
       - uses: actions/upload-artifact@v7
         with:
@@ -39,6 +46,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: electron-linux-${{ hashFiles('desktop/package-lock.json', 'desktop/electron-builder.yml') }}
+          restore-keys: electron-linux-
       - run: bash scripts/build_desktop.sh
       - uses: actions/upload-artifact@v7
         with:
