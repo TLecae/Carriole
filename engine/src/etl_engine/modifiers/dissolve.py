@@ -12,6 +12,7 @@ import pyarrow.compute as pc
 import shapely
 from pydantic import Field
 
+from etl_engine import duck
 from etl_engine.blocking import collect, group_codes, group_slices
 from etl_engine.data import GEOM, get_crs, with_crs
 from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, Params, missing_attributes, require_attributes
@@ -72,16 +73,16 @@ class Dissolve(Modifier):
         # la sortie ne garde que les attributs de la première entité de chaque groupe : le reste du port est libéré
         firsts = table.take(pa.array(order[bounds[:-1]], pa.int64()))
         del table, codes
+        # octets de WKB cumulés aux bornes des groupes : un paquet en décode au plus `_packet_bytes`
+        sizes = pc.binary_length(wkb).fill_null(0).to_numpy(zero_copy_only=False).astype(np.int64)
+        cumulated = np.r_[0, np.cumsum(sizes[order])][bounds]
+        packet = _packet_bytes()
         with ThreadPoolExecutor(max_workers=max(1, self.ctx.workers)) as pool:
             start = 0
-            while start < count:  # par paquets de groupes (~ROWS_PER_PACKET lignes) : les résultats ne s'accumulent pas
+            while start < count:  # par paquets de groupes : les géométries décodées et fusionnées ne s'accumulent pas
                 self.ctx.check_cancel()
-                stop = start + 1
-                while (
-                    stop < count and stop - start < GROUPS_PER_EMIT
-                    and bounds[stop + 1] - bounds[start] <= ROWS_PER_PACKET
-                ):  # fmt: skip
-                    stop += 1
+                fits = int(np.searchsorted(cumulated, cumulated[start] + packet, side="right")) - 1
+                stop = max(start + 1, min(fits, start + self.ctx.batch_rows, count))  # un gros groupe : seul
                 members = []
                 for g in range(start, stop):
                     rows = order[bounds[g] : bounds[g + 1]]
@@ -100,10 +101,15 @@ class Dissolve(Modifier):
         self.ctx.info(f"{total} entités fusionnées en {count}")
 
 
-GROUPS_PER_EMIT = 5_000
-ROWS_PER_PACKET = 600_000  # lignes d'un paquet de groupes (un groupe plus gros forme son propre paquet)
+DECODED_FACTOR = 10  # mémoire des géométries décodées et de leurs unions : environ 10 fois leur WKB (mesuré)
 CHUNK = 10_000  # au-delà, un groupe est fusionné par morceaux voisins, en parallèle, puis les morceaux entre eux
 BOUNDS_ROWS = 50_000  # lignes décodées à la fois pour en lire l'emprise (ordre de Morton des gros groupes)
+
+
+def _packet_bytes() -> int:
+    """WKB d'un paquet de groupes : la part du budget du run (*Paramètres → Calcul*) d'un nœud lourd, une fois les
+    géométries décodées (`DECODED_FACTOR`)."""
+    return int(duck.run_memory_mb() * 2**20 // (duck.heavy_share() * DECODED_FACTOR))
 
 
 def _finish(union: Any) -> bytes | None:

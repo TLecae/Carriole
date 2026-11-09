@@ -295,6 +295,21 @@ def worker_count() -> int:
     return duck.run_threads()
 
 
+def pixels_in_budget(bytes_per_pixel: int) -> int:
+    """Pixels d'un raster lu en une fois (courbes de niveau, vectorisation, fenêtre d'échantillonnage) : sa part du
+    budget du run (*Paramètres → Calcul*), partagée avec les autres nœuds lourds, `bytes_per_pixel` étant la mémoire
+    d'un pixel pendant le calcul (copies comprises)."""
+    return int(duck.run_memory_mb() * 2**20 // (duck.heavy_share() * max(1, bytes_per_pixel)))
+
+
+def too_big(desc: dict[str, Any]) -> ConfigError:
+    """Raster trop grand pour le budget mémoire : le message dit quoi faire."""
+    return ConfigError(
+        f"raster trop grand pour être traité en une fois ({desc['width']} x {desc['height']} pixels) : le découper, "
+        "réduire sa résolution ou augmenter la mémoire dans Paramètres → Calcul"
+    )
+
+
 def map_windows(
     shape: tuple[int, int],
     compute: Callable[[Window, DatasetCache], np.ndarray | None],

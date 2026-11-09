@@ -59,6 +59,15 @@ simples. Les comportements suivent ceux des ETL géographiques établis, sous de
 - Transformations pyproj en cache partagé (`data.transformer`, `data.to_crs`).
 
 ## Appliqué le 2026-11-08
+- Plafonds fixes remplacés par le budget (point 6) : CreateGrid produit ses cellules par tranches, sur tous les
+  cœurs (seule une grille qui ne tiendrait pas sur le disque est refusée) ; Dissolve forme ses paquets de groupes
+  selon les octets de géométrie qu'ils décodent ; Contour et Polygonize acceptent un raster à la mesure du budget
+  (`raster.core.pixels_in_budget`) ; les fenêtres raster sont calculées sur les cœurs du run. JoinByLocation émet
+  des lots de la taille de ceux du run.
+- `blocking.collect` : au-delà de la part Arrow du budget d'un nœud lourd, les lots vont dans des fichiers Arrow non
+  compressés du dossier de débordement du run, lus en mémoire projetée ; tous les modificateurs bloquants en
+  profitent sans changement. FindDuplicates (voie par lots) garde les clés vues dans DuckDB. SampleRasterValues et
+  Rasterize : plus de plafond fixe (budget, place sur le disque).
 - Cœurs : tout parallélisme découle du budget de cœurs ([ADR 0050](0050-budget-de-coeurs.md)).
 
 ## Reste à faire
@@ -69,4 +78,6 @@ simples. Les comportements suivent ceux des ETL géographiques établis, sous de
 - Reproject : l'absence de SCR source reste vérifiée pendant le run (un schéma peut ne pas porter le SCR d'un
   format dont il est connu à la lecture).
 - JoinByField : la sortie jointe est triée avec toutes ses colonnes (plusieurs lignes par entité : le recollage par
-  position de StatisticsByGroup ne s'applique pas tel quel).
+  position de StatisticsByGroup ne s'applique pas tel quel). DuckDB trie dans le budget, en débordant sur disque :
+  le résultat est juste, seul le temps en pâtit. Un recollage sans tri demanderait que DuckDB garde l'ordre d'une
+  expansion de lignes et d'un `UNION ALL`, ce qu'il ne garantit pas.

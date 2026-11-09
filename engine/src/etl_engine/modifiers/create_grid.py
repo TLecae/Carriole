@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import math
+import shutil
+import tempfile
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -13,10 +16,10 @@ from pydantic import BaseModel, Field
 
 from etl_engine.blocking import collect
 from etl_engine.data import GEOM, geometries, get_crs, with_crs
-from etl_engine.sdk import ConfigError, Crs, Emit, Modifier, Params
+from etl_engine.sdk import ConfigError, Crs, Emit, Modifier, Params, ordered_map
 from etl_engine.spatial import SpatialIndex
 
-MAX_CELLS = 5_000_000
+CELL_BYTES = 120  # place d'une cellule écrite (WKB, numéro, colonne, ligne), compression comprise
 
 
 class CreateGrid(Modifier):
@@ -30,7 +33,7 @@ class CreateGrid(Modifier):
         "système de coordonnées). « Taille » est la largeur d'une cellule, dans l'unité du système (mètres en Lambert-93) : "
         "pour un hexagone, la distance entre deux côtés opposés. Chaque cellule reçoit son numéro (`cell_id`), sa colonne "
         "et sa ligne. Les hexagones débordent légèrement de l'emprise ; « Ne garder que les cellules qui touchent les "
-        "entités » écarte les autres. Au plus 5 millions de cellules."
+        "entités » écarte les autres."
     )
     inputs = ()
     rejected = False
@@ -71,43 +74,47 @@ class CreateGrid(Modifier):
             raise ConfigError("l'emprise est vide : X max > X min et Y max > Y min")
         return p.xmin, p.ymin, p.xmax, p.ymax
 
-    def _cells(self, extent: tuple[float, float, float, float]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """(géométries, colonnes, lignes) de toutes les cellules."""
+    def _layout(self, extent: tuple[float, float, float, float]) -> tuple[int, int]:
+        """(colonnes, lignes) de la grille ; un hexagone en a une de plus de chaque côté (le pavage couvre les bords)."""
         p = self.params
         xmin, ymin, xmax, ymax = extent
         if p.shape == "square":
-            cols = math.ceil((xmax - xmin) / p.size)
-            rows = math.ceil((ymax - ymin) / p.size)
-            total = cols * rows
-            self._guard(total)
-            c, r = np.meshgrid(np.arange(cols), np.arange(rows))
-            c, r = c.ravel(), r.ravel()
+            return math.ceil((xmax - xmin) / p.size), math.ceil((ymax - ymin) / p.size)
+        return math.ceil((xmax - xmin) / p.size) + 2, math.ceil((ymax - ymin) / (1.5 * p.size / math.sqrt(3))) + 2
+
+    def _cells(
+        self, extent: tuple[float, float, float, float], first: int, stop: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """(géométries, colonnes, lignes) des cellules `first` à `stop` (exclue), ligne par ligne de la grille : la
+        grille est produite par tranches, sa taille n'est pas bornée par la mémoire."""
+        p = self.params
+        xmin, ymin, xmax, ymax = extent
+        cols, _ = self._layout(extent)
+        k = np.arange(first, stop, dtype=np.int64)
+        r, c = k // cols, k % cols
+        if p.shape == "square":
             x0, y0 = xmin + c * p.size, ymin + r * p.size
             return shapely.box(x0, y0, x0 + p.size, y0 + p.size), c, r
         radius = p.size / math.sqrt(3)  # rayon du cercle circonscrit (hexagone « pointe en haut »)
-        step_y = 1.5 * radius
-        rows = math.ceil((ymax - ymin) / step_y) + 2
-        cols = math.ceil((xmax - xmin) / p.size) + 2
-        self._guard(cols * rows)
-        # une rangée et une colonne de plus de chaque côté : le pavage recouvre toute l'emprise, bords compris
-        c, r = np.meshgrid(np.arange(-1, cols - 1), np.arange(-1, rows - 1))
-        c, r = c.ravel(), r.ravel()
+        c, r = c - 1, r - 1  # une rangée et une colonne de plus de chaque côté
         cx = xmin + c * p.size + (r % 2) * (p.size / 2)
-        cy = ymin + r * step_y
+        cy = ymin + r * 1.5 * radius
         angles = np.radians(np.arange(6) * 60 + 30)
         xs = cx[:, None] + radius * np.cos(angles)[None, :]
         ys = cy[:, None] + radius * np.sin(angles)[None, :]
         cells = shapely.polygons(np.stack([xs, ys], axis=2))
-        touching = shapely.intersects(
-            cells, shapely.box(xmin, ymin, xmax, ymax)
-        )  # écarte celles qui sont tout à fait dehors
+        touching = shapely.intersects(cells, shapely.box(xmin, ymin, xmax, ymax))  # écarte celles tout à fait dehors
         return cells[touching], (c + 1)[touching], (r + 1)[touching]
 
-    @staticmethod
-    def _guard(total: int) -> None:
-        if total > MAX_CELLS:
+    def _guard(self, total: int) -> None:
+        """Grille qui ne tiendrait pas sur le disque du run (taille de cellule trop petite, emprise en degrés…)."""
+        folder = self.ctx.work_dir or Path(tempfile.gettempdir())
+        while not folder.exists() and folder != folder.parent:
+            folder = folder.parent
+        needed = total * CELL_BYTES
+        if needed > shutil.disk_usage(folder).free:
             raise ConfigError(
-                f"trop de cellules : {total} (maximum {MAX_CELLS}) ; agrandir la taille ou réduire l'emprise"
+                f"trop de cellules : {total} (environ {needed / 2**30:.0f} Go) ; agrandir la taille ou réduire l'emprise"
             )
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
@@ -129,21 +136,35 @@ class CreateGrid(Modifier):
             geoms = geometries(table)
             geoms = geoms[~shapely.is_missing(geoms) & ~shapely.is_empty(geoms)]
             crs = get_crs(table)
-        cells, cols, rows = self._cells(self._extent(geoms))
-        if p.from_input and p.only_touching and geoms is not None:
-            hit = np.zeros(len(cells), dtype=bool)
-            hit[SpatialIndex.of(geoms).pairs(cells, "intersects")[0]] = True  # géométries préparées, pas les cellules
-            cells, cols, rows = cells[hit], cols[hit], rows[hit]
-        for start in range(0, len(cells), self.ctx.batch_rows):
-            self.ctx.check_cancel()
-            end = min(start + self.ctx.batch_rows, len(cells))
+        extent = self._extent(geoms)
+        cols, rows = self._layout(extent)
+        total = cols * rows
+        touching = p.from_input and p.only_touching and geoms is not None
+        if not touching:
+            self._guard(total)
+        index = SpatialIndex.of(geoms) if touching else None  # géométries préparées, pas les cellules
+
+        def band(first: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+            cells, col, row = self._cells(extent, first, min(first + self.ctx.batch_rows, total))
+            if index is not None:
+                hit = np.zeros(len(cells), dtype=bool)
+                hit[index.pairs(cells, "intersects")[0]] = True
+                cells, col, row = cells[hit], col[hit], row[hit]
+            return cells, col, row
+
+        produced = 0
+        firsts = range(0, total, self.ctx.batch_rows)
+        for cells, col, row in ordered_map(band, firsts, max(1, self.ctx.workers), self.ctx):
+            if not len(cells):
+                continue
             out = pa.table(
                 {
-                    "cell_id": pa.array(np.arange(start, end), pa.int64()),
-                    "col": pa.array(cols[start:end], pa.int64()),
-                    "row": pa.array(rows[start:end], pa.int64()),
-                    GEOM: pa.array(shapely.to_wkb(cells[start:end]), pa.binary()),
+                    "cell_id": pa.array(np.arange(produced, produced + len(cells)), pa.int64()),
+                    "col": pa.array(col, pa.int64()),
+                    "row": pa.array(row, pa.int64()),
+                    GEOM: pa.array(shapely.to_wkb(cells), pa.binary()),
                 }
             )
             emit("output", with_crs(out, crs))
-        self.ctx.info(f"{len(cells)} cellule(s) générée(s)")
+            produced += len(cells)
+        self.ctx.info(f"{produced} cellule(s) générée(s)")

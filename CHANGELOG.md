@@ -5,11 +5,21 @@
 - Site: home page reorganized for GIS users who do not code: number of modifiers by category (read from the
   published catalogue), formats by family, build / check / automate, video and screenshots; the Python section is
   reduced to one line.
+- Modifiers sized from the memory budget of *Settings → Computation* instead of fixed caps
+  ([ADR 0045](docs/decisions/0045-conventions-des-modificateurs.md)): *CreateGrid* produces its cells by slices on all
+  cores (no 5 million cell limit; only a grid that would not fit on the disk is refused); *Dissolve* packs groups
+  by bytes of geometry; *Contour* and *Polygonize* accept rasters as large as the budget allows. Raster windows use
+  the cores of the run.
 - *Settings → Computation → Engine cores*: the number of cores the engine uses, 60 % of the computer's cores by
   default. Every parallel computation follows it (share of each run, DuckDB, batches and nodes in parallel, Arrow,
   GDAL, rasters, inspector); the fixed limits of 8 batches and 8 nodes are gone, and a heavy node alone in its run
   uses all the run's cores. The panel shows how the cores are shared and how to choose
   ([ADR 0050](docs/decisions/0050-budget-de-coeurs.md)).
+- Blocking modifiers (*Dissolve*, *OverlayPolygons*, joins, sorts…): an input larger than their share of the memory
+  budget spills to disk (memory-mapped Arrow files in the run's spill folder) instead of exhausting memory.
+- *FindDuplicates*: on the batch route, the keys already seen are kept in DuckDB (within the budget, spilled to disk)
+  instead of a Python set. *SampleRasterValues* and *Rasterize*: the fixed window and size limits follow the memory
+  budget and the free disk space.
 
 ## 0.1.6
 

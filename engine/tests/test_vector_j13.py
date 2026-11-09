@@ -128,6 +128,23 @@ def test_hexagon_grid_covers_the_extent():
 
 
 def test_grid_from_incoming_features_and_limits():
+@pytest.mark.parametrize("shape", ["square", "hexagon"])
+def test_grid_is_the_same_whatever_the_slices(shape):
+    """Grille produite par tranches (sur plusieurs cœurs) : mêmes cellules, numéros et ordre qu'en une seule fois."""
+    from etl_engine.sdk import Context
+
+    params = {"xmin": 0, "ymin": 0, "xmax": 730, "ymax": 410, "size": 50, "shape": shape}
+    whole = run_modifier(CreateGrid, params, ctx=Context(batch_rows=100_000))["output"]
+    sliced = run_modifier(CreateGrid, params, ctx=Context(batch_rows=7, workers=4))["output"]
+    assert whole.num_rows > 100 and sliced.equals(whole)
+    data = shapes([shapely.LineString([(0, 0), (730, 410)])])
+    near = {**params, "from_input": True, "only_touching": True}
+    one = run_modifier(CreateGrid, near, data, ctx=Context(batch_rows=100_000))["output"]
+    many = run_modifier(CreateGrid, near, data, ctx=Context(batch_rows=5, workers=3))["output"]
+    assert 0 < one.num_rows < whole.num_rows and many.equals(one)
+    assert one.column("cell_id").to_pylist() == list(range(one.num_rows))
+
+
     data = shapes([shapely.box(0, 0, 250, 100), shapely.box(1000, 1000, 1010, 1010)])
     full = run_modifier(CreateGrid, {"from_input": True, "size": 500}, data)["output"]
     assert full.num_rows == 9  # emprise 1010 x 1010 : 3 colonnes x 3 lignes de 500

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import pyarrow as pa
@@ -16,7 +16,7 @@ from etl_engine.data import GEOM, set_geometries
 from etl_engine.raster import core
 from etl_engine.sdk import Modifier, Params
 
-MAX_PIXELS = 60_000_000
+PIXEL_BYTES = 24  # mémoire d'un pixel pendant le calcul : bande lue, masque, valeurs arrondies, étiquettes de GDAL
 
 
 class Polygonize(Modifier):
@@ -30,7 +30,7 @@ class Polygonize(Modifier):
         "la bande. « Connexité » : 4 (pixels qui se touchent par un côté) ou 8 (aussi par un coin). Les pixels sans donnée "
         "ne donnent rien. « Arrondir » regroupe les valeurs décimales proches (1 = au dixième) ; « Surface minimale » "
         "écarte les polygones plus petits (dans l'unité du système au carré). Le raster entier est lu en mémoire "
-        "(au plus 60 millions de pixels : découper ou réduire la résolution au-delà). Les attributs du raster sont recopiés."
+        "(dans la limite de la mémoire réglée dans Paramètres → Calcul : découper ou réduire la résolution au-delà). Les attributs du raster sont recopiés."
     )
     rejected = False
 
@@ -61,8 +61,8 @@ class Polygonize(Modifier):
         pieces: list[pa.Table] = []
         for r, desc in enumerate(descs):
             self.ctx.check_cancel()
-            if desc["width"] * desc["height"] > MAX_PIXELS:
-                raise_too_big(desc)
+            if desc["width"] * desc["height"] > core.pixels_in_budget(PIXEL_BYTES):
+                raise core.too_big(desc)
             with core.gdal_env(), rasterio.open(core.gdal_uri(desc["uri"])) as ds:
                 data = ds.read(p.band, masked=True)
                 transform = ds.transform
@@ -91,12 +91,3 @@ class Polygonize(Modifier):
         if not pieces:
             return {}
         return {"output": pa.concat_tables(pieces, promote_options="default")}
-
-
-def raise_too_big(desc: dict[str, Any]) -> None:
-    from etl_engine.sdk import ConfigError
-
-    raise ConfigError(
-        f"raster trop grand pour être vectorisé en une fois ({desc['width']} x {desc['height']} pixels) : "
-        "le découper ou réduire sa résolution d'abord"
-    )

@@ -16,7 +16,7 @@ from etl_engine.data import GEOM, set_geometries
 from etl_engine.raster import core
 from etl_engine.sdk import ConfigError, Modifier, Params
 
-MAX_PIXELS = 40_000_000
+PIXEL_BYTES = 40  # mémoire d'un pixel pendant le calcul : bande lue, masque, copie en float64, grilles de contourpy
 
 
 class Contour(Modifier):
@@ -30,8 +30,8 @@ class Contour(Modifier):
         "Une courbe est tracée tous les « Équidistance » (10 m : 100, 110, 120…), à partir de « Altitude de base », ou "
         "pour les altitudes de « Niveaux » si la liste est renseignée. Chaque ligne porte son altitude (« Attribut de "
         "l'altitude ») et les attributs du raster. « Longueur minimale » écarte les petites courbes (îlots). Les pixels "
-        "sans donnée interrompent les courbes. Le raster est lu en mémoire (au plus 40 millions de pixels : découper "
-        "d'abord au-delà). Les lignes sont dans le système du raster."
+        "sans donnée interrompent les courbes. Le raster est lu en mémoire, dans la limite de la mémoire réglée "
+        "dans Paramètres → Calcul (découper d'abord au-delà). Les lignes sont dans le système du raster."
     )
     rejected = False
 
@@ -68,10 +68,8 @@ class Contour(Modifier):
         pieces: list[pa.Table] = []
         for r, desc in enumerate(descs):
             self.ctx.check_cancel()
-            if desc["width"] * desc["height"] > MAX_PIXELS:
-                raise ConfigError(
-                    f"raster trop grand pour les courbes de niveau ({desc['width']} x {desc['height']}) : le découper d'abord"
-                )
+            if desc["width"] * desc["height"] > core.pixels_in_budget(PIXEL_BYTES):
+                raise core.too_big(desc)
             if p.band > desc["count"]:
                 raise ConfigError(f"le raster n'a que {desc['count']} bande(s)")
             a, b, c, d, e, f = desc["transform"]

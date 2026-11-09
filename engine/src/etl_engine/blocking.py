@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable
+from pathlib import Path
 
 import duckdb
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
+import pyarrow.ipc as ipc
 
 from etl_engine import duck as duck_
 from etl_engine.data import GEOM, get_crs, plain_geometry, with_crs
@@ -19,13 +22,52 @@ def quote(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
+def collect_bytes() -> int:
+    """Octets d'une entrée gardés en mémoire par `collect` : la part Arrow du budget du run (*Paramètres → Calcul*),
+    partagée entre les nœuds lourds qui tournent ensemble."""
+    return int(duck_.run_memory_mb() * 2**20 * (1 - duck_.DUCK_SHARE) / duck_.heavy_share())
+
+
 def collect(batches: Iterable[pa.Table], schema: pa.Schema | None = None) -> pa.Table | None:
-    """Tous les lots d'une entrée en une table (None si l'entrée n'a rien envoyé et que le schéma est inconnu)."""
-    parts = list(batches)
+    """Tous les lots d'une entrée en une table (None si l'entrée n'a rien envoyé et que le schéma est inconnu).
+
+    Au-delà de `collect_bytes`, les lots suivants sont écrits sur le disque, dans le dossier de débordement du run
+    (fichiers Arrow non compressés), et la table les lit en mémoire projetée : le système garde en mémoire ce qui sert
+    et relit le reste au besoin, au lieu de manquer de mémoire. Les lots gardent leur ordre."""
+    limit = collect_bytes()
+    parts: list[pa.Table] = []
+    size = 0
+    spilled: list[Path] = []
+    writer: ipc.RecordBatchFileWriter | None = None
+    written: pa.Schema | None = None  # schéma du fichier en cours d'écriture
+    crs = None
+    try:
+        for batch in batches:
+            if crs is None:
+                crs = get_crs(batch)
+            if writer is None and size + batch.nbytes <= limit:
+                parts.append(batch)
+                size += batch.nbytes
+                continue
+            if writer is not None and not batch.schema.equals(written, check_metadata=False):
+                writer.close()  # schéma différent (colonne vide puis remplie) : un nouveau fichier, réunis à la fin
+                writer = None
+            if writer is None:
+                folder = duck_.spill_dir()
+                folder.mkdir(parents=True, exist_ok=True)
+                spilled.append(folder / f"collect-{uuid.uuid4().hex[:12]}.arrow")
+                written = batch.schema.remove_metadata()
+                writer = ipc.new_file(str(spilled[-1]), written)
+            writer.write_table(batch.replace_schema_metadata(None))
+    finally:
+        if writer is not None:
+            writer.close()
+    for path in spilled:
+        parts.append(ipc.open_file(pa.memory_map(str(path))).read_all())  # sans copie : les pages du fichier
     if not parts:
         return schema.empty_table() if schema is not None else None
     table = pa.concat_tables(parts, promote_options="default") if len(parts) > 1 else parts[0]
-    return with_crs(table, get_crs(parts[0]))
+    return with_crs(table, crs)
 
 
 def _column_codes(column: pa.ChunkedArray | pa.Array) -> np.ndarray:

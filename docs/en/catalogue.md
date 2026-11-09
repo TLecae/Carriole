@@ -688,7 +688,7 @@ Generates a grid of squares or hexagons over an extent (typed, or that of the re
 
 - **Inputs** : none — **Outputs** : `output` — **Processing** : streaming
 
-The extent is typed (X min, Y min, X max, Y max, in the chosen coordinate system) or, with "Extent of the received features", taken from the geometries of the input (the node then has an input, and the grid takes their coordinate system). "Size" is the width of a cell, in the unit of the system (meters in Lambert-93): for a hexagon, the distance between two opposite sides. Each cell receives its number (`cell_id`), its column and its row. Hexagons slightly overflow the extent; "Keep only cells that touch the features" drops the others. At most 5 million cells.
+The extent is typed (X min, Y min, X max, Y max, in the chosen coordinate system) or, with "Extent of the received features", taken from the geometries of the input (the node then has an input, and the grid takes their coordinate system). "Size" is the width of a cell, in the unit of the system (meters in Lambert-93): for a hexagon, the distance between two opposite sides. Each cell receives its number (`cell_id`), its column and its row. Hexagons slightly overflow the extent; "Keep only cells that touch the features" drops the others.
 
 | Parameter | Role | Default |
 | --- | --- | --- |
@@ -1175,7 +1175,7 @@ Draws the contour lines of a digital elevation model: one line per contour, with
 
 - **Inputs** : `input` — **Outputs** : `output` — **Processing** : streaming
 
-A contour is drawn every "Interval" (10 m: 100, 110, 120…), starting from "Base elevation", or for the elevations of "Levels" if the list is filled in. Each line carries its elevation ("Elevation attribute") and the raster's attributes. "Minimum length" drops small contours (islets). No-data pixels interrupt the contours. The raster is read into memory (at most 40 million pixels: clip first beyond that). Lines are in the raster's coordinate system.
+A contour is drawn every "Interval" (10 m: 100, 110, 120…), starting from "Base elevation", or for the elevations of "Levels" if the list is filled in. Each line carries its elevation ("Elevation attribute") and the raster's attributes. "Minimum length" drops small contours (islets). No-data pixels interrupt the contours. The raster is read into memory (within the memory set in Settings → Computation: clip first beyond that). Lines are in the raster's coordinate system.
 
 | Parameter | Role | Default |
 | --- | --- | --- |
@@ -1289,7 +1289,7 @@ Turns a raster into polygons: one polygon per set of neighboring pixels with the
 
 - **Inputs** : `input` — **Outputs** : `output` — **Processing** : streaming
 
-For a raster of classes (land cover, result of a threshold or a reclassification), each single-piece area with the same value becomes a polygon with its value (attribute "Value attribute") and the band number. "Connectivity": 4 (pixels touching by a side) or 8 (also by a corner). No-data pixels give nothing. "Round" groups close decimal values (1 = to the tenth); "Minimum area" drops smaller polygons (in the unit of the system squared). The whole raster is read into memory (at most 60 million pixels: clip or reduce the resolution beyond that). The raster's attributes are copied.
+For a raster of classes (land cover, result of a threshold or a reclassification), each single-piece area with the same value becomes a polygon with its value (attribute "Value attribute") and the band number. "Connectivity": 4 (pixels touching by a side) or 8 (also by a corner). No-data pixels give nothing. "Round" groups close decimal values (1 = to the tenth); "Minimum area" drops smaller polygons (in the unit of the system squared). The whole raster is read into memory (within the memory set in Settings → Computation: clip or reduce the resolution beyond that). The raster's attributes are copied.
 
 | Parameter | Role | Default |
 | --- | --- | --- |

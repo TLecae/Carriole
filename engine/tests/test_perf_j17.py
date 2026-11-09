@@ -135,6 +135,28 @@ def test_dissolve_tree_union_equals_single_union(monkeypatch):
     assert grouped.column("g").to_pylist() == ["b", "a"] and grouped.column("_count").to_pylist() == [86, 514]
 
 
+def test_dissolve_packets_follow_the_memory_budget(monkeypatch):
+    """Paquets de groupes bornés par le budget (octets de WKB) : un groupe plus gros que le paquet passe seul, les
+    groupes gardent leur ordre et leur résultat."""
+    cells = shapely.box(*np.array([(x, y, x + 10, y + 10) for x in range(0, 100, 10) for y in range(0, 100, 10)]).T)
+    data = shapes(cells, g=[i // 7 for i in range(len(cells))])  # 15 groupes de 7 cellules (le dernier : 2)
+    ctx = Context(batch_rows=1000)
+    whole = run_modifier(Dissolve, {"group_by": ["g"]}, data, ctx=ctx)["output"]
+    sizes, union = [], dissolve._union_groups
+    monkeypatch.setattr(
+        dissolve, "_union_groups", lambda wkb, members, pool: sizes.append(len(members)) or union(wkb, members, pool)
+    )
+    monkeypatch.setattr(dissolve, "_packet_bytes", lambda: 15 * 93)  # quinze cellules (93 octets de WKB chacune)
+    packets = run_modifier(Dissolve, {"group_by": ["g"]}, data, ctx=ctx)["output"]
+    assert sizes == [2] * 7 + [1]  # deux groupes par paquet ; le dernier groupe seul
+    monkeypatch.setattr(dissolve, "_packet_bytes", lambda: 1)  # plus petit qu'un groupe : un groupe par paquet
+    sizes.clear()
+    run_modifier(Dissolve, {"group_by": ["g"]}, data, ctx=ctx)
+    assert sizes == [1] * 15
+    assert packets.column("g").to_pylist() == whole.column("g").to_pylist() == list(range(15))
+    assert packets.column(GEOM).to_pylist() == whole.column(GEOM).to_pylist()
+
+
 # ------------------------------------------------------------------ Clip en flux
 def test_clip_streams_clippees_in_order():
     cells = shapely.box(*np.array([(x, 0, x + 10, 10) for x in range(0, 100, 10)]).T)
@@ -190,3 +212,25 @@ def test_tile_pieces_whose_seam_does_not_match_are_joined_by_a_full_union():
         joined = overlay_polygons._join(np.array([left, right]), np.array([[0.0, 0, 1, 1], [1, 0, 2, 1]]))
         assert joined.geom_type == "Polygon" and shapely.is_valid(joined)
         assert joined.area == pytest.approx(2.0)
+
+
+# ------------------------------------------------------------------ collect : débordement sur disque
+def test_collect_spills_to_disk_beyond_the_budget(monkeypatch, tmp_path):
+    """Entrée d'un nœud bloquant plus grande que sa part du budget : la suite des lots va sur le disque (mémoire
+    projetée), la table est la même (ordre, SCR, colonne vide d'un premier lot puis remplie)."""
+    from etl_engine import blocking, duck
+    from etl_engine.data import get_crs, with_crs
+
+    batches = [
+        with_crs(pa.table({"a": pa.array(range(i * 100, i * 100 + 100)), "t": pa.nulls(100)}), "EPSG:2154")
+        for i in range(3)
+    ]
+    batches += [with_crs(pa.table({"a": pa.array(range(300, 400)), "t": pa.array(["x"] * 100)}), "EPSG:2154")]
+    whole = blocking.collect(iter(batches))
+    duck.configure_run(memory_mb=1024, spill_dir=tmp_path / "spill")
+    monkeypatch.setattr(blocking, "collect_bytes", lambda: batches[0].nbytes + 1)  # le premier lot en mémoire
+    spilled = blocking.collect(iter(batches))
+    assert len(list((tmp_path / "spill").glob("collect-*.arrow"))) == 2  # deux schémas : deux fichiers
+    assert spilled.equals(whole) and get_crs(spilled) == "EPSG:2154"
+    assert spilled.column("a").to_pylist() == list(range(400)) and spilled.column("t").null_count == 300
+    del spilled

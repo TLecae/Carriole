@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import math
+import shutil
+import tempfile
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -21,7 +24,6 @@ from etl_engine.raster import core
 from etl_engine.sdk import Attribute, ConfigError, Crs, Emit, Modifier, Params
 
 DTYPES = Literal["uint8", "uint16", "int16", "int32", "float32", "float64"]
-MAX_PIXELS = 400_000_000
 
 
 class Rasterize(Modifier):
@@ -102,7 +104,11 @@ class Rasterize(Modifier):
         geoms, burn = geoms[keep], burn[keep]
         xmin, ymin, xmax, ymax = p.extent or shapely.total_bounds(geoms)
         width, height = max(1, math.ceil((xmax - xmin) / p.cell_size)), max(1, math.ceil((ymax - ymin) / p.cell_size))
-        if width * height > MAX_PIXELS:
+        # le raster est calculé et écrit par fenêtres : seule la place sur le disque du run le limite
+        folder = self.ctx.work_dir or Path(tempfile.gettempdir())
+        while not folder.exists() and folder != folder.parent:
+            folder = folder.parent
+        if width * height * np.dtype(p.dtype).itemsize > shutil.disk_usage(folder).free:
             raise ConfigError(
                 f"raster trop grand ({width} x {height} pixels) : augmenter la taille du pixel ou réduire l'emprise"
             )

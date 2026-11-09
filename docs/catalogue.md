@@ -645,7 +645,7 @@ Génère une grille de carrés ou d'hexagones sur une emprise (saisie, ou celle 
 
 - **Entrées** : aucune — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-L'emprise est saisie (X min, Y min, X max, Y max, dans le système de coordonnées choisi) ou, avec « Emprise des entités reçues », prise sur les géométries de l'entrée (le nœud a alors une entrée, et la grille reprend leur système de coordonnées). « Taille » est la largeur d'une cellule, dans l'unité du système (mètres en Lambert-93) : pour un hexagone, la distance entre deux côtés opposés. Chaque cellule reçoit son numéro (`cell_id`), sa colonne et sa ligne. Les hexagones débordent légèrement de l'emprise ; « Ne garder que les cellules qui touchent les entités » écarte les autres. Au plus 5 millions de cellules.
+L'emprise est saisie (X min, Y min, X max, Y max, dans le système de coordonnées choisi) ou, avec « Emprise des entités reçues », prise sur les géométries de l'entrée (le nœud a alors une entrée, et la grille reprend leur système de coordonnées). « Taille » est la largeur d'une cellule, dans l'unité du système (mètres en Lambert-93) : pour un hexagone, la distance entre deux côtés opposés. Chaque cellule reçoit son numéro (`cell_id`), sa colonne et sa ligne. Les hexagones débordent légèrement de l'emprise ; « Ne garder que les cellules qui touchent les entités » écarte les autres.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -1396,7 +1396,7 @@ Trace les courbes de niveau d'un modèle numérique de terrain : une ligne par c
 
 - **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-Une courbe est tracée tous les « Équidistance » (10 m : 100, 110, 120…), à partir de « Altitude de base », ou pour les altitudes de « Niveaux » si la liste est renseignée. Chaque ligne porte son altitude (« Attribut de l'altitude ») et les attributs du raster. « Longueur minimale » écarte les petites courbes (îlots). Les pixels sans donnée interrompent les courbes. Le raster est lu en mémoire (au plus 40 millions de pixels : découper d'abord au-delà). Les lignes sont dans le système du raster.
+Une courbe est tracée tous les « Équidistance » (10 m : 100, 110, 120…), à partir de « Altitude de base », ou pour les altitudes de « Niveaux » si la liste est renseignée. Chaque ligne porte son altitude (« Attribut de l'altitude ») et les attributs du raster. « Longueur minimale » écarte les petites courbes (îlots). Les pixels sans donnée interrompent les courbes. Le raster est lu en mémoire, dans la limite de la mémoire réglée dans Paramètres → Calcul (découper d'abord au-delà). Les lignes sont dans le système du raster.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -1510,7 +1510,7 @@ Transforme un raster en polygones : un polygone par ensemble de pixels voisins d
 
 - **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-Pour un raster de classes (occupation du sol, résultat d'un seuil ou d'un reclassement), chaque zone d'un seul tenant de même valeur devient un polygone avec sa valeur (attribut « Attribut de la valeur ») et le numéro de la bande. « Connexité » : 4 (pixels qui se touchent par un côté) ou 8 (aussi par un coin). Les pixels sans donnée ne donnent rien. « Arrondir » regroupe les valeurs décimales proches (1 = au dixième) ; « Surface minimale » écarte les polygones plus petits (dans l'unité du système au carré). Le raster entier est lu en mémoire (au plus 60 millions de pixels : découper ou réduire la résolution au-delà). Les attributs du raster sont recopiés.
+Pour un raster de classes (occupation du sol, résultat d'un seuil ou d'un reclassement), chaque zone d'un seul tenant de même valeur devient un polygone avec sa valeur (attribut « Attribut de la valeur ») et le numéro de la bande. « Connexité » : 4 (pixels qui se touchent par un côté) ou 8 (aussi par un coin). Les pixels sans donnée ne donnent rien. « Arrondir » regroupe les valeurs décimales proches (1 = au dixième) ; « Surface minimale » écarte les polygones plus petits (dans l'unité du système au carré). Le raster entier est lu en mémoire (dans la limite de la mémoire réglée dans Paramètres → Calcul : découper ou réduire la résolution au-delà). Les attributs du raster sont recopiés.
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |

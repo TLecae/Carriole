@@ -246,6 +246,10 @@ def test_duplicate_filter_across_batches():
     assert col(out["Duplicate"], "v") == [3, 5, 6]
     everything = run_modifier(FindDuplicates, {}, table(a=[1, 1, 2], b=["x", "x", "x"]))
     assert col(everything["Duplicate"], "a") == [1]
+    # clés composées avec des vides et des listes, d'un lot à l'autre (lots de 3) : nul = nul, liste = même liste
+    mixed = table(a=[1, None, 1, None, 1, None, 2], l=[[1], None, [1], None, [1, 2], [1], [1]], v=list(range(7)))
+    out = run_modifier(FindDuplicates, {"keys": ["a", "l"]}, mixed)
+    assert col(out["Unique"], "v") == [0, 1, 4, 5, 6] and col(out["Duplicate"], "v") == [2, 3]
 
 
 # ------------------------------------------------------------------------ Reproject

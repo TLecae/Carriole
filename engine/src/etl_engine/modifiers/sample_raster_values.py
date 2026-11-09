@@ -17,8 +17,6 @@ from etl_engine.data import GEOM, geometries, get_crs, to_crs, with_crs
 from etl_engine.raster import core
 from etl_engine.sdk import GEOMETRY_SLICE, ConfigError, Emit, Modifier, Params, slices
 
-MAX_WINDOW_PIXELS = 16_000_000
-
 
 class SampleRasterValues(Modifier):
     name = "SampleRasterValues"
@@ -103,7 +101,8 @@ class SampleRasterValues(Modifier):
                     )
                     window = Window(int(c0), int(r0), int(c1 - c0), int(r1 - r0))
                     positions = np.flatnonzero(todo)[inside]
-                    if window.width * window.height <= MAX_WINDOW_PIXELS:
+                    # fenêtre lue d'un bloc si elle tient dans le budget (bandes en float64 et leur masque)
+                    if window.width * window.height <= core.pixels_in_budget(9 * len(bands)):
                         data = ds.read([i for i, _ in bands], window=window, masked=True)
                         for k in range(len(bands)):
                             got = data[k][rows[inside] - r0, cols[inside] - c0]
