@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Writing into an existing layer or table: attributes it cannot receive are a flow error, shown on the node, and
+  the run stops before reading any data (GDAL used to stop on "Cannot find OGR field" after reading). File
+  writers in `append` mode (GeoPackage, SpatiaLite, Shapefile, GeoJSON, FlatGeobuf, MapInfo, CSV, Excel) list the
+  incoming attributes against the columns of the layer, the missing ones in red, as database writers already did;
+  database writers (`append`, `truncate`, `upsert`) are now checked before the run too.
+- CSV and Excel appends follow the header of the existing file or sheet: each attribute goes to its column
+  (they were written by position). Appending to a missing CSV writes its header.
 - Proposed values (tables of a database, attributes, coordinate systems, AI models) open in a list with the
   colours of the application instead of the system list.
 

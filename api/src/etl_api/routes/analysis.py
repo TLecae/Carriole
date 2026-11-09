@@ -63,6 +63,18 @@ def field_columns(body: ReaderIn, registry: Annotated[Registry, Depends(get_regi
         raise HTTPException(422, str(exc)) from None
 
 
+@router.post("/fields/target")
+def field_target(body: ReaderIn, registry: Annotated[Registry, Depends(get_registry)]) -> dict[str, Any]:
+    """Écriture en ajout dans un fichier : colonnes de la couche visée, face aux attributs que le nœud reçoit."""
+    from etl_engine.field_values import writer_target
+    from etl_engine.sdk import ConfigError
+
+    try:
+        return writer_target(body.flow, registry, body.node)
+    except ConfigError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
 @router.post("/fields/count")
 def field_count(body: ReaderIn, registry: Annotated[Registry, Depends(get_registry)]) -> dict[str, int]:
     """Entités du fichier qu'un lecteur lit, et celles que son filtre garde."""

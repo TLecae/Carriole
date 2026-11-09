@@ -37,6 +37,42 @@ def _open(path: str, layer: str | None, batch_rows: int, **kw: Any):
     return pyogrio.raw.open_arrow(path, layer=layer, batch_size=batch_rows, use_pyarrow=True, **kw)
 
 
+def layer_columns(path: str, fmt: str, layer: str | None = None) -> tuple[str, list[dict[str, str]]] | None:
+    """Couche où un ajout écrit, et ses champs : `layer` (vide : le nom du fichier, comme pyogrio), ou la seule couche
+    d'un format à une couche. None si le fichier ou la couche n'existe pas encore : l'ajout la crée."""
+    if not os.path.exists(path):
+        return None
+    try:
+        names = [str(n) for n in pyogrio.list_layers(path)[:, 0]]
+        if fmt in MULTI_LAYER:
+            wanted = layer or os.path.splitext(os.path.basename(path))[0]
+            found = next((n for n in names if n == wanted), None) or next(
+                (n for n in names if n.lower() == wanted.lower()), None
+            )
+        else:
+            found = names[0] if names else None
+        if found is None:
+            return None
+        info = pyogrio.read_info(path, layer=found)
+    except Exception:  # noqa: BLE001 - fichier illisible : l'écriture dira pourquoi
+        return None
+    return found, [{"name": str(n), "type": str(t)} for n, t in zip(info["fields"], info["dtypes"], strict=True)]
+
+
+def check_append(path: str, fmt: str, layer: str | None, names: Iterable[str]) -> None:
+    """Ajout à une couche existante : GDAL n'y crée pas les champs qui manquent (« Cannot find OGR field… ») ; ils sont
+    nommés avant toute écriture. Sans tenir compte de la casse, comme GDAL."""
+    found = layer_columns(path, fmt, layer)
+    if found is None:
+        return
+    name, columns = found
+    have = {c["name"].lower() for c in columns}
+    absent = [n for n in names if n.lower() not in have]
+    if absent:
+        listing = ", ".join(absent)
+        raise ConfigError(f"attributs absents de la couche « {name} » : {listing}")
+
+
 def _geometry_name(meta: dict[str, Any], names: list[str]) -> str | None:
     """Colonne WKB du flux Arrow : nom réel de la colonne de la couche, sinon `wkb_geometry`."""
     for candidate in (meta.get("geometry_name"), OGR_GEOMETRY):
@@ -209,6 +245,8 @@ class OgrWriter:
 
             data = pa.RecordBatchReader.from_batches(first.schema, batches())
         append = self.mode == "append" or self._started
+        if not self._started and self.mode == "append":
+            check_append(self.path, self.fmt, self.layer, [n for n in first.column_names if n != geometry_name])
         if not self._started and self.mode == "overwrite" and self.fmt not in MULTI_LAYER and os.path.exists(self.path):
             os.remove(self.path)
         creation: dict[str, Any] = {"FORMAT": "MIF"} if self.fmt == "mif" else {}

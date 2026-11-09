@@ -405,6 +405,7 @@ export interface TableColumns {
   exists: boolean;
   columns: { name: string; type: string }[];
   case_sensitive: boolean; // PostgreSQL : nom exact ; Oracle : sans la casse
+  incoming?: string[] | null; // écriture dans un fichier : attributs reçus, nommés comme ils seraient écrits
 }
 
 export interface ConnectionTest {

@@ -560,6 +560,42 @@ class FileWriter(Modifier):
             return self.formats[0]
         return found if found in self.formats else self.formats[0]
 
+    def _where(self) -> tuple[str | None, str]:
+        """Couche (ou feuille) et séparateur visés, comme `open_target`."""
+        p = self.params
+        return getattr(p, "layer", None) or getattr(p, "sheet", None) or None, getattr(p, "delimiter", ",") or ","
+
+    def _appends(self) -> bool:
+        """Ajout à un fichier que l'utilisateur peut écrire (dossiers autorisés) : sa couche se lit."""
+        p = self.params
+        if getattr(p, "mode", "") != "append" or not p.path:
+            return False
+        try:
+            paths.check(p.path, "write")
+        except (ConfigError, OSError, ValueError):
+            return False
+        return True
+
+    def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
+        """Ajout à une couche existante : les attributs qu'elle ne peut pas recevoir sont une erreur de configuration,
+        signalée dans l'éditeur, qui arrête le run avant toute lecture."""
+        schema = inputs.get("input")
+        if schema is not None and self._appends():
+            formats.check_append(self._fmt(self.params.path), self.params.path, schema, *self._where())
+        return {}
+
+    def target(self, schema: pa.Schema | None) -> dict[str, Any]:
+        """Pour l'éditeur, en mode ajout : colonnes de la couche visée (absente : créée à l'écriture) et attributs
+        reçus, nommés comme ils y seraient écrits."""
+        fmt = self._fmt(self.params.path)
+        columns = formats.target_columns(fmt, self.params.path, *self._where()) if self._appends() else None
+        return {
+            "exists": columns is not None,
+            "columns": columns or [],
+            "case_sensitive": fmt in formats.CASE_SENSITIVE,
+            "incoming": None if schema is None else formats.written_names(fmt, schema),
+        }
+
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
         p = self.params
         if not p.path:

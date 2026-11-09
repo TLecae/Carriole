@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import codecs
 import contextlib
+import csv
 import os
 from collections.abc import Iterator
 from typing import Any
@@ -146,8 +147,24 @@ def sql_query(
     return f"{query} LIMIT {int(limit)}" if limit else query
 
 
+def header_columns(path: str, delimiter: str = ",") -> list[dict[str, str]] | None:
+    """En-tête d'un CSV existant : les colonnes où un ajout écrit. None si le fichier est absent ou vide (l'ajout écrit
+    alors l'en-tête)."""
+    try:
+        with open(path, "rb") as fh:
+            first = fh.readline()
+        encoding = detect_encoding(path)
+    except OSError:
+        return None
+    if not first.strip():
+        return None
+    text = first.decode(encoding, errors="replace").lstrip("﻿").rstrip("\r\n")
+    return [{"name": n, "type": ""} for n in next(csv.reader([text], delimiter=delimiter or ","), [])]
+
+
 class CsvWriter:
-    """Écrit un CSV UTF-8 ; la géométrie devient une colonne WKT `wkt`."""
+    """Écrit un CSV UTF-8 ; la géométrie devient une colonne WKT `wkt`. Un ajout à un fichier existant suit son
+    en-tête : colonnes rangées dans son ordre, vides pour celles que rien n'alimente."""
 
     def __init__(self, path: str, delimiter: str = ",", mode: str = "overwrite", **_: Any) -> None:
         if mode == "create" and os.path.exists(path):
@@ -157,6 +174,31 @@ class CsvWriter:
         self._target = path if mode == "append" else part_name(path)
         self._writer: pacsv.CSVWriter | None = None
         self._sink = None
+        self._header: list[str] | None = None  # ajout : l'en-tête du fichier existant
+
+    def _aligned(self, flat: pa.Table) -> pa.Table:
+        names = set(flat.column_names)
+        header = self._header or []
+        arrays = [flat.column(n) if n in names else pa.nulls(flat.num_rows, pa.string()) for n in header]
+        return pa.Table.from_arrays(arrays, names=header)
+
+    def _open(self, flat: pa.Table) -> None:
+        header = header_columns(self._target, self.delimiter) if self.mode == "append" else None
+        if header is not None:
+            self._header = [c["name"] for c in header]
+            absent = [n for n in flat.column_names if n not in self._header]
+            if absent:
+                listing = ", ".join(absent)
+                raise ConfigError(f"attributs absents de l'en-tête du fichier : {listing}")
+            flat = self._aligned(flat)
+        self._sink = open(self._target, "ab" if self.mode == "append" else "wb")  # noqa: SIM115 - fermé dans close()
+        if header is not None:
+            with open(self._target, "rb") as fh:
+                fh.seek(-1, os.SEEK_END)
+                if fh.read(1) not in (b"\n", b"\r"):  # dernière ligne sans fin de ligne
+                    self._sink.write(b"\n")
+        opts = pacsv.WriteOptions(delimiter=self.delimiter, include_header=header is None)
+        self._writer = pacsv.CSVWriter(self._sink, flat.schema, write_options=opts)
 
     def _flat(self, table: pa.Table) -> pa.Table:
         if has_geometry(table):
@@ -168,10 +210,9 @@ class CsvWriter:
     def write(self, table: pa.Table) -> None:
         flat = self._flat(table)
         if self._writer is None:
-            appending = self.mode == "append"
-            self._sink = open(self._target, "ab" if appending else "wb")  # noqa: SIM115 - fermé dans close()
-            opts = pacsv.WriteOptions(delimiter=self.delimiter, include_header=not appending)
-            self._writer = pacsv.CSVWriter(self._sink, flat.schema, write_options=opts)
+            self._open(flat)
+        if self._header is not None:
+            flat = self._aligned(flat)
         self._writer.write_table(flat)
 
     def close(self) -> None:

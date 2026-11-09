@@ -91,6 +91,11 @@ class DatabaseWriter(Modifier):
     stateful = True
     kind: ClassVar[str] = ""
 
+    def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
+        p = self.params
+        databases.check_into_table(p.connection, p.table, p.mode, p.geometry_column or "geom", inputs.get("input"))
+        return {}
+
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
         p = self.params
         if not p.connection:

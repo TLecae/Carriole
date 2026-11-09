@@ -188,3 +188,55 @@ test("éditeur SQL d'une base : tables rangées par schéma, colonnes et types �
   await expect(helper.getByRole("button", { name: "routes", exact: true })).toHaveCount(0);
   await page.request.delete(`/api/flows/${created.id}`);
 });
+
+test("écriture dans une table ou une couche existante : attributs absents en rouge, tables proposées dans une liste", async ({ page }) => {
+  // base et couche simulées : aucune base réelle n'est contactée, aucun fichier n'est écrit
+  const json = (body: unknown) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  const base = { name: "ma_base", kind: "postgres", host: "localhost", port: 5432, dbname: "ma_base", user: "lecteur", sslmode: "", options: {}, has_password: false, owner: "" };
+  const table = (schema: string, name: string) => ({ schema, table: name, kind: "r", rows_estimate: 10, geometry: null });
+  await page.route(/\/api\/connections$/, (route) => route.fulfill(json([base])));
+  await page.route(/\/api\/connections\/ma_base\/tables$/, (route) => route.fulfill(json([table("carto", "communes"), table("carto", "zones_activite"), table("public", "routes")])));
+  await page.route(/\/api\/connections\/ma_base\/columns\?/, (route) =>
+    route.fulfill(json({ exists: true, case_sensitive: true, columns: [{ name: "id", type: "integer" }, { name: "nom", type: "text" }, { name: "geom", type: "geometry" }] })),
+  );
+  await page.route(/\/api\/fields\/target$/, (route) =>
+    route.fulfill(json({ exists: true, case_sensitive: false, columns: [{ name: "id", type: "int64" }, { name: "NOM", type: "object" }, { name: "pop", type: "int64" }], incoming: ["id", "nom", "pop", "dep"] })),
+  );
+  const flow = {
+    name: "ajout",
+    nodes: [
+      { id: "read", type: "CsvReader", position: [0, 0], params: { path: `${IN}/communes.csv`, delimiter: ";" } },
+      { id: "pg", type: "PostgresWriter", position: [320, 0], params: { connection: "ma_base", table: "carto.communes", mode: "append" } },
+      { id: "gpkg", type: "GeoPackageWriter", position: [320, 200], params: { path: "D:/sorties/resultat.gpkg", layer: "communes", mode: "append" } },
+    ],
+    links: [
+      { id: "l1", from: ["read", "output"], to: ["pg", "input"] },
+      { id: "l2", from: ["read", "output"], to: ["gpkg", "input"] },
+    ],
+  };
+  const created = await (await page.request.post("/api/flows", { data: { flow } })).json();
+  await page.goto(`/#flow=${created.id}`);
+
+  // table d'une base : reçus face aux colonnes (nom exact)
+  await page.getByTestId("node-pg").locator(".node-head").click();
+  const fields = page.getByTestId("table-fields");
+  await expect(fields.getByRole("alert")).toHaveText(/2 attribut\(s\) absent\(s\) de la table/);
+  await expect(fields.locator("li.absent")).toHaveText(["popabsent de la table", "depabsent de la table"]);
+  await expect(fields.locator("li.unfed")).toHaveText(["geomnon alimentée"]);
+
+  // tables du schéma dans une liste de l'application, filtrée par la saisie
+  const input = page.getByRole("combobox", { name: "Table : table" });
+  await input.fill("zone");
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveText(["zones_activite"]);
+  await input.press("ArrowDown");
+  await input.press("Enter");
+  await expect(input).toHaveValue("zones_activite");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+
+  // couche d'un GeoPackage : comparaison faite par le serveur (sans la casse, comme GDAL)
+  await page.getByTestId("node-gpkg").locator(".node-head").click();
+  await expect(fields.getByRole("alert")).toHaveText(/1 attribut\(s\) absent\(s\) de la couche/);
+  await expect(fields.locator("li.absent")).toHaveText(["depabsent de la couche"]);
+  await expect(fields.locator("li.ok")).toHaveCount(3);
+  await page.request.delete(`/api/flows/${created.id}`);
+});

@@ -7,7 +7,7 @@ import { useUi } from "../store/ui";
 import { ResizeHandle } from "./ResizeHandle";
 import { PublishVersions, VersionPicker } from "./ComponentVersions";
 import { SchemaForm, type FormCtx } from "./SchemaForm";
-import { TableFields } from "./TableFields";
+import { FileFields, TableFields } from "./TableFields";
 import { formatNumber, t } from "../i18n";
 import { buildHints } from "../model/variables";
 import { catalogueUrl } from "../model/docs";
@@ -97,6 +97,9 @@ function NodePanel({ id }: { id: string }) {
   // écriture dans une table d'une base (paramètre « table » choisi sur une connexion, en écriture)
   const tableParam = info.params_schema.properties?.table;
   const writesTable = !!tableParam && tableParam["x-etl-widget"] === "pg-table" && tableParam["x-etl-access"] === "write";
+  // écriture dans un fichier qui peut ajouter à une couche existante (GeoPackage, Shapefile, CSV, Excel…)
+  const writesFile = info.params_schema.properties?.path?.["x-etl-access"] === "write" && !!info.params_schema.properties?.mode;
+  const inputs = edges.filter((e) => e.target === id && e.data?.enabled !== false).map((e) => analysis?.schemas[`${e.source}/${e.sourceHandle ?? "output"}`] ?? null);
 
   return (
     <div className="node-panel">
@@ -126,7 +129,8 @@ function NodePanel({ id }: { id: string }) {
         </p>
       ))}
       <SchemaForm key={id} schema={info.params_schema} value={node.data.params} onChange={(p) => updateParams(id, p)} ctx={ctx} />
-      {writesTable && <TableFields params={node.data.params} inputs={edges.filter((e) => e.target === id && e.data?.enabled !== false).map((e) => analysis?.schemas[`${e.source}/${e.sourceHandle ?? "output"}`] ?? null)} />}
+      {writesTable && <TableFields params={node.data.params} inputs={inputs} />}
+      {writesFile && <FileFields id={id} params={node.data.params} inputs={inputs} />}
       {info.help && (
         <details className="help">
           <summary>{t("Aide")}</summary>

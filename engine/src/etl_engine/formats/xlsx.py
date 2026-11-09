@@ -206,10 +206,29 @@ def _cell(value: Any) -> Any:
     return value
 
 
+def sheet_columns(path: str, sheet: str | None = None) -> list[dict[str, str]] | None:
+    """En-tête (première ligne) de la feuille où un ajout écrit ; None si le classeur, la feuille ou son en-tête
+    n'existe pas encore : l'ajout l'écrit."""
+    if not os.path.exists(path):
+        return None
+    try:
+        wb = load_workbook(path, read_only=True)
+    except Exception:  # noqa: BLE001 - classeur illisible : l'écriture dira pourquoi
+        return None
+    try:
+        name = sheet or "Feuil1"
+        first = next(wb[name].iter_rows(min_row=1, max_row=1, values_only=True), ()) if name in wb.sheetnames else ()
+    finally:
+        wb.close()
+    names = [str(v) for v in first if v is not None]
+    return [{"name": n, "type": ""} for n in names] or None
+
+
 class XlsxWriter:
     """Écrit une feuille. `mode` : create (le fichier ne doit pas exister), overwrite (remplace la feuille),
     append (ajoute à la suite des lignes de la feuille, ou crée la feuille). Plusieurs Writer peuvent alimenter
-    des feuilles différentes du même classeur."""
+    des feuilles différentes du même classeur. Un ajout à une feuille existante suit son en-tête : chaque attribut
+    dans sa colonne, vide pour celles que rien n'alimente."""
 
     messages: list[str]
 
@@ -223,6 +242,7 @@ class XlsxWriter:
         self._wb: Workbook | None = None
         self._ws: Any = None
         self._rows = 0
+        self._header: list[str | None] | None = None  # ajout : l'en-tête de la feuille existante
 
     def _open(self, table: pa.Table) -> None:
         exists = os.path.exists(self.path) and self.mode != "create"
@@ -236,6 +256,13 @@ class XlsxWriter:
                 else:
                     self._ws = self._wb[self.sheet]
                     self._rows = self._ws.max_row
+                    header = [None if c.value is None else str(c.value) for c in self._ws[1]]
+                    if any(h is not None for h in header):
+                        self._header = header
+                        return
+                    for i, n in enumerate(table.column_names, 1):  # feuille vide : l'en-tête des données
+                        self._ws.cell(1, i, "geometry" if n == GEOM else n)
+                    self._rows = 1
                     return
             else:
                 self._ws = self._wb.create_sheet(self.sheet)
@@ -250,13 +277,22 @@ class XlsxWriter:
             self._open(table)
         if self._rows + table.num_rows > MAX_ROWS:
             raise ConfigError(f"limite d'une feuille Excel ({MAX_ROWS} lignes) dépassée : utiliser un autre format")
-        columns = []
+        if self._header is not None:
+            absent = [n for n in table.column_names if ("geometry" if n == GEOM else n) not in self._header]
+            if absent:
+                listing = ", ".join(absent)
+                raise ConfigError(f"attributs absents de la feuille « {self.sheet} » : {listing}")
+        values: dict[str, list[Any]] = {}
         for n in table.column_names:
             if n == GEOM and has_geometry(table):
                 geoms = shapely.from_wkb(table.column(GEOM).to_numpy(zero_copy_only=False))
-                columns.append([None if g is None else shapely.to_wkt(g) for g in geoms])
+                values["geometry"] = [None if g is None else shapely.to_wkt(g) for g in geoms]
             else:
-                columns.append([_cell(v) for v in table.column(n).to_pylist()])
+                values["geometry" if n == GEOM else n] = [_cell(v) for v in table.column(n).to_pylist()]
+        columns = list(values.values())
+        if self._header is not None:
+            blank = [None] * table.num_rows
+            columns = [values.get(h, blank) if h is not None else blank for h in self._header]
         for row in zip(*columns, strict=True):
             self._ws.append(list(row))
         self._rows += table.num_rows

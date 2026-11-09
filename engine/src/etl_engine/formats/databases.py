@@ -6,12 +6,14 @@ modificateurs (lecture, écriture, SQL libre) et à l'API (essai, liste des tabl
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterator, Sequence
 from typing import Any
 
 import pyarrow as pa
 
 from etl_engine import connections
+from etl_engine.data import GEOM, has_geometry
 from etl_engine.sdk import ConfigError
 
 
@@ -122,3 +124,42 @@ class _Postgres:
 
 
 POSTGRES = _Postgres()
+
+
+INTO_EXISTING = {"append", "truncate", "upsert"}  # modes qui écrivent dans la table telle qu'elle est
+_columns_seen: dict[tuple[str, str], tuple[float, Any]] = {}
+COLUMNS_KEPT_S = 30  # l'analyse revient à chaque modification du flux : la base n'est pas réinterrogée à chaque fois
+
+
+def _table_columns(connection: str, table: str) -> tuple[list[dict[str, str]] | None, bool] | None:
+    """Colonnes de la table et casse comparée, mémorisées un moment ; None si la base ne répond pas."""
+    key = (connection, table)
+    seen = _columns_seen.get(key)
+    if seen and time.monotonic() - seen[0] < COLUMNS_KEPT_S:
+        return seen[1]
+    try:
+        db = backend(connection)
+        found = (db.table_columns(connection, table), db.case_sensitive_columns)
+    except Exception:  # noqa: BLE001 - base injoignable au moment de l'édition : le run dira pourquoi
+        found = None
+    _columns_seen[key] = (time.monotonic(), found)
+    return found
+
+
+def check_into_table(connection: str, table: str, mode: str, geometry_column: str, schema: pa.Schema | None) -> None:
+    """Écriture dans une table existante (ajout, vidage, mise à jour) : les attributs qu'elle ne peut pas recevoir sont
+    une erreur de configuration, signalée dans l'éditeur, qui arrête le run avant toute lecture. Même comparaison que
+    l'écriture (`PgWriter._check_columns`, `DbWriter._match_columns`)."""
+    if schema is None or mode not in INTO_EXISTING or not connection or not table.strip():
+        return
+    found = _table_columns(connection, table)
+    if found is None or found[0] is None:
+        return  # base injoignable, ou table à créer
+    columns, case_sensitive = found
+    fold = (lambda s: s) if case_sensitive else str.lower
+    have = {fold(c["name"]) for c in columns}
+    wanted = [geometry_column if n == GEOM and has_geometry(schema) else n for n in schema.names]
+    absent = [c for c in wanted if fold(c) not in have]
+    if absent:
+        listing = ", ".join(absent)
+        raise ConfigError(f"colonnes absentes de la table {table} : {listing}")

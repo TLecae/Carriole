@@ -34,7 +34,7 @@ de la table : précision de l'ordre du centimètre en Lambert-93.
   texte. `Plage` (ex. `A2:F200`) : la première ligne de la plage est l'en-tête. Noms vides ou doublons
   renommés (`colonne_3`, `nom_1`). Les lignes entièrement vides sont ignorées.
 - Écriture : le champ « Couche / feuille » nomme la feuille. `overwrite` ne remplace que cette feuille,
-  `append` ajoute à la suite. Plusieurs Writer peuvent donc alimenter des feuilles différentes du même
+  `append` ajoute à la suite, chaque attribut dans la colonne de même nom de l'en-tête. Plusieurs Writer peuvent donc alimenter des feuilles différentes du même
   classeur (à enchaîner : ils écrivent le même fichier).
 - Limite d'Excel : 1 048 576 lignes par feuille (erreur explicite au-delà).
 
@@ -42,6 +42,23 @@ de la table : précision de l'ordre du centimètre en Lambert-93.
 
 « Partitionner par » écrit un sous-dossier `colonne=valeur/` par valeur (500 partitions maximum). La colonne
 reste dans les fichiers. Pour relire : *Lecture (Geo)Parquet* avec le motif `dossier/**/*.parquet`.
+
+## Ajout à une couche ou une table existante
+
+En mode `append` (et `truncate`, `upsert` pour une base), la couche, la feuille, le CSV ou la table visés gardent
+leurs colonnes : un attribut reçu qu'ils n'ont pas ne peut pas y être écrit.
+
+- Le panneau du nœud liste les attributs reçus face aux colonnes de la cible : en rouge ceux qu'elle ne peut pas
+  recevoir, en italique ses colonnes que rien n'alimente (laissées vides).
+- L'analyse du flux signale l'erreur sur le nœud, et le run s'arrête avant de lire la moindre donnée. Renommer
+  ou retirer ces attributs en amont (*Gérer les attributs*).
+- Comparaison : sans la casse pour les fichiers lus par GDAL (GeoPackage, SpatiaLite, Shapefile, GeoJSON,
+  FlatGeobuf, MapInfo) et pour Oracle ; nom exact pour CSV, Excel et PostgreSQL. En Shapefile, les noms sont
+  comparés raccourcis à 10 caractères, comme ils seront écrits. La géométrie va dans la colonne géométrique (base :
+  « Colonne géométrique créée »), dans `wkt` pour un CSV, `geometry` pour une feuille Excel.
+- CSV et Excel suivent l'en-tête existant : chaque attribut dans sa colonne, quel que soit son rang. Un CSV absent
+  ou vide est créé avec son en-tête.
+- Une couche ou une table qui n'existe pas encore est créée avec les attributs reçus.
 
 ## Oracle
 
@@ -100,7 +117,8 @@ géométriques sont lues en WKT. Correspondance des types :
 - `create` : échoue si la table existe ; `overwrite` : la recrée ; `append` : ajoute (table créée si
   absente) ; `truncate` : vide puis insère ; `upsert` : met à jour les lignes de même clé, insère les autres
   (le dernier doublon d'un lot l'emporte).
-- À l'ajout dans une table existante, les colonnes des données doivent exister dans la table.
+- Dans une table existante (`append`, `truncate`, `upsert`), les colonnes des données doivent exister dans la
+  table : voir [Ajout à une couche ou une table existante](#ajout-à-une-couche-ou-une-table-existante).
 - Création : colonnes typées d'après le schéma Arrow, clé primaire si une clé est donnée, colonne
   géométrique `geometry(Type, SRID)` (nom réglable), index GIST, puis `ANALYZE`. En « auto », polygones et
   lignes sont créés en `Multi…` (les géométries simples sont promues) ; sinon le type du premier lot. Fixer le

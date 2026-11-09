@@ -14,6 +14,7 @@ from typing import Any, Protocol
 import pyarrow as pa
 
 from etl_engine import duck
+from etl_engine.data import GEOM, has_geometry
 from etl_engine.formats import csvfmt, ogr, parquet, xlsx
 from etl_engine.sdk import ConfigError
 
@@ -109,6 +110,78 @@ def read_schema(fmt: str, path: str, **opts: Any) -> pa.Schema:
             while len(_schemas) > SCHEMAS_KEPT:
                 _schemas.popitem(last=False)
     return schema
+
+
+_targets: OrderedDict[tuple, list[dict[str, str]] | None] = OrderedDict()
+CASE_SENSITIVE = {"csv", "xlsx"}  # GDAL retrouve un champ sans tenir compte de la casse ; CSV, Excel : nom exact
+
+
+def target_columns(fmt: str, path: str, layer: str | None = None, delimiter: str = ",") -> list[dict[str, str]] | None:
+    """Colonnes de la couche (feuille d'un classeur, en-tête d'un CSV) où un ajout écrit ; None si elle n'existe pas
+    encore : l'ajout la crée. Mémorisées par fichier (date, taille) : l'analyse les redemande à chaque modification du
+    flux."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    key = (fmt, os.path.abspath(path), st.st_mtime_ns, st.st_size, layer, delimiter)
+    with _schemas_lock:
+        if key in _targets:
+            _targets.move_to_end(key)
+            return _targets[key]
+    found: list[dict[str, str]] | None = None
+    if fmt == "csv":
+        found = csvfmt.header_columns(path, delimiter)
+    elif fmt == "xlsx":
+        found = xlsx.sheet_columns(path, layer)
+    elif fmt in ogr.DRIVERS:
+        layered = ogr.layer_columns(path, fmt, layer)
+        found = layered[1] if layered else None
+    with _schemas_lock:
+        _targets[key] = found
+        while len(_targets) > SCHEMAS_KEPT:
+            _targets.popitem(last=False)
+    return found
+
+
+def written_names(fmt: str, schema: pa.Schema) -> list[str]:
+    """Colonnes que l'écriture de `schema` alimente dans un fichier `fmt` : la géométrie n'en est une qu'en CSV (`wkt`)
+    et dans une feuille Excel (`geometry`) ; un Shapefile raccourcit les noms à 10 caractères."""
+    geometry = has_geometry(schema)
+    names = [n for n in schema.names if not (geometry and n == GEOM)]
+    if fmt == "csv":
+        return names + ["wkt"] if geometry else names
+    if fmt == "xlsx":
+        return names + [GEOM] if geometry else names
+    if fmt == "shp":
+        return ogr.shapefile_names(names)[0]
+    return names
+
+
+def append_absent(fmt: str, path: str, schema: pa.Schema, layer: str | None = None, delimiter: str = ",") -> list[str]:
+    """Attributs qu'un ajout de `schema` ne peut pas écrire : la couche existe et n'a pas leur colonne."""
+    columns = target_columns(fmt, path, layer, delimiter)
+    if columns is None:
+        return []
+    fold = (lambda s: s) if fmt in CASE_SENSITIVE else str.lower
+    have = {fold(c["name"]) for c in columns}
+    return [n for n in written_names(fmt, schema) if fold(n) not in have]
+
+
+def check_append(fmt: str, path: str, schema: pa.Schema, layer: str | None = None, delimiter: str = ",") -> None:
+    """Ajout à une couche existante : erreur de configuration, avant toute lecture de données, si elle ne peut pas
+    recevoir tous les attributs."""
+    absent = append_absent(fmt, path, schema, layer, delimiter)
+    if not absent:
+        return
+    listing = ", ".join(absent)
+    if fmt == "csv":
+        raise ConfigError(f"attributs absents de l'en-tête du fichier : {listing}")
+    if fmt == "xlsx":
+        sheet = layer or "Feuil1"
+        raise ConfigError(f"attributs absents de la feuille « {sheet} » : {listing}")
+    name = (ogr.layer_columns(path, fmt, layer) or (layer or Path(path).stem, []))[0]
+    raise ConfigError(f"attributs absents de la couche « {name} » : {listing}")
 
 
 def read_batches(fmt: str, path: str, batch_rows: int, **opts: Any) -> Iterator[pa.Table]:

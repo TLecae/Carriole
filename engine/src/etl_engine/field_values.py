@@ -19,7 +19,7 @@ from etl_engine import duck
 from etl_engine.data import GEOM, has_geometry
 from etl_engine.expr import check_single_expression, needs_spatial, quote, sql_base
 from etl_engine.flow import Flow, resolve_params, system_values
-from etl_engine.plan import build_plan
+from etl_engine.plan import Plan, build_plan
 from etl_engine.registry import Registry
 from etl_engine.sdk import ConfigError, Context
 
@@ -71,19 +71,36 @@ def top_values(con: duckdb.DuckDBPyConnection, relation: str, column: str, searc
     return [{"value": json_value(v), "count": int(n)} for v, n in rows]
 
 
-def _reader(flow: Flow, registry: Registry, node: str) -> Any:
-    """Le lecteur DuckDB `node`, avec les variables du flux résolues comme à l'analyse."""
-    from etl_engine.modifiers.file_io import DuckDbReader
-
+def _plan(flow: Flow, registry: Registry) -> Plan:
+    """Le plan du flux, avec ses variables résolues comme à l'analyse."""
     try:
         values = resolve_params(flow, None, system_values(preview=True))
     except ValueError as exc:
         raise ConfigError(str(exc)) from None
-    plan = build_plan(flow, registry, values, lambda nid: Context(node_id=nid, params=values))
-    inst = plan.nodes.get(node)
+    return build_plan(flow, registry, values, lambda nid: Context(node_id=nid, params=values))
+
+
+def _reader(flow: Flow, registry: Registry, node: str) -> Any:
+    """Le lecteur DuckDB `node`, avec les variables du flux résolues comme à l'analyse."""
+    from etl_engine.modifiers.file_io import DuckDbReader
+
+    inst = _plan(flow, registry).nodes.get(node)
     if not isinstance(inst, DuckDbReader):
         raise ConfigError("ce nœud ne lit pas un fichier CSV ou Parquet")
     return inst
+
+
+def writer_target(flow: Flow, registry: Registry, node: str) -> dict[str, Any]:
+    """Écriture en ajout dans un fichier : colonnes de la couche visée, face aux attributs que reçoit `node`."""
+    from etl_engine.analysis import compute_schemas, input_schemas
+    from etl_engine.modifiers.file_io import FileWriter
+
+    plan = _plan(flow, registry)
+    inst = plan.nodes.get(node)
+    if not isinstance(inst, FileWriter):
+        raise ConfigError("ce nœud n'écrit pas dans un fichier")
+    schemas, _ = compute_schemas(plan)
+    return inst.target(input_schemas(plan, node, schemas).get("input"))
 
 
 def _read(inst: Any) -> tuple[str, Any]:
