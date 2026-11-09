@@ -55,7 +55,7 @@ test("accueil : la liste des flux, ouverture et retour", async ({ page }) => {
 test("accueil : un flux d'exemple s'ouvre comme un flux neuf, prêt à lancer", async ({ page }) => {
   await page.goto("/");
   const examples = page.getByRole("region", { name: "Exemples" });
-  await expect(examples.getByTestId("example-card")).toHaveCount(2);
+  await expect(examples.getByTestId("example-card")).toHaveCount(3);
   await examples.getByRole("button", { name: /Sentinel-2/ }).click();
   await expect(page.getByLabel("Nom du flux")).toHaveValue(/NDVI Sentinel-2/);
   await expect(page.getByTestId("node-stac")).toBeVisible();

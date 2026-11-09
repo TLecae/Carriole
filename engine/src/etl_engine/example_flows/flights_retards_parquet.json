@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "name": "Exemple - Retards des vols (Parquet sur le web)",
+  "description": "10 millions de vols intérieurs américains, lus dans un fichier Parquet par https : nombre de vols, retards moyens et part des vols en retard, mois par mois.",
+  "nodes": [
+    {
+      "id": "vols",
+      "type": "GeoParquetReader",
+      "label": "Vols (Parquet, https)",
+      "position": [0, 0],
+      "params": {
+        "path": "https://idl.uw.edu/mosaic-datasets/data/flights-10m.parquet",
+        "columns": ["FL_DATE", "DEP_DELAY", "ARR_DELAY"]
+      }
+    },
+    {
+      "id": "mois",
+      "type": "AddAttributes",
+      "label": "Mois et vol en retard",
+      "position": [300, 0],
+      "params": {
+        "attributes": [
+          {"name": "mois", "expression": "strftime(\"FL_DATE\", '%Y-%m')", "type": "text"},
+          {"name": "en_retard", "expression": "CASE WHEN \"ARR_DELAY\" > 15 THEN 1 ELSE 0 END", "type": "integer"}
+        ]
+      }
+    },
+    {
+      "id": "statistiques",
+      "type": "StatisticsByGroup",
+      "label": "Statistiques par mois",
+      "position": [600, 0],
+      "params": {
+        "group_by": ["mois"],
+        "attributes": ["DEP_DELAY", "ARR_DELAY", "en_retard"],
+        "functions": ["mean"],
+        "count_rows": true,
+        "attach": false
+      }
+    },
+    {
+      "id": "arrondi",
+      "type": "AddAttributes",
+      "label": "Valeurs arrondies",
+      "position": [900, 0],
+      "params": {
+        "attributes": [
+          {"name": "DEP_DELAY_mean", "expression": "round(\"DEP_DELAY_mean\", 1)", "type": "float"},
+          {"name": "ARR_DELAY_mean", "expression": "round(\"ARR_DELAY_mean\", 1)", "type": "float"},
+          {"name": "pct_en_retard", "expression": "round(100 * \"en_retard_mean\", 1)", "type": "float"}
+        ]
+      }
+    },
+    {
+      "id": "tri",
+      "type": "OrderBy",
+      "label": "Par mois",
+      "position": [1200, 0],
+      "params": {"keys": [{"attribute": "mois", "order": "ascending", "kind": "text"}]}
+    },
+    {
+      "id": "ecriture",
+      "type": "CsvWriter",
+      "label": "Écriture (à activer)",
+      "position": [1500, 0],
+      "enabled": false,
+      "params": {"path": "D:/donnees/vols/retards_par_mois.csv"}
+    }
+  ],
+  "links": [
+    {"id": "l1", "from": ["vols", "output"], "to": ["mois", "input"]},
+    {"id": "l2", "from": ["mois", "output"], "to": ["statistiques", "input"]},
+    {"id": "l3", "from": ["statistiques", "summary"], "to": ["arrondi", "input"]},
+    {"id": "l4", "from": ["arrondi", "output"], "to": ["tri", "input"]},
+    {"id": "l5", "from": ["tri", "output"], "to": ["ecriture", "input"]}
+  ],
+  "annotations": [
+    {
+      "id": "a1",
+      "text": "Le fichier (75 Mo, 10 millions de lignes) est lu par plages : seules les colonnes choisies sont téléchargées. Un Parquet sans géométrie se lit comme un GeoParquet.",
+      "position": [0, -160],
+      "node": "vols"
+    },
+    {
+      "id": "a2",
+      "text": "en_retard vaut 1 pour un vol arrivé plus de 15 minutes en retard : sa moyenne est la part des vols en retard (pct_en_retard, en %). La ligne par mois sort sur « summary ».",
+      "position": [600, 160],
+      "node": "statistiques"
+    },
+    {
+      "id": "a3",
+      "text": "Pour écrire le résultat : activer ce nœud et choisir le fichier.",
+      "position": [1500, 160],
+      "node": "ecriture"
+    }
+  ]
+}

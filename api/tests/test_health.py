@@ -54,7 +54,8 @@ def test_modifiers_palette(client):
 def test_example_flows_are_listed_and_open(client):
     """Les flux d'exemple livrés (page d'accueil) : listés, ouverts, et faits de modificateurs du catalogue."""
     listed = client.get("/api/examples").json()
-    assert {e["id"] for e in listed} >= {"insee_melodi_populations", "stac_sentinel2_ndvi"}
+    assert {e["id"] for e in listed} >= {"flights_retards_parquet", "insee_melodi_populations", "stac_sentinel2_ndvi"}
+    assert listed[0]["id"] == "flights_retards_parquet"  # le premier proposé
     known = {m["name"] for m in client.get("/api/modifiers").json()["modifiers"]}
     for example in listed:
         flow = client.get(f"/api/examples/{example['id']}").json()

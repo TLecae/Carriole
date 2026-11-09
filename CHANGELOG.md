@@ -33,6 +33,7 @@
   grey; the grey of the ninth colour, too close to "Other values", is replaced.
 - Editor: the logo is removed from the top bar (the window title shows the name); a home button returns to the flow
   list.
+- New example flow, first on the home page: monthly flight delays from a 10 million row Parquet file read over https.
 - *Settings → Computation → Engine cores*: the number of cores the engine uses, 60 % of the computer's cores by
   default. Every parallel computation follows it (share of each run, DuckDB, batches and nodes in parallel, Arrow,
   GDAL, rasters, inspector); the fixed limits of 8 batches and 8 nodes are gone, and a heavy node alone in its run
