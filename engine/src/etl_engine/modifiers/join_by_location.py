@@ -32,7 +32,6 @@ from etl_engine.spatial import Predicate, SpatialIndex, check_same_crs
 RelatedAttribute = attribute_of("related")  # l'éditeur ne propose que les attributs des entités liées
 RelatedAttributes = attributes_of("related")
 
-EMIT_ROWS = 100_000  # entités « base » émises par lot (comptes sans liste)
 # base <relation> related  <=>  related <inverse> base : pour interroger l'index des entités « base »
 INVERSE = {"contains": "within", "within": "contains", "covers": "covered_by", "covered_by": "covers"}
 
@@ -229,8 +228,8 @@ class JoinByLocation(Modifier):
         out = with_crs(out, get_crs(base))
         missing = shapely.is_missing(geometries(base))
         kept = out.filter(pa.array(~missing)) if missing.any() else out
-        for start in range(0, kept.num_rows, EMIT_ROWS):
-            emit("output", kept.slice(start, EMIT_ROWS))
+        for start in range(0, kept.num_rows, self.ctx.batch_rows):  # lots de la taille de ceux du run
+            emit("output", kept.slice(start, self.ctx.batch_rows))
         if missing.any():
             emit(REJECTED, reject(base.filter(pa.array(missing)), "pas de géométrie"))
 
@@ -319,17 +318,27 @@ def _rows(source: Any) -> int | None:
 
 
 def _lists(n: int, bi: np.ndarray, rj: np.ndarray, values: pa.ChunkedArray | None, separator: str) -> pa.Array:
-    """Pour chaque entité base : valeurs distinctes non nulles des entités liées, triées et jointes (None si aucune)."""
-    texts: list[str | None] = [None] * n
+    """Pour chaque entité base : valeurs distinctes non nulles des entités liées, triées et jointes (None si aucune).
+
+    Sans boucle par entité : seules les valeurs distinctes sont mises en texte (`str`, comme une valeur Python) et
+    rangées ; les paires (entité base, rang du texte) distinctes, triées, forment les listes jointes par Arrow."""
     if values is None or not len(bi):
-        return pa.array(texts, pa.string())
-    taken = values.take(pa.array(rj, pa.int64())).to_pylist()
-    bounds = np.flatnonzero(np.diff(bi)) + 1  # bi est trié : une tranche par entité base
-    for start, stop in zip(np.r_[0, bounds], np.r_[bounds, len(bi)], strict=True):
-        found = {str(v) for v in taken[start:stop] if v is not None}
-        if found:
-            texts[int(bi[start])] = separator.join(sorted(found))
-    return pa.array(texts, pa.string())
+        return pa.nulls(n, pa.string())
+    taken = values.take(pa.array(rj, pa.int64()))
+    taken = taken.combine_chunks() if isinstance(taken, pa.ChunkedArray) else taken
+    encoded = pc.dictionary_encode(taken)
+    words = np.array([str(v) for v in encoded.dictionary.to_pylist()], dtype=object)  # valeurs distinctes : rares
+    if not len(words):
+        return pa.nulls(n, pa.string())
+    texts, rank = np.unique(words, return_inverse=True)  # textes triés ; deux valeurs au même texte n'en font qu'un
+    filled = np.asarray(encoded.is_valid().to_numpy(zero_copy_only=False), dtype=bool)
+    codes = encoded.indices.to_numpy(zero_copy_only=False)[filled].astype(np.int64)
+    keys = np.unique(bi[filled].astype(np.int64) * len(texts) + rank.ravel()[codes])  # paires distinctes, triées
+    owners = keys // len(texts)
+    counts = np.bincount(owners, minlength=n)
+    offsets = pa.array(np.r_[0, np.cumsum(counts)].astype(np.int32), pa.int32())
+    lists = pa.ListArray.from_arrays(offsets, pa.array(texts[keys % len(texts)], pa.string()))
+    return pc.if_else(pa.array(counts > 0), pc.binary_join(lists, separator), pa.scalar(None, pa.string()))
 
 
 def _put(table: pa.Table, name: str, column: pa.Array) -> pa.Table:

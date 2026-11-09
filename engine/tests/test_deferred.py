@@ -120,6 +120,8 @@ CASES = {
     ),
     "compteur": ("Counter", {"attribute": "n", "start": 10, "step": 5}, ["output"]),
     "compteur (remplace)": ("Counter", {"attribute": "pop"}, ["output"]),
+    "compteur (par groupe)": ("Counter", {"attribute": "n", "group_by": ["dep"], "start": 1, "step": 2}, ["output"]),
+    "compteur (deux clés, remplace)": ("Counter", {"attribute": "pop", "group_by": ["dep", "txt"]}, ["output"]),
     "valeurs vides (remplir)": ("ReplaceNulls", {"attributes": ["js"], "mode": "fill", "value": "{}"}, ["output"]),
     "valeurs vides (vider)": ("ReplaceNulls", {"attributes": ["txt"], "mode": "to_null", "value": "x4"}, ["output"]),
     "doublons": ("FindDuplicates", {"keys": ["dep"]}, ["Unique", "Duplicate"]),

@@ -49,17 +49,28 @@ class Counter(Modifier):
         return {"output": schema.append(pa.field(self.params.attribute, pa.int64()))}
 
     def sql(self, relations, schemas):
-        """Sans groupe : le numéro d'ordre de chaque entité ; avec des groupes, la voie par lots."""
+        """Sans groupe : le numéro d'ordre de chaque entité. Avec des groupes (nul = nul) : le rang de l'entité dans son
+        groupe, calculé sur les seules clés numérotées dans l'ordre, puis recollé par position aux entités lues en flux
+        (pas de tri des lignes entières), comme `FindDuplicates`."""
         p = self.params
         schema = schemas.get("input")
-        if schema is None or p.group_by:
+        if schema is None:
             return None
-        value = f"(CAST({int(p.start)} AS BIGINT) + (row_number() OVER () - 1) * {int(p.step)})"
+        rel, start, step = relations["input"], int(p.start), int(p.step)
+        if p.group_by:
+            by = ", ".join(quote(g) for g in p.group_by)
+            numbered = f"SELECT row_number() OVER () AS __rn, {by} FROM {rel}"
+            ranks = f"SELECT row_number() OVER (PARTITION BY {by} ORDER BY __rn) AS __k, __rn FROM ({numbered})"
+            rel = f"(SELECT t.*, k.__k FROM {rel} t POSITIONAL JOIN (SELECT __k FROM ({ranks}) ORDER BY __rn) k)"
+            rank = "__k"
+        else:
+            rank = "row_number() OVER ()"
+        value = f"(CAST({start} AS BIGINT) + ({rank} - 1) * {step})"
         if p.attribute in schema.names:
             columns = ", ".join(f"{value} AS {quote(n)}" if n == p.attribute else quote(n) for n in schema.names)
         else:
-            columns = f"*, {value} AS {quote(p.attribute)}"
-        return {"output": f"SELECT {columns} FROM {relations['input']}"}
+            columns = ", ".join([*(quote(n) for n in schema.names), f"{value} AS {quote(p.attribute)}"])
+        return {"output": f"SELECT {columns} FROM {rel}"}
 
     def process(self, batch: pa.Table) -> dict[str, pa.Table]:
         p = self.params

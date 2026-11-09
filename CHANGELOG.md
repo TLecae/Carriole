@@ -13,6 +13,8 @@
   cores (no 5 million cell limit; only a grid that would not fit on the disk is refused); *Dissolve* packs groups
   by bytes of geometry; *Contour* and *Polygonize* accept rasters as large as the budget allows. Raster windows use
   the cores of the run.
+- *JoinByLocation*: the list of related values is built without a loop per feature. *Counter* with groups has an
+  SQL route (computed by DuckDB, ports defined on demand).
 - *Settings → Computation → Engine cores*: the number of cores the engine uses, 60 % of the computer's cores by
   default. Every parallel computation follows it (share of each run, DuckDB, batches and nodes in parallel, Arrow,
   GDAL, rasters, inspector); the fixed limits of 8 batches and 8 nodes are gone, and a heavy node alone in its run

@@ -1,6 +1,7 @@
 """JoinByLocation : attributs récupérés des entités liées, comme une jointure attributaire (première entité liée, une
 entité par entité liée, ou liste des valeurs)."""
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
@@ -105,3 +106,34 @@ def test_schema_and_errors():
         relate({"attributes": [GEOM]})
     with pytest.raises(ConfigError, match="attribut calculé"):
         relate({"attributes": ["count"], "count_attribute": "count"}, related=make([shapely.Point(1, 1)], count=[1]))
+
+
+def _lists_by_loop(n, bi, rj, values, separator):
+    """Référence : l'ancienne boucle par entité base (valeurs en texte, distinctes, triées, jointes)."""
+    texts = [None] * n
+    taken = values.take(pa.array(rj, pa.int64())).to_pylist()
+    for b in sorted(set(bi.tolist())):
+        found = {str(v) for v, k in zip(taken, bi, strict=True) if k == b and v is not None}
+        if found:
+            texts[b] = separator.join(sorted(found))
+    return texts
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        pa.array(["b", "a", None, "b", "é", "A"]),
+        pa.array([1.0, 2.5, None, 1.0, 10.0, -3.0]),
+        pa.array([True, False, None, True, True, False]),
+        pa.chunked_array([[3, 1], [None, 3, 20, 2]]),
+    ],
+)
+def test_lists_match_the_loop_on_every_type(values):
+    """Listes de valeurs liées (`_lists`), sans boucle : même texte que la boucle par entité, nuls et doublons."""
+    from etl_engine.modifiers.join_by_location import _lists
+
+    rng = np.random.default_rng(3)
+    bi = np.sort(rng.integers(0, 7, 40))
+    rj = rng.integers(0, len(values), 40)
+    assert _lists(9, bi, rj, values, " | ").to_pylist() == _lists_by_loop(9, bi, rj, values, " | ")
+    assert _lists(3, np.array([], np.int64), np.array([], np.int64), values, ",").to_pylist() == [None] * 3

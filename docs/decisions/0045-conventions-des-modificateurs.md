@@ -64,6 +64,9 @@ simples. Les comportements suivent ceux des ETL géographiques établis, sous de
   selon les octets de géométrie qu'ils décodent ; Contour et Polygonize acceptent un raster à la mesure du budget
   (`raster.core.pixels_in_budget`) ; les fenêtres raster sont calculées sur les cœurs du run. JoinByLocation émet
   des lots de la taille de ceux du run.
+- Boucle par entité retirée : listes de valeurs liées de JoinByLocation (seules les valeurs distinctes passent par
+  Python).
+- Voie SQL : Counter avec regroupement (rang dans le groupe calculé sur les clés seules, recollé par position).
 - OverlayPolygons : `values` (`list`, `first`, `last`) ; `first` / `last` donnent une valeur par morceau, dans
   l'ordre d'arrivée, regroupable en aval.
 - `blocking.collect` : au-delà de la part Arrow du budget d'un nœud lourd, les lots vont dans des fichiers Arrow non
