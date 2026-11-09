@@ -416,7 +416,7 @@ button.col-stats-btn:hover:not(:disabled), button.col-stats-btn[aria-pressed="tr
 .conn-form { display: grid; gap: 8px; align-content: start; }
 .conn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .conn-select { display: flex; gap: 4px; }
-.conn-select select { flex: 1; }
+.conn-select select { flex: 1; min-width: 0; }
 .ok-text { color: var(--ok); }
 
 .node-open { margin-left: auto; padding: 0 6px; border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff; border-radius: 4px; cursor: pointer; }
@@ -441,7 +441,7 @@ button.link { border: 0; background: none; color: var(--primary); padding: 0 6px
 
 /* ---- explorateur de fichiers ---------------------------------------------------------------------------- */
 .path-field { display: flex; gap: 4px; }
-.path-field input { flex: 1; min-width: 0; }
+.path-field input, .path-field .combo { flex: 1; min-width: 0; }
 .path-field button { white-space: nowrap; }
 .modal.file-picker { width: 760px; }
 .file-roots { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -537,7 +537,7 @@ label.inline input { width: auto; }
 .ai-providers li { display: flex; gap: 6px; align-items: center; }
 .ai-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .ai-model-row { display: flex; gap: 6px; }
-.ai-model-row input { flex: 1; min-width: 0; }
+.ai-model-row input, .ai-model-row .combo { flex: 1; min-width: 0; }
 
 /* ---- barre du haut -------------------------------------------------------------------------- */
 .appbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 46px; padding: 5px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
@@ -589,6 +589,13 @@ button.icon-only { padding: 4px 6px; }
 .check { display: flex; gap: 8px; align-items: center; }
 /* table d'une base : schéma puis table, côte à côte */
 .pg-table { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 6px; }
+/* saisie avec valeurs proposées (Combo) : liste aux couleurs de l'application, sous le champ */
+.combo { position: relative; min-width: 0; }
+.combo > input { width: 100%; }
+.combo-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 40; margin: 2px 0 0; padding: 3px 0; list-style: none; max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); box-shadow: 0 6px 18px rgba(15,23,42,.18); font-size: 12px; }
+.combo-list li { padding: 3px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.combo-list li.active { background: var(--hover); }
+.combo-list li[aria-selected="true"] { color: var(--primary); font-weight: 600; }
 /* champ SQL : texte et bouton de l'éditeur en surcouche (dialecte de la base, complétion, vérification) */
 .sql-field { display: grid; gap: 3px; min-width: 0; }
 .sql-line { display: flex; gap: 4px; align-items: flex-start; }

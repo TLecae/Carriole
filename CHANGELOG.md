@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Proposed values (tables of a database, attributes, coordinate systems, AI models) open in a list with the
+  colours of the application instead of the system list.
+
 ## 0.1.7
 
 - Site: home page reorganized for GIS users who do not code: number of modifiers by category (read from the

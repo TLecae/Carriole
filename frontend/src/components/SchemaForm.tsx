@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError, api } from "../api/client";
 import type { JsonSchema, PgTableInfo } from "../api/types";
 import { defaultValue, fieldMatches, labelOf, resolveSchema, textMatches, typeOf, widgetOf } from "../model/schema";
@@ -10,6 +10,7 @@ import { useUi } from "../store/ui";
 import { formatCount, t } from "../i18n";
 import type { Rule } from "../model/attributeManager";
 import { AttributeManager } from "./AttributeManager";
+import { Combo } from "./Combo";
 import { InfoTip } from "./InfoTip";
 import type { HelperField, HelperInput, HelperSource } from "../model/fieldHelper";
 import { ReadQueryField, ReaderQuery } from "./ReaderQuery";
@@ -245,7 +246,6 @@ interface TextEditorProps {
 }
 
 function TextEditor({ widget, value, onChange, ctx, compact, label, example, access, codeLanguage = "python", extensions, inputPort }: TextEditorProps) {
-  const listId = useId();
   // Dialogue natif dans l'application de bureau, sinon explorateur du serveur (monté hors de ce champ : voir PickerHost).
   const browse = async () => {
     const path = await pickPath({ mode: access ?? "read", value, extensions });
@@ -315,8 +315,10 @@ function TextEditor({ widget, value, onChange, ctx, compact, label, example, acc
   if (widget === "connection") return <ConnectionSelect value={value} onChange={onChange} label={label} />;
   const suggestions = widget === "attribute" ? attributesFor({ "x-etl-input": inputPort }, ctx) : widget === "crs" ? CRS_PRESETS : [];
   const placeholder = example ?? (widget === "path" ? t("/data/sources/fichier.gpkg") : widget === "crs" ? "EPSG:2154" : undefined);
-  const input = (
-    <input ref={field} type="text" aria-label={label} list={suggestions.length ? listId : undefined} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+  const input = suggestions.length ? (
+    <Combo inputRef={field} aria-label={label} options={suggestions} value={value} placeholder={placeholder} onChange={onChange} />
+  ) : (
+    <input ref={field} type="text" aria-label={label} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
   );
   return (
     <>
@@ -332,13 +334,6 @@ function TextEditor({ widget, value, onChange, ctx, compact, label, example, acc
       )}
       {!compact && widget !== "attribute" && widget !== "crs" && <VariablePicker ctx={ctx} onPick={insert} />}
       <VariablePreview value={value} ctx={ctx} />
-      {suggestions.length > 0 && (
-        <datalist id={listId}>
-          {suggestions.map((a) => (
-            <option key={a} value={a} />
-          ))}
-        </datalist>
-      )}
     </>
   );
 }
@@ -518,7 +513,6 @@ const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 function PgTableSelect({ connection, value, onChange, label, write }: { connection: string; value: string; onChange: (v: string) => void; label: string; write: boolean }) {
   const [tables, setTables] = useState<PgTableInfo[] | null>(null);
   const [error, setError] = useState("");
-  const listId = useId();
   useEffect(() => {
     setTables(null);
     setError("");
@@ -567,12 +561,7 @@ function PgTableSelect({ connection, value, onChange, label, write }: { connecti
       </select>
       {write ? (
         <>
-          <input type="text" aria-label={t("{{label}} : table", { label })} list={listId} value={table} disabled={!picked} placeholder={t("table existante ou nouvelle")} onChange={(e) => onChange(e.target.value ? `${picked}.${e.target.value}` : "")} />
-          <datalist id={listId}>
-            {inSchema.map((x) => (
-              <option key={x.table} value={x.table} />
-            ))}
-          </datalist>
+          <Combo aria-label={t("{{label}} : table", { label })} options={inSchema.map((x) => x.table)} value={table} disabled={!picked} placeholder={t("table existante ou nouvelle")} onChange={(v) => onChange(v ? `${picked}.${v}` : "")} />
         </>
       ) : (
         <select aria-label={t("{{label}} : table", { label })} value={known ? table : table ? `?${table}` : ""} disabled={!picked} onChange={(e) => onChange(e.target.value ? `${picked}.${e.target.value}` : "")}>

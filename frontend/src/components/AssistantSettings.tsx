@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { AssistantPreset, AssistantProvider, PrivacyMode } from "../api/types";
 import { t } from "../i18n";
 import { useAssistant } from "../store/assistant";
+import { Combo } from "./Combo";
 import { Modal } from "./Dialogs";
 
 interface Draft {
@@ -127,12 +128,7 @@ export function AssistantSettings({ onClose }: { onClose: () => void }) {
         <div className="field">
           <span className="field-label">{t("Modèle")}</span>
           <div className="ai-model-row">
-            <input list="ai-models" value={draft.model} onChange={(e) => patch({ model: e.target.value })} aria-label={t("Modèle")} />
-            <datalist id="ai-models">
-              {models.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
+            <Combo options={models} value={draft.model} onChange={(model) => patch({ model })} aria-label={t("Modèle")} />
             <button type="button" disabled={busy} onClick={() => void loadModels(draft)}>
               {busy ? "…" : t("Lire la liste")}
             </button>
