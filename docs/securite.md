@@ -11,8 +11,9 @@ l'administrateur. Dernière révision : jalon 9 (application de bureau, [ADR 002
 - Les **plugins** (fichiers Python) sont du code arbitraire exécuté avec les droits de l'utilisateur.
 
 ## Identification
-Pas d'authentification : l'utilisateur est le compte Windows. L'identité sert aux quotas et au « mes runs », **pas aux
-droits**. (Mode serveur futur : l'en-tête `X-ETL-User` posé par un proxy d'authentification.)
+Poste de bureau : pas d'authentification, l'utilisateur est le compte du système. Mode serveur
+([ADR 0052](decisions/0052-mode-serveur-et-authentification.md)) : identité exigée, par un annuaire LDAP, un proxy
+d'authentification de confiance ou un fichier de comptes ; session dans un cookie `HttpOnly; SameSite=Strict`.
 
 ## Mesures en place
 
@@ -43,8 +44,17 @@ droits**. (Mode serveur futur : l'en-tête `X-ETL-User` posé par un proxy d'aut
 | Runs orphelins | heartbeat, passage en « interrompu », reprise depuis le cache | [ADR 0004](decisions/0004-file-de-jobs-dans-les-metadonnees.md) |
 | Cache lisible par tous | l'inspecteur n'ouvre que le dossier du cache (`allowed_directories`) | `Duck` |
 
-Mode serveur (non livré) : dossiers autorisés (`ETL_READ_ROOTS`, `ETL_WRITE_ROOTS`, [ADR 0016](decisions/0016-dossiers-autorises.md)),
-proxy d'authentification devant l'API. L'écriture en deux temps sur les partages réseau est active sur le poste
+Mode serveur ([ADR 0052](decisions/0052-mode-serveur-et-authentification.md)) :
+
+| Risque | Mesure | Où |
+| --- | --- | --- |
+| Usurpation d'identité | l'en-tête `X-ETL-User` du navigateur est ignoré ; identité par session (LDAP, fichier) ou par un proxy de confiance (`ETL_TRUSTED_PROXIES`) | `etl_api.auth` |
+| Vol de session | jeton aléatoire, cookie `HttpOnly; SameSite=Strict` (`Secure` derrière HTTPS) ; la base ne garde que son empreinte ; expiration glissante | `etl_api.auth.sessions` |
+| Essais de mots de passe | délai qui double après 5 échecs, par compte et par adresse ; même réponse pour un compte inconnu et un mauvais mot de passe | `etl_api.auth.throttle` |
+| Injection dans le filtre LDAP, connexion anonyme | identifiant échappé ; mot de passe vide refusé ; compte ambigu refusé | `etl_api.auth.providers` |
+| Requête forgée depuis un autre site | cookie `SameSite=Strict` ; écriture refusée si `Origin` n'est pas l'hôte | `ServerGuard` |
+| Accès aux fichiers du serveur | sans dossiers autorisés (`ETL_READ_ROOTS`, `ETL_WRITE_ROOTS`, [ADR 0016](decisions/0016-dossiers-autorises.md)), aucun fichier | `etl_engine.paths` |
+| Réglages de la machine | réservés aux administrateurs (`ETL_ADMINS`) | `etl_api.deps.require_admin` | L'écriture en deux temps sur les partages réseau est active sur le poste
 ([ADR 0019](decisions/0019-partage-reseau-lecture-ecriture.md)).
 
 ## À faire par l'utilisateur

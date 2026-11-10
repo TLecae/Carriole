@@ -5,6 +5,7 @@ import { language, setLanguage, t } from "../i18n";
 import { pickFolder } from "../platform";
 import { useAssistant } from "../store/assistant";
 import { useEditor } from "../store/editor";
+import { useSession } from "../store/session";
 import { setThemeChoice, themeChoice, type ThemeChoice } from "../theme";
 import { AssistantSettings } from "./AssistantSettings";
 import { Modal } from "./Dialogs";
@@ -166,17 +167,23 @@ function General({ data, fail }: { data: AppSettings | null; fail: (err: unknown
           <option value="dark">{t("Sombre")}</option>
         </select>
       </Field>
-      <Field label={t("Utilisateur")} hint={t("Signe vos flux et filtre « Mes runs ».")}>
-        <input
-          type="text"
-          value={user}
-          aria-label={t("Utilisateur")}
-          onChange={(e) => {
-            setUser(e.target.value);
-            setCurrentUser(e.target.value);
-          }}
-        />
-      </Field>
+      {useSession.getState().me?.mode === "server" ? (
+        <Field label={t("Utilisateur")} hint={t("Connecté sur ce serveur : vos flux et « Mes runs » portent ce nom.")}>
+          <input type="text" value={useSession.getState().me?.name ?? ""} aria-label={t("Utilisateur")} readOnly />
+        </Field>
+      ) : (
+        <Field label={t("Utilisateur")} hint={t("Signe vos flux et filtre « Mes runs ».")}>
+          <input
+            type="text"
+            value={user}
+            aria-label={t("Utilisateur")}
+            onChange={(e) => {
+              setUser(e.target.value);
+              setCurrentUser(e.target.value);
+            }}
+          />
+        </Field>
+      )}
       <Field label={t("E-mail de notification")} hint={t("Reçoit un message à la fin d'un run, si le serveur de messagerie est configuré.")}>
         <input
           type="email"

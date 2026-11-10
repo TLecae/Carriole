@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Server mode (`etl serve --server`): several users work in their browser on a shared machine. Identity is required,
+  from interchangeable providers set by `ETL_AUTH`: an LDAP directory (search filter, groups, required group,
+  `ldaps://` or StartTLS), an authentication proxy trusted by address, or a file of accounts with scrypt hashes
+  (`etl users`). Sessions in an `HttpOnly; SameSite=Strict` cookie, password attempts slowed down, administrators set
+  by `ETL_ADMINS`; without allowed folders, no file is accessible. Login page and user menu in the interface
+  ([ADR 0052](docs/decisions/0052-mode-serveur-et-authentification.md), [server guide](docs/serveur.md)). Metadata
+  database schema v9 (`sessions`, `users`).
 - Desktop app: closing the window with unsaved changes asks whether to close without saving (the close button did
   nothing). Quitting from the menu or the tray asks before stopping the engine.
 - Canvas: links between nodes are near white in the dark theme (they were grey, hard to see).

@@ -77,6 +77,12 @@ if (-not $SkipE2E) {
   $env:E2E_MODE = "files"
   npx playwright test
   Check "playwright (files)"
+
+  Step "Tests de bout en bout (Playwright) : mode serveur"
+  Remove-Item Env:E2E_ROOT -ErrorAction SilentlyContinue
+  $env:E2E_MODE = "server"
+  npx playwright test
+  Check "playwright (server)"
   Remove-Item Env:E2E_MODE, Env:E2E_ROOT -ErrorAction SilentlyContinue
   Pop-Location
 }

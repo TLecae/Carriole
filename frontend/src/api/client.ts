@@ -40,6 +40,8 @@ import type {
   RasterStyle,
   SendBody,
   ModifierInfo,
+  AuthInfo,
+  Me,
 } from "./types";
 import { language, t } from "../i18n";
 import { reportOffline, reportOnline } from "./connection";
@@ -75,7 +77,20 @@ export function setCurrentEmail(email: string): void {
   }
 }
 
+// Mode serveur : l'utilisateur connecté (session) ; il remplace le nom saisi dans *Paramètres* (poste de bureau).
+let sessionUser = "";
+export function setSessionUser(name: string): void {
+  sessionUser = name;
+}
+
+// Mode serveur : une réponse 401 (session expirée, déconnexion ailleurs) ramène à la page de connexion.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 export function currentUser(): string {
+  if (sessionUser) return sessionUser;
   try {
     return localStorage.getItem("etl.user") ?? "";
   } catch {
@@ -107,6 +122,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const body = text ? JSON.parse(text) : undefined;
+  if (res.status === 401 && !path.startsWith("/auth/")) onUnauthorized?.();
   if (!res.ok) throw new ApiError(res.status, body?.detail ?? body);
   return body as T;
 }
@@ -114,6 +130,10 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
 export const api = {
+  authInfo: () => call<AuthInfo>("/auth/info"),
+  me: () => call<Me>("/auth/me"),
+  login: (username: string, password: string) => call<Me>("/auth/login", { method: "POST", ...json({ username, password }) }),
+  logout: () => call<void>("/auth/logout", { method: "POST" }),
   modifiers: () => call<{ modifiers: ModifierInfo[]; errors: Record<string, string> }>("/modifiers"),
   flows: () => call<FlowSummary[]>("/flows"),
   examples: () => call<ExampleFlow[]>("/examples"),

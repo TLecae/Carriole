@@ -178,9 +178,9 @@ mots de passe. Le poste doit atteindre les serveurs PostgreSQL de l'entreprise (
 
 ## Mode serveur (Linux, cloud)
 
-Non livré, mais prévu : `ETL_FLOW_STORAGE=db` garde les flux dans la base, `ETL_READ_ROOTS` et `ETL_WRITE_ROOTS`
-restreignent les dossiers, `X-ETL-User` porte l'identité posée
-par un proxy d'authentification (voir [ADR 0020](decisions/0020-application-de-bureau.md), section « Cible future »).
+`etl serve --server` : plusieurs utilisateurs dans leur navigateur, identité exigée (annuaire LDAP, proxy
+d'authentification ou fichier de comptes), fichiers limités aux dossiers autorisés. Voir [Carriole sur un
+serveur](serveur.md).
 
 ## Dépannage
 

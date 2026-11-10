@@ -6,7 +6,7 @@ import { useEditor } from "../store/editor";
 import { useUi } from "../store/ui";
 import { OpenDialog, RunDialog } from "./Dialogs";
 import { requestRun } from "../store/run";
-import { AppBar, AssistantToggle, Divider, HomeButton, RunsButton, SettingsButton, Spacer, ToolsMenu } from "./AppBar";
+import { AppBar, AssistantToggle, Divider, HomeButton, RunsButton, SettingsButton, Spacer, ToolsMenu, UserMenu } from "./AppBar";
 import { BatchDialog } from "./BatchDialog";
 import { Icon } from "./Icon";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "./Menu";
@@ -185,6 +185,7 @@ export function TopBar() {
       <AssistantToggle />
       <Divider />
       <SettingsButton />
+      <UserMenu />
       {open && <OpenDialog onClose={() => setOpen(false)} />}
       {batchOpen && <BatchDialog onClose={() => setBatchOpen(false)} onStarted={() => (setBatchOpen(false), useUi.getState().setRunsOpen(true))} />}
       {runDialog && (

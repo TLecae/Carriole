@@ -1,4 +1,5 @@
 import { useAssistant } from "../store/assistant";
+import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
@@ -47,6 +48,23 @@ export function AssistantToggle() {
     <button aria-pressed={open} className={`ghost${open ? " active" : ""}`} onClick={() => useAssistant.getState().setOpen(!open)} data-testid="open-assistant">
       <Icon name="sparkles" /> {t("Assistant")}
     </button>
+  );
+}
+
+/** Mode serveur : qui est connecté, et la déconnexion. Rien sur le poste de bureau. */
+export function UserMenu() {
+  const me = useSession((s) => s.me);
+  if (me?.mode !== "server") return null;
+  return (
+    <Menu label={me.display || me.name} className="user-menu">
+      <p className="menu-empty" data-testid="user-identity">
+        {me.name}
+        {me.admin ? ` · ${t("administrateur")}` : ""}
+        {me.groups.length ? <br /> : null}
+        {me.groups.length ? t("Groupes : {{groups}}", { groups: me.groups.join(", ") }) : null}
+      </p>
+      {me.logout && <MenuItem onSelect={() => void useSession.getState().logout()}>{t("Se déconnecter")}</MenuItem>}
+    </Menu>
   );
 }
 

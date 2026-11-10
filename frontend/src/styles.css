@@ -684,3 +684,11 @@ button.icon-only { padding: 4px 6px; }
 .field-match li.absent { background: var(--danger-soft); color: var(--danger); font-weight: 600; }
 .field-match li.unfed { color: var(--muted); font-style: italic; }
 .pg-loading { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+
+/* Connexion (mode serveur) */
+.login-page { min-height: 100%; display: grid; place-items: center; background: var(--bg); padding: 24px; }
+.login-card { display: flex; flex-direction: column; gap: 12px; width: min(360px, 100%); padding: 28px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.login-card h1 { margin: 0 0 6px; font-size: 22px; }
+.login-card label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.login-card button { margin-top: 6px; }
+.user-menu { margin-left: 4px; }

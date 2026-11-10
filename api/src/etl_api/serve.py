@@ -1,4 +1,11 @@
-"""Backend local de l'application de bureau : l'API et ses workers dans un seul programme (`etl serve`).
+"""Backend : l'API et ses workers dans un seul programme (`etl serve`), pour le poste de bureau ou un serveur.
+
+Mode serveur (`etl serve --server`, ADR 0052) : écoute sur `ETL_HOST` (0.0.0.0) et `ETL_PORT` (8080), identité exigée
+(LDAP, proxy d'authentification ou fichier de comptes, `ETL_AUTH`), flux dans la base, cache gardé
+`ETL_CACHE_RETENTION_DAYS` jours, fichiers limités aux dossiers `ETL_READ_ROOTS` / `ETL_WRITE_ROOTS`. Sans
+fournisseur d'identité valable, il refuse de démarrer.
+
+Poste de bureau :
 
 - Un seul backend par utilisateur : un verrou de fichier (relâché par le système si le processus meurt) et un fichier
   `server.json` (adresse, jeton) que l'application et la ligne de commande lisent pour le retrouver.
@@ -177,21 +184,33 @@ def _log_to_files(folder: Path) -> IO[str]:
     return crash
 
 
-def _listening_socket(port: int) -> socket.socket:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def _listening_socket(port: int, host: str = "127.0.0.1") -> socket.socket:
+    sock = socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM)
     if sys.platform != "win32":
         # POSIX : reprendre la même adresse aussitôt après un arrêt (connexions en TIME_WAIT). Pas sous Windows, où
         # SO_REUSEADDR laisserait deux processus écouter le même port.
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", port))
+    sock.bind((host, port))
     return sock
 
 
-def run_server(port: int = 0, workers: int | None = None, announce: bool = False) -> int:
-    """Démarre le backend et ne rend la main qu'à l'arrêt. Code de sortie : 0 arrêt normal (ou déjà démarré)."""
+def run_server(
+    port: int = 0, workers: int | None = None, announce: bool = False, server: bool = False, host: str | None = None
+) -> int:
+    """Démarre le backend et ne rend la main qu'à l'arrêt. Code de sortie : 0 arrêt normal (ou déjà démarré), 2 mode
+    serveur mal réglé."""
     from etl_store import Settings
 
     from etl_api.main import create_app
+
+    if server:
+        os.environ["ETL_MODE"] = "server"  # hérité par les workers
+        from etl_api.auth import AuthConfig
+
+        problems = AuthConfig.load().problems()
+        if problems:
+            print("Mode serveur : réglages à corriger :", *(f"- {p}" for p in problems), sep="\n", file=sys.stderr)
+            return 2
 
     dirs = user_settings.app_dirs()
     lock = InstanceLock(dirs.data / "server.lock")
@@ -203,35 +222,47 @@ def run_server(port: int = 0, workers: int | None = None, announce: bool = False
             print(f"Le backend est déjà démarré : {existing.url if existing else 'adresse inconnue'}", file=sys.stderr)
         return 0 if existing else 1
 
-    # Poste de bureau : les flux sont des fichiers (workers compris). `ETL_FLOW_STORAGE=db` reste possible (essais).
-    os.environ.setdefault("ETL_FLOW_STORAGE", "files")
-    # Poste de bureau : le cache d'un run n'est gardé que tant que son flux est ouvert (etl_api.cache_hold).
-    os.environ.setdefault("ETL_CACHE_POLICY", "session")
+    if server:  # flux dans la base, cache gardé selon la rétention (partagé par tous les utilisateurs)
+        os.environ.setdefault("ETL_FLOW_STORAGE", "db")
+        os.environ.setdefault("ETL_CACHE_POLICY", "retention")
+    else:
+        # Poste de bureau : les flux sont des fichiers (workers compris). `ETL_FLOW_STORAGE=db` reste possible (essais).
+        os.environ.setdefault("ETL_FLOW_STORAGE", "files")
+        # Poste de bureau : le cache d'un run n'est gardé que tant que son flux est ouvert (etl_api.cache_hold).
+        os.environ.setdefault("ETL_CACHE_POLICY", "session")
     user_settings.apply_environment()  # proxy et budget mémoire, hérités par les workers
-    token = os.environ.get("ETL_SERVE_TOKEN") or secrets.token_urlsafe(32)  # jeton imposé : tests de bout en bout
-    sock = _listening_socket(port)
+    if server:
+        sock = _listening_socket(port or int(os.environ.get("ETL_PORT", "8080")), os.environ.get("ETL_HOST", "0.0.0.0"))
+        token = ""  # l'identité vient d'une session ou du proxy (ServerGuard), pas d'un jeton de démarrage
+        settings = Settings()  # hôtes acceptés : ETL_ALLOWED_HOSTS (facultatif)
+    else:
+        sock = _listening_socket(port)
+        token = os.environ.get("ETL_SERVE_TOKEN") or secrets.token_urlsafe(32)  # jeton imposé : tests de bout en bout
+        real = sock.getsockname()[1]
+        settings = Settings(api_token=token, allowed_hosts=(f"127.0.0.1:{real}", f"localhost:{real}"))
     real_port = sock.getsockname()[1]
     info = ServerInfo(os.getpid(), real_port, token, time.time())
-    settings = Settings(api_token=token, allowed_hosts=(f"127.0.0.1:{real_port}", f"localhost:{real_port}"))
     count = workers if workers is not None else int(user_settings.get("workers", DEFAULT_WORKERS))
-    # Poste de bureau : un seul utilisateur, donc autant de flux simultanés que de workers (« Runs en parallèle »).
-    # Les limites ETL_MAX_RUNNING* restent réglables par l'environnement (mode serveur).
+    # Autant de flux simultanés que de workers (« Runs en parallèle ») ; le poste de bureau n'a qu'un utilisateur, un
+    # serveur en garde 2 par utilisateur (ETL_MAX_RUNNING_PER_USER).
     os.environ.setdefault("ETL_MAX_RUNNING", str(count))
-    os.environ.setdefault("ETL_MAX_RUNNING_PER_USER", "0")
+    if not server:
+        os.environ.setdefault("ETL_MAX_RUNNING_PER_USER", "0")
 
     app = create_app(settings)
-    server = http_server(app)
+    http = http_server(app)
     crash_log = _log_to_files(dirs.logs)  # après `http_server` (uvicorn.Config configure ses propres journaux)
-    log.info("backend démarré (pid %d, port %d, %d workers)", os.getpid(), real_port, count)
+    log.info("backend démarré (pid %d, port %d, %d workers, %s)", os.getpid(), real_port, count, settings.mode)
 
-    app.state.request_shutdown = lambda: setattr(server, "should_exit", True)
+    app.state.request_shutdown = lambda: setattr(http, "should_exit", True)
 
     def publish_when_ready() -> None:
         """`server.json` (et l'annonce sur la sortie standard) n'apparaissent qu'une fois l'API prête à répondre."""
-        while not server.started and not server.should_exit:
+        while not http.started and not http.should_exit:
             time.sleep(0.05)
-        if server.started:
-            info_path().write_text(json.dumps(asdict(info)), encoding="utf-8")
+        if http.started:
+            if not server:  # serveur : pas de backend local à retrouver (server.json sert l'application et `etl`)
+                info_path().write_text(json.dumps(asdict(info)), encoding="utf-8")
             if announce:
                 print(json.dumps(info.as_json()), flush=True)
 
@@ -239,7 +270,7 @@ def run_server(port: int = 0, workers: int | None = None, announce: bool = False
     try:
         supervisor.start()
         threading.Thread(target=publish_when_ready, name="etl-announce", daemon=True).start()
-        server.run(sockets=[sock])
+        http.run(sockets=[sock])
     finally:
         log.info("arrêt des workers")
         supervisor.stop()

@@ -19,13 +19,15 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from etl_api.auth import AuthConfig, AuthService, ServerGuard
 from etl_api.cache_hold import Holds, sweep_loop
 from etl_api.data_service import DataError, Duck
-from etl_api.deps import request_lang
+from etl_api.deps import Admin, request_lang
 from etl_api.routes import (
     analysis,
     app_settings,
     assistant,
+    auth,
     components,
     connections,
     data,
@@ -45,6 +47,14 @@ async def _sweep(store, stale_seconds: float) -> None:
         with contextlib.suppress(Exception):  # le balayage réessaiera
             await asyncio.to_thread(store.interrupt_stale_runs, stale_seconds)
         await asyncio.sleep(max(stale_seconds / 3, 2))
+
+
+async def _expire_sessions(store) -> None:
+    """Mode serveur : efface les sessions expirées."""
+    while True:
+        with contextlib.suppress(Exception):
+            await asyncio.to_thread(store.purge_sessions)
+        await asyncio.sleep(600)
 
 
 class Frontend(StaticFiles):
@@ -88,6 +98,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.duck = Duck(settings.cache_dir)
         app.state.holds = Holds(settings.cache_hold_ttl)
         tasks = [asyncio.create_task(_sweep(app.state.store, settings.stale_seconds))]
+        if settings.mode == "server":
+            app.state.auth = AuthService.create(AuthConfig.load(settings.meta_dir), app.state.store)
+            tasks.append(asyncio.create_task(_expire_sessions(app.state.store)))
         if settings.cache_policy == "session":  # poste de bureau : cache gardé tant que son flux est ouvert
             tasks.append(asyncio.create_task(sweep_loop(app.state.store, settings.cache_dir, app.state.holds)))
         yield
@@ -104,7 +117,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok"}
 
     @app.post("/api/shutdown", include_in_schema=False)
-    def shutdown(request: Request) -> dict[str, str]:  # protégé par le jeton comme le reste de l'API
+    def shutdown(request: Request, _: Admin) -> dict[str, str]:  # jeton (poste) ou administrateur (serveur)
         stop = getattr(request.app.state, "request_shutdown", None)
         if stop is None:
             raise HTTPException(status_code=501, detail="arrêt possible seulement sous « etl serve »")
@@ -114,9 +127,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/version")
     def version() -> dict[str, str]:
         # « flow_storage » : l'interface sait si les flux sont des fichiers (poste de bureau) ou dans la base (serveur)
-        return {"version": __version__, "flow_storage": settings.flow_storage}
+        return {"version": __version__, "flow_storage": settings.flow_storage, "mode": settings.mode}
 
     for module in (
+        auth,
         modifiers,
         flows,
         analysis,
@@ -148,7 +162,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     web = frontend_dir(settings)
     if web:  # monté en dernier : les routes /api et /tiles passent avant
         app.mount("/", Frontend(directory=web, html=True), name="frontend")
-    app.add_middleware(LocalGuard, token=settings.api_token, hosts=settings.allowed_hosts)
+    if settings.mode == "server":  # identité exigée : session (LDAP, fichier) ou proxy de confiance (ADR 0052)
+        app.add_middleware(ServerGuard, hosts=settings.allowed_hosts)
+    else:
+        app.add_middleware(LocalGuard, token=settings.api_token, hosts=settings.allowed_hosts)
     return app
 
 

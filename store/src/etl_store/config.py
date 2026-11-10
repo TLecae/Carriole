@@ -48,6 +48,8 @@ class Settings:
     cache_dir: Path = field(default_factory=lambda: _path("ETL_CACHE_DIR", user_settings.app_dirs().cache))
     plugins_dir: Path = field(default_factory=lambda: _path("ETL_PLUGINS_DIR", user_settings.app_dirs().plugins))
     db_url: str = ""  # vide : SQLite dans meta_dir
+    # « desktop » (poste de bureau) ou « server » (`etl serve --server` : identité exigée, ADR 0052)
+    mode: str = field(default_factory=lambda: os.environ.get("ETL_MODE", "desktop").strip().lower() or "desktop")
     # Stockage des flux : « files » (poste de bureau, fichiers JSON) ou « db » (flux dans la base, mode serveur).
     flow_storage: str = field(default_factory=lambda: os.environ.get("ETL_FLOW_STORAGE", "db"))
     # Poste de bureau : l'utilisateur est le compte Windows ; serveur : l'en-tête X-ETL-User du proxy prime.

@@ -40,6 +40,7 @@ Ouverte Etalab 2.0).
 | idna | 3.20 | BSD-3-Clause |
 | iniconfig | 2.3.1 | MIT |
 | jiter | 0.17.0 | MIT |
+| ldap3 | 2.9.1 | GNU Lesser General Public License v3 (LGPLv3) |
 | markdown-it-py | 4.2.0 | MIT License |
 | mdurl | 0.1.2 | MIT License |
 | numexpr | 2.14.2 | MIT |
@@ -54,6 +55,7 @@ Ouverte Etalab 2.0).
 | psycopg | 3.3.6 | LGPL-3.0-only — LGPL : bibliothèque non modifiée, source sur https://github.com/psycopg/psycopg |
 | psycopg-binary | 3.3.6 | LGPL-3.0-only — LGPL : bibliothèque non modifiée, source sur https://github.com/psycopg/psycopg |
 | pyarrow | 26.0.0 | Apache-2.0 |
+| pyasn1 | 0.6.5 | BSD-2-Clause |
 | pycparser | 3.0 | BSD-3-Clause |
 | pydantic | 2.14.1 | MIT |
 | pydantic-core | 2.50.1 | MIT |

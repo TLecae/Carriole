@@ -593,3 +593,20 @@ export interface SendBody {
   run_id: string | null;
   notes: string[];
 }
+
+/** Mode serveur (ADR 0052) : fournisseur d'identité ; `password` : la page de connexion demande un mot de passe. */
+export interface AuthInfo {
+  mode: "desktop" | "server";
+  provider: "ldap" | "proxy" | "file" | null;
+  password: boolean;
+}
+
+/** Utilisateur de la requête : connecté (serveur) ou celui du poste (bureau, administrateur de son poste). */
+export interface Me {
+  name: string;
+  display: string;
+  groups: string[];
+  admin: boolean;
+  mode?: "desktop" | "server";
+  logout?: boolean; // une session à fermer (pas avec un proxy d'authentification)
+}

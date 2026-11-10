@@ -135,6 +135,30 @@ class ChatRow(Base):
     updated_at: Mapped[float] = mapped_column(Float, default=0.0)
 
 
+class SessionRow(Base):
+    """Session ouverte par une connexion (mode serveur, schéma v9). Seule l'empreinte du jeton est gardée."""
+
+    __tablename__ = "sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # SHA-256 du jeton du cookie
+    name: Mapped[str] = mapped_column(String(100), index=True)
+    display: Mapped[str] = mapped_column(String(200), default="")
+    groups: Mapped[str] = mapped_column(Text, default="[]")  # JSON : groupes lus à la connexion
+    created_at: Mapped[float] = mapped_column(Float)
+    expires_at: Mapped[float] = mapped_column(Float, index=True)
+
+
+class UserRow(Base):
+    """Utilisateur vu à sa dernière connexion (mode serveur, schéma v9) : partage, quotas, planifications."""
+
+    __tablename__ = "users"
+
+    name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    display: Mapped[str] = mapped_column(String(200), default="")
+    groups: Mapped[str] = mapped_column(Text, default="[]")  # JSON
+    last_login: Mapped[float] = mapped_column(Float, default=0.0)
+
+
 class AssistantKeyRow(Base):
     """Clé d'API d'un fournisseur de modèle, chiffrée (Fernet, clé protégée par le coffre Windows)."""
 

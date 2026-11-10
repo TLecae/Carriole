@@ -1,0 +1,79 @@
+# Carriole sur un serveur
+
+Plusieurs personnes utilisent Carriole dans leur navigateur, sur une machine partagée. Choix d'architecture :
+[ADR 0052](decisions/0052-mode-serveur-et-authentification.md).
+
+## Démarrer
+
+```
+etl serve --server
+```
+
+Le serveur écoute sur `ETL_HOST` (0.0.0.0) et `ETL_PORT` (8080). Il refuse de démarrer sans fournisseur d'identité
+valable et dit quoi régler. Placer un proxy HTTPS (nginx, Caddy, Traefik…) devant lui : les mots de passe ne doivent
+pas circuler en clair.
+
+Chaque réglage se lit dans la variable `ETL_<CLÉ>`, sinon dans `settings.json` (clé en minuscules, sans `ETL_`).
+Les mots de passe ne se lisent que dans l'environnement ou dans un fichier (`…_FILE`, par exemple un secret Docker).
+
+## Identité
+
+| Variable | Rôle |
+| --- | --- |
+| `ETL_AUTH` | fournisseur d'identité : `ldap`, `proxy` ou `file` |
+| `ETL_ADMINS` | administrateurs : noms et groupes séparés par des virgules (`dupont,group:sig-admins`) ; par défaut `group:carriole-admins` |
+| `ETL_SESSION_HOURS` | durée d'une session sans activité (12) |
+| `ETL_TRUSTED_PROXIES` | adresses ou réseaux des proxys de confiance (`127.0.0.1,::1`) : seuls eux peuvent transmettre l'adresse du client, le schéma HTTPS et, avec `proxy`, l'identité |
+| `ETL_SECURE_COOKIE` | `1` : cookie de session `Secure` même si le proxy ne transmet pas `X-Forwarded-Proto` |
+| `ETL_ALLOWED_HOSTS` | noms d'hôte acceptés (`carriole.exemple.org:443`), facultatif |
+
+### Annuaire LDAP (`ETL_AUTH=ldap`)
+
+| Variable | Rôle | Défaut |
+| --- | --- | --- |
+| `ETL_LDAP_URL` | `ldaps://annuaire.exemple.org:636` ou `ldap://…:389` | |
+| `ETL_LDAP_STARTTLS` | `1` : chiffre une connexion `ldap://` (StartTLS) | `0` |
+| `ETL_LDAP_CA_FILE` | autorité de certification de l'annuaire (PEM) | celles du système |
+| `ETL_LDAP_BIND_DN` | compte de service qui cherche les comptes ; vide : recherche anonyme | |
+| `ETL_LDAP_BIND_PASSWORD` ou `ETL_LDAP_BIND_PASSWORD_FILE` | son mot de passe | |
+| `ETL_LDAP_USER_BASE` | base de recherche des comptes (`ou=People,dc=exemple,dc=org`) | |
+| `ETL_LDAP_USER_FILTER` | filtre du compte ; `{username}` est remplacé par l'identifiant saisi, échappé | `(uid={username})` |
+| `ETL_LDAP_USERNAME_ATTRIBUTE` | attribut qui donne le nom de l'utilisateur dans Carriole | `uid` |
+| `ETL_LDAP_DISPLAY_ATTRIBUTES` | attributs du nom affiché, joints par un espace (`givenName,sn`) | `cn` |
+| `ETL_LDAP_GROUP_BASE` | base de recherche des groupes ; vide : pas de groupes | |
+| `ETL_LDAP_GROUP_FILTER` | filtre des groupes d'un compte (`{dn}`, `{username}`) | `(\|(member={dn})(uniqueMember={dn})(memberUid={username}))` |
+| `ETL_LDAP_GROUP_NAME_ATTRIBUTE` | nom d'un groupe | `cn` |
+| `ETL_LDAP_REQUIRED_GROUP` | groupe obligatoire pour se connecter : son nom, ou son DN (lu directement) | aucun |
+| `ETL_LDAP_TIMEOUT` | délai de réponse de l'annuaire, en secondes | `10` |
+
+Avec `ldap://` sans StartTLS, les mots de passe circulent en clair entre le serveur et l'annuaire : à réserver à un
+réseau de confiance.
+
+### Proxy d'authentification (`ETL_AUTH=proxy`)
+
+Le proxy (SSO de l'organisation, OpenID Connect…) identifie l'utilisateur et transmet son nom dans `ETL_AUTH_HEADER`
+(`X-Forwarded-User`), ses groupes dans `ETL_AUTH_GROUPS_HEADER` (séparés par des virgules) et son nom affiché dans
+`ETL_AUTH_DISPLAY_HEADER` (facultatifs). Carriole ne croit ces en-têtes que s'ils viennent d'une adresse de
+`ETL_TRUSTED_PROXIES` : le serveur ne doit être joignable que par le proxy.
+
+### Fichier de comptes (`ETL_AUTH=file`)
+
+Pour une petite équipe sans annuaire. `ETL_USERS_FILE` (par défaut `users.json` dans le dossier des métadonnées) garde
+les mots de passe hachés (scrypt).
+
+```
+etl users add dupont --display "Jean Dupont" --group carriole-admins
+etl users list
+etl users remove dupont
+```
+
+## Fichiers
+
+En mode serveur, Carriole ne lit et n'écrit que dans les dossiers autorisés ; sans eux, aucun fichier n'est
+accessible. Monter les partages de l'organisation sur le serveur, puis les déclarer :
+
+| Variable | Rôle |
+| --- | --- |
+| `ETL_READ_ROOTS` | dossiers lisibles, séparés par `:` (`/mnt/donnees:/mnt/referentiels`) |
+| `ETL_WRITE_ROOTS` | dossiers où l'on peut écrire |
+| `ETL_ROOT_LABELS` | libellés montrés dans l'explorateur : `chemin=libellé` séparés par `\|` (`/mnt/donnees=Données (Z:)`) |

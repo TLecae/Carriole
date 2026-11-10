@@ -3,8 +3,8 @@
 Un flux est du code : sans garde-fou, n'importe quel utilisateur d'un serveur partagé pourrait lire `/etc/passwd` ou
 écraser un fichier système depuis un nœud « Lecture de fichier ». Quand `ETL_READ_ROOTS` / `ETL_WRITE_ROOTS`
 (liste de dossiers séparés par `:` ou `;` sous Windows) sont définis, les modificateurs n'accèdent qu'à ces dossiers ;
-liens symboliques et `..` sont résolus avant le contrôle. Non définis (poste de bureau, ligne de commande) : pas de
-restriction, l'utilisateur a les droits de sa session.
+liens symboliques et `..` sont résolus avant le contrôle. Non définis : pas de restriction sur le poste de bureau et en
+ligne de commande (l'utilisateur a les droits de sa session) ; aucun fichier en mode serveur (ADR 0052).
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from etl_engine.sdk import ConfigError
 def roots(mode: Literal["read", "write"]) -> list[Path] | None:
     raw = os.environ.get("ETL_READ_ROOTS" if mode == "read" else "ETL_WRITE_ROOTS", "").strip()
     if not raw:
-        return None
+        return [] if os.environ.get("ETL_MODE", "").strip().lower() == "server" else None
     return [Path(p).resolve() for p in raw.split(os.pathsep) if p.strip()]
 
 
@@ -30,7 +30,7 @@ def check(path: str | os.PathLike[str], mode: Literal["read", "write"]) -> str:
     if allowed is None or any(resolved == root or root in resolved.parents for root in allowed):
         return str(path)
     action = "lire" if mode == "read" else "écrire"
-    listing = ", ".join(str(r) for r in allowed)
+    listing = ", ".join(str(r) for r in allowed) or "aucun dossier autorisé sur ce serveur"
     raise ConfigError(f"accès refusé : « {path} » n'est pas dans un dossier où l'on peut {action} ({listing})")
 
 

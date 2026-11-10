@@ -5,7 +5,7 @@ import { enterEditor, newFlowFromHome, openExampleFromHome, openFlowFileFromHome
 import { pickPath } from "../platform";
 import { useEditor } from "../store/editor";
 import { useUi } from "../store/ui";
-import { AppBar, Divider, RunsButton, SettingsButton, Spacer, ToolsMenu } from "./AppBar";
+import { AppBar, Divider, RunsButton, SettingsButton, Spacer, ToolsMenu, UserMenu } from "./AppBar";
 import { Loading } from "./Spinner";
 import { formatDateTime, t } from "../i18n";
 
@@ -139,6 +139,7 @@ export function Home() {
         <ToolsMenu />
         <Divider />
         <SettingsButton />
+        <UserMenu />
       </AppBar>
 
       <main className="home-body">

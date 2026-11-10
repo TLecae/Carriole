@@ -14,10 +14,20 @@ from sqlalchemy import Engine, create_engine, delete, event, func, inspect, sele
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from etl_store.models import Base, ComponentVersionRow, EventRow, FlowRow, MetaRow, RunRow, ScheduleRow
+from etl_store.models import (
+    Base,
+    ComponentVersionRow,
+    EventRow,
+    FlowRow,
+    MetaRow,
+    RunRow,
+    ScheduleRow,
+    SessionRow,
+    UserRow,
+)
 from etl_store.workers import alive_here
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 FINAL_STATUSES = ("done", "error", "cancelled", "interrupted")
 
 
@@ -64,7 +74,8 @@ MIGRATIONS = {
     6: lambda _engine: None,
     7: _migrate_to_7,
     8: _migrate_to_8,
-}  # v3 : `connections`, v5 : `schedules`, v6 : `component_versions` (create_all)
+    9: lambda _engine: None,
+}  # v3 : `connections`, v5 : `schedules`, v6 : `component_versions`, v9 : `sessions`, `users` (create_all)
 
 
 def _component_name(content: dict[str, Any]) -> str | None:
@@ -166,6 +177,15 @@ def _run_dict(row: RunRow, detail: bool = True) -> dict[str, Any]:
         out["flow"] = json.loads(row.flow_json)
         out["result"] = json.loads(row.result) if row.result else None
     return out
+
+
+def _user_dict(row: UserRow) -> dict[str, Any]:
+    return {
+        "name": row.name,
+        "display": row.display,
+        "groups": json.loads(row.groups or "[]"),
+        "last_login": row.last_login,
+    }
 
 
 class Store:
@@ -668,3 +688,66 @@ class Store:
         for e in self.events_after(run_id, 0, 100000, types=("counts",)):
             out[f"{e['node']}/{e['port']}"] = e["count"]
         return out
+
+    # ---------------------------------------------------------------- sessions et utilisateurs (mode serveur)
+    def create_session(self, token_hash: str, name: str, display: str, groups: list[str], expires_at: float) -> None:
+        with self._session.begin() as s:
+            s.add(
+                SessionRow(
+                    id=token_hash,
+                    name=name,
+                    display=display,
+                    groups=json.dumps(groups, ensure_ascii=False),
+                    created_at=time.time(),
+                    expires_at=expires_at,
+                )
+            )
+
+    def get_session(self, token_hash: str) -> dict[str, Any] | None:
+        """Session encore valide, ou `None` (inconnue ou expirée)."""
+        with self._session() as s:
+            row = s.get(SessionRow, token_hash)
+            if row is None or row.expires_at <= time.time():
+                return None
+            return {
+                "name": row.name,
+                "display": row.display,
+                "groups": json.loads(row.groups or "[]"),
+                "expires_at": row.expires_at,
+            }
+
+    def extend_session(self, token_hash: str, expires_at: float) -> None:
+        with self._session.begin() as s:
+            s.execute(update(SessionRow).where(SessionRow.id == token_hash).values(expires_at=expires_at))
+
+    def delete_session(self, token_hash: str) -> None:
+        with self._session.begin() as s:
+            s.execute(delete(SessionRow).where(SessionRow.id == token_hash))
+
+    def delete_user_sessions(self, name: str) -> int:
+        with self._session.begin() as s:
+            return s.execute(delete(SessionRow).where(SessionRow.name == name)).rowcount
+
+    def purge_sessions(self) -> int:
+        with self._session.begin() as s:
+            return s.execute(delete(SessionRow).where(SessionRow.expires_at <= time.time())).rowcount
+
+    def record_login(self, name: str, display: str, groups: list[str]) -> None:
+        """Garde l'utilisateur et ses groupes : le partage les propose, les planifications les relisent."""
+        with self._session.begin() as s:
+            row = s.get(UserRow, name)
+            if row is None:
+                row = UserRow(name=name)
+                s.add(row)
+            row.display = display
+            row.groups = json.dumps(sorted(groups), ensure_ascii=False)
+            row.last_login = time.time()
+
+    def get_user(self, name: str) -> dict[str, Any] | None:
+        with self._session() as s:
+            row = s.get(UserRow, name)
+            return None if row is None else _user_dict(row)
+
+    def list_users(self) -> list[dict[str, Any]]:
+        with self._session() as s:
+            return [_user_dict(r) for r in s.scalars(select(UserRow).order_by(UserRow.name)).all()]

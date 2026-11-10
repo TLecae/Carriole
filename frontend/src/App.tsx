@@ -6,6 +6,7 @@ import { BottomPanel } from "./components/BottomPanel";
 import { Canvas } from "./components/Canvas";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { Home } from "./components/Home";
+import { LoginPage } from "./components/LoginPage";
 import { PickerHost } from "./components/PickerHost";
 import { GlobalDialogs } from "./components/GlobalDialogs";
 import { api } from "./api/client";
@@ -15,6 +16,7 @@ import { TopBar } from "./components/TopBar";
 import { applyRoute, newFlowFromHome, openFlowFileFromHome } from "./navigation";
 import { useEditor } from "./store/editor";
 import { useAssistant } from "./store/assistant";
+import { useSession } from "./store/session";
 import { useUi } from "./store/ui";
 import "./styles.css";
 import { setLanguage, useLanguage } from "./i18n";
@@ -111,7 +113,18 @@ function Toast() {
   );
 }
 
+/** Mode serveur : rien ne se charge avant la connexion (l'API répond 401 sans session). */
 export function App() {
+  const session = useSession((s) => s.state);
+  useEffect(() => {
+    void useSession.getState().check();
+  }, []);
+  if (session === "checking") return null;
+  if (session === "login") return <LoginPage />;
+  return <Workspace />;
+}
+
+function Workspace() {
   useShortcuts();
   useCacheHold();
   const view = useUi((s) => s.view);

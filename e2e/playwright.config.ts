@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,6 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // Les tests visent un vrai backend de bureau (`etl serve`) démarré ici, avec son propre dossier de données.
 //   E2E_MODE=db     (défaut) : flux dans la base ; les scénarios de l'éditeur, de l'inspecteur, des runs…
 //   E2E_MODE=files            : flux en fichiers (poste de bureau) ; tests/fichiers.spec.ts seulement.
+//   E2E_MODE=server           : `etl serve --server`, comptes d'un fichier (ADR 0052) ; tests/serveur*.spec.ts.
 // Les scénarios lisent dans IN et écrivent dans OUT (dossiers temporaires, voir tests/paths.ts).
 const pluginCode = [
   "import pyarrow.compute as pc",
@@ -66,7 +68,7 @@ const assistantScript = [
   { match: "bonjour", turns: [{ text: "Bonjour ! Que voulez-vous faire ?" }] },
 ];
 
-const mode = process.env.E2E_MODE === "files" ? "files" : "db";
+const mode = process.env.E2E_MODE === "files" ? "files" : process.env.E2E_MODE === "server" ? "server" : "db";
 const root = (process.env.E2E_ROOT ||= fs.mkdtempSync(path.join(os.tmpdir(), "etl-e2e-")));
 const port = Number(process.env.E2E_PORT ?? 18080);
 const token = "e2e-token";
@@ -89,20 +91,39 @@ if (!fs.existsSync(path.join(root, "home", "config", "settings.json"))) {
   );
 }
 
+// Mode serveur : comptes de test (mots de passe hachés par scrypt, comme `etl users add`), voir tests/serveur.spec.ts
+const usersFile = path.join(root, "users.json");
+if (mode === "server" && !fs.existsSync(usersFile)) {
+  const scrypt = (password: string) => {
+    const salt = crypto.randomBytes(16);
+    const hash = crypto.scryptSync(password, salt, 32, { N: 32768, r: 8, p: 1, maxmem: 2 ** 26 });
+    return `scrypt$32768$8$1$${salt.toString("base64")}$${hash.toString("base64")}`;
+  };
+  const users = {
+    alice: { password: scrypt("alice-e2e-mdp"), display: "Alice Martin", groups: ["equipe"] },
+    admin: { password: scrypt("admin-e2e-mdp"), display: "Admin", groups: ["carriole-admins"] },
+  };
+  fs.writeFileSync(usersFile, JSON.stringify({ users }));
+}
+const serverEnv: Record<string, string> =
+  mode === "server"
+    ? { ETL_AUTH: "file", ETL_USERS_FILE: usersFile, ETL_READ_ROOTS: [data.in, data.out].join(path.delimiter), ETL_WRITE_ROOTS: data.out }
+    : { ETL_SERVE_TOKEN: token, ETL_FLOW_STORAGE: mode };
+
 const python =
   process.env.ETL_PYTHON ?? path.join(repo, ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
 
 export default defineConfig({
   testDir: "./tests",
-  testMatch: mode === "files" ? /fichiers\.spec\.ts/ : /.*\.spec\.ts/,
-  testIgnore: mode === "files" ? [] : [/fichiers\.spec\.ts/],
+  testMatch: mode === "files" ? /fichiers\.spec\.ts/ : mode === "server" ? /serveur.*\.spec\.ts/ : /.*\.spec\.ts/,
+  testIgnore: mode === "db" ? [/fichiers\.spec\.ts/, /serveur.*\.spec\.ts/] : [],
   timeout: 90_000,
   expect: { timeout: 20_000 },
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],
   webServer: {
-    command: `"${python}" -m etl_engine.cli serve --port ${port} --workers 2`,
+    command: `"${python}" -m etl_engine.cli serve --port ${port} --workers 2${mode === "server" ? " --server" : ""}`,
     url: `http://127.0.0.1:${port}/api/health`,
     timeout: 120_000,
     reuseExistingServer: false,
@@ -111,8 +132,7 @@ export default defineConfig({
     env: {
       ...(process.env as Record<string, string>),
       ETL_HOME: path.join(root, "home"),
-      ETL_SERVE_TOKEN: token,
-      ETL_FLOW_STORAGE: mode,
+      ...serverEnv,
       ETL_PLUGINS_DIR: path.join(here, "plugins"),
       ETL_FRONTEND_DIR: path.join(repo, "frontend", "dist"),
       PYTHONUTF8: "1",
@@ -120,7 +140,7 @@ export default defineConfig({
   },
   use: {
     baseURL: `http://127.0.0.1:${port}`,
-    extraHTTPHeaders: { "X-ETL-Token": token },
+    extraHTTPHeaders: mode === "server" ? {} : { "X-ETL-Token": token },
     viewport: { width: 1500, height: 900 },
     trace: "retain-on-failure",
     channel: process.env.E2E_CHANNEL ?? "msedge", // Edge est livré avec Windows ; "chromium" si Playwright l'a téléchargé

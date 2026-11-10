@@ -21,6 +21,10 @@ EXIT_ERROR, EXIT_CANCELLED, EXIT_USAGE = 1, 2, 3
 FINAL = ("done", "error", "cancelled", "interrupted")
 
 runs_app = typer.Typer(help="Runs du backend local.", no_args_is_help=True)
+users_app = typer.Typer(
+    help="Comptes du mode serveur quand l'identité vient d'un fichier (ETL_AUTH=file, fichier ETL_USERS_FILE).",
+    no_args_is_help=True,
+)
 
 
 def require_server() -> ServerInfo:
@@ -62,26 +66,89 @@ def _call(info: ServerInfo, method: str, path: str, body: Any = None) -> Any:
         raise typer.Exit(EXIT_ERROR) from None
 
 
+def _users_file() -> Path:
+    try:
+        from etl_api.auth import AuthConfig
+    except ImportError:
+        say("Le paquet du backend (etl-api) n'est pas installé.", err=True)
+        raise typer.Exit(EXIT_USAGE) from None
+    return AuthConfig.load().users_file
+
+
+@users_app.command("add")
+def users_add(
+    name: Annotated[str, typer.Argument(help="Identifiant de connexion.")],
+    display: Annotated[str, typer.Option(help="Nom affiché.")] = "",
+    group: Annotated[list[str], typer.Option("--group", "-g", help="Groupe (répétable), ex. carriole-admins.")] = [],  # noqa: B006
+) -> None:
+    """Crée un compte ou change son mot de passe (demandé deux fois, jamais affiché)."""
+    from etl_api.auth.providers import hash_password, read_users, write_users
+
+    path = _users_file()
+    users = read_users(path)
+    password = typer.prompt("Mot de passe", hide_input=True, confirmation_prompt=True)
+    if len(password) < 8:
+        say("Mot de passe trop court (8 caractères au moins).", err=True)
+        raise typer.Exit(EXIT_USAGE)
+    previous = users.get(name, {})
+    users[name] = {
+        "password": hash_password(password),
+        "display": display or previous.get("display") or name,
+        "groups": sorted(set(group)) if group else previous.get("groups", []),
+    }
+    write_users(path, users)
+    say(f"Compte « {name} » enregistré dans {path}")
+
+
+@users_app.command("remove")
+def users_remove(name: Annotated[str, typer.Argument()]) -> None:
+    """Supprime un compte (ses sessions expirent d'elles-mêmes)."""
+    from etl_api.auth.providers import read_users, write_users
+
+    path = _users_file()
+    users = read_users(path)
+    if users.pop(name, None) is None:
+        say(f"Compte inconnu : {name}", err=True)
+        raise typer.Exit(EXIT_ERROR)
+    write_users(path, users)
+    say(f"Compte « {name} » supprimé")
+
+
+@users_app.command("list")
+def users_list() -> None:
+    """Comptes du fichier, avec leurs groupes."""
+    from etl_api.auth.providers import read_users
+
+    for name, entry in sorted(read_users(_users_file()).items()):
+        groups = ", ".join(entry.get("groups", []))
+        say(f"{name} · {entry.get('display') or name} · {groups}")
+
+
 def register(app: typer.Typer) -> None:
     app.add_typer(runs_app, name="runs")
+    app.add_typer(users_app, name="users")
 
     @app.command()
     def serve(
-        port: Annotated[int, typer.Option(help="Port (0 = un port libre).")] = 0,
+        port: Annotated[int, typer.Option(help="Port (0 = un port libre ; mode serveur : ETL_PORT, sinon 8080).")] = 0,
         workers: Annotated[
             int | None, typer.Option(help="Nombre de workers (défaut : réglage « workers », sinon 2).")
         ] = None,
         json_output: Annotated[
             bool, typer.Option("--json", help="Annonce l'adresse et le jeton en JSON sur la sortie.")
         ] = False,
+        server: Annotated[
+            bool,
+            typer.Option("--server", help="Mode serveur : plusieurs utilisateurs, identité exigée (voir ETL_AUTH)."),
+        ] = False,
     ) -> None:
-        """Démarre le backend local (API + workers) et reste au premier plan jusqu'à l'arrêt."""
+        """Démarre le backend (API + workers) et reste au premier plan jusqu'à l'arrêt."""
         try:
             from etl_api.serve import run_server
         except ImportError:
             say("Le paquet du backend (etl-api) n'est pas installé.", err=True)
             raise typer.Exit(EXIT_USAGE) from None
-        raise typer.Exit(run_server(port, workers, announce=json_output))
+        raise typer.Exit(run_server(port, workers, announce=json_output, server=server))
 
     @app.command()
     def status(json_output: Annotated[bool, typer.Option("--json")] = False) -> None:

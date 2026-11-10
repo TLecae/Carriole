@@ -1929,6 +1929,23 @@
   "attribut « {name} » : {kind} ne s'écrit pas dans une colonne {wanted}": "attribute \"{name}\": {kind} cannot be written to a {wanted} column",
   "attributs absents du fichier : {listing}": "attributes missing from the file: {listing}",
   "le dossier existe déjà : {path}": "the folder already exists: {path}",
-  "système de coordonnées différent de celui du fichier : {incoming} (fichier : {crs})": "coordinate system different from that of the file: {incoming} (file: {crs})"
+  "système de coordonnées différent de celui du fichier : {incoming} (fichier : {crs})": "coordinate system different from that of the file: {incoming} (file: {crs})",
+  "Compte inconnu : {name}": "Unknown account: {name}",
+  "Compte « {name} » enregistré dans {path}": "Account \"{name}\" saved in {path}",
+  "Compte « {name} » supprimé": "Account \"{name}\" deleted",
+  "Mot de passe trop court (8 caractères au moins).": "Password too short (at least 8 characters).",
+  "authentification requise": "authentication required",
+  "connexion impossible : {exc}": "cannot sign in: {exc}",
+  "la connexion passe par le proxy d'authentification": "sign-in goes through the authentication proxy",
+  "pas de connexion sur le poste de bureau": "no sign-in on the desktop application",
+  "réservé aux administrateurs de Carriole": "reserved for Carriole administrators",
+  "trop d'essais : réessayer dans un instant": "too many attempts: try again in a moment",
+  "identifiant ou mot de passe incorrect": "incorrect username or password",
+  "ce compte n'est pas autorisé à utiliser Carriole (groupe requis manquant)": "this account is not allowed to use Carriole (required group missing)",
+  "annuaire LDAP injoignable": "LDAP directory unreachable",
+  "annuaire LDAP : le compte de service est refusé (ETL_LDAP_BIND_DN)": "LDAP directory: the service account is refused (ETL_LDAP_BIND_DN)",
+  "annuaire LDAP : StartTLS refusé": "LDAP directory: StartTLS refused",
+  "origine de la requête refusée": "request origin refused",
+  "hôte non autorisé": "host not allowed"
  }
 }
