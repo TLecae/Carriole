@@ -2,8 +2,9 @@
 
 <h1 align="center">Carriole</h1>
 
-<p align="center">Desktop ETL for geographic data, on Windows and Linux.<br>Flows are built on a canvas from
-modifiers; the output of every node can be checked on a table and a map.</p>
+<p align="center">ETL for geographic data: a desktop application for Windows and Linux, or a server shared in the
+browser.<br>Flows are built on a canvas from modifiers; the output of every node can be checked on a table and a
+map.</p>
 
 <p align="center">
   <a href="https://github.com/TLecae/Carriole/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/TLecae/Carriole?label=download"></a>
@@ -42,8 +43,12 @@ modifiers; the output of every node can be checked on a table and a map.</p>
 - **Modifiers are Python files**: a plugin is one class in one file (see below).
 - **AI assistant**, optional (Claude, OpenAI, OpenRouter, Ollama): it reads the flow and proposes changes, applied in
   one click; what it may read is configurable. [ADR 0027](docs/decisions/0027-assistant-ia.md)
-- Runs on the user's computer, with their own permissions on local drives and network shares; no server to install.
-  Interface in English and French.
+- **Desktop or server**: on a computer, Carriole runs with the user's own permissions on local drives and network
+  shares, with no server to install. On a shared machine, `etl serve --server` serves several users in their
+  browser: sign-in through an LDAP directory, an authentication proxy or a file of accounts; files limited to the
+  folders the administrator allows; machine settings reserved to administrators.
+  [Server guide](docs/serveur.md) (French)
+- Interface in English and French.
 
 ![Inspector in full page: communes colored by population density, table sorted by density, the selected commune highlighted on both](site/img/inspecteur-en.webp)
 
@@ -60,6 +65,10 @@ Download from the [latest release](https://github.com/TLecae/Carriole/releases/l
 
 Everything is bundled (Python, GDAL, DuckDB Spatial, PROJ grids): no Internet access is needed to work.
 More in the [installation guide](docs/installation.md) (French).
+
+On a shared server, Carriole runs from a source install (see [Develop](#develop)) with `etl serve --server`; identity
+provider, allowed folders and administrators are set by `ETL_*` variables, described in the
+[server guide](docs/serveur.md) (French).
 
 ## Write a modifier
 

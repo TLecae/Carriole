@@ -2,8 +2,9 @@
 
 <h1 align="center">Carriole</h1>
 
-<p align="center">ETL de bureau pour les données géographiques, sous Windows et Linux.<br>Les flux se construisent sur
-un canevas à partir de modificateurs ; la sortie de chaque nœud se vérifie sur une table et une carte.</p>
+<p align="center">ETL pour les données géographiques : application de bureau sous Windows et Linux, ou serveur
+partagé dans le navigateur.<br>Les flux se construisent sur un canevas à partir de modificateurs ; la sortie de chaque
+nœud se vérifie sur une table et une carte.</p>
 
 <p align="center">
   <a href="https://tlecae.github.io/Carriole/">Site</a> ·
@@ -17,8 +18,9 @@ un canevas à partir de modificateurs ; la sortie de chaque nœud se vérifie su
 [Vidéo](https://tlecae.github.io/Carriole/#video) : ce flux construit à partir d'un canevas vide, lancé, puis son
 résultat inspecté.
 
-Application de bureau : elle lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits, sans serveur à
-installer.
+Sur un poste, Carriole lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits, sans serveur à
+installer. Sur une machine partagée, `etl serve --server` accueille plusieurs utilisateurs dans leur navigateur
+([Carriole sur un serveur](docs/serveur.md)).
 
 > Plan et avancement : [docs/plan_jalons.md](docs/plan_jalons.md) et [docs/journal_jalons.md](docs/journal_jalons.md).
 
@@ -44,6 +46,9 @@ installer.
 - **Assistant IA** facultatif (Claude, OpenAI, OpenRouter, Ollama) : il lit le flux et propose des modifications que
   l'on applique d'un clic ; ce qu'il peut lire se règle : [ADR 0027](docs/decisions/0027-assistant-ia.md).
 - **Français et anglais**, au choix dans les paramètres ([ADR 0023](docs/decisions/0023-internationalisation.md)).
+- **Poste ou serveur** : en mode serveur, connexion par un annuaire LDAP, un proxy d'authentification ou un
+  fichier de comptes ; fichiers limités aux dossiers autorisés par l'administrateur ; réglages de la machine réservés
+  aux administrateurs ([ADR 0052](docs/decisions/0052-mode-serveur-et-authentification.md)).
 - **Ligne de commande** `etl`, facultative : exécuter, valider, inspecter un fichier, piloter le serveur local.
 
 ![Inspecteur en pleine page : communes colorées selon la densité de population, table triée par densité, commune sélectionnée sur les deux](site/img/inspecteur-fr.webp)
@@ -57,6 +62,7 @@ installer.
 | Utiliser Carriole | [guide de l'utilisateur](docs/guide_utilisateur.md) · [English user guide](docs/en/user_guide.md) |
 | Installer, régler (bouton Paramètres), utiliser `etl` en ligne de commande | [installation.md](docs/installation.md) |
 | Écrire un modificateur en Python (un fichier) | [ecrire_un_modificateur.md](docs/ecrire_un_modificateur.md) |
+| Installer sur un serveur partagé (plusieurs utilisateurs, LDAP, dossiers autorisés) | [serveur.md](docs/serveur.md) |
 | Sécurité | [securite.md](docs/securite.md) |
 | Comprendre les choix | [décisions (ADR)](docs/decisions/) |
 
