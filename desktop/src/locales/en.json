@@ -31,5 +31,8 @@
  "Arrêter le moteur": "Stop the engine",
  "Annuler": "Cancel",
  "Le moteur s'était arrêté : il a été relancé.": "The engine had stopped: it has been restarted.",
- "Le moteur s'est arrêté et n'a pas pu être relancé : {{error}}": "The engine stopped and could not be restarted: {{error}}"
+ "Le moteur s'est arrêté et n'a pas pu être relancé : {{error}}": "The engine stopped and could not be restarted: {{error}}",
+ "Le flux a des modifications non enregistrées.": "The flow has unsaved changes.",
+ "Fermer sans enregistrer les perd.": "Closing without saving discards them.",
+ "Fermer sans enregistrer": "Close without saving"
 }

@@ -54,9 +54,17 @@ function useShortcuts() {
       if (useEditor.getState().dirty) e.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
+    // Application de bureau : « Quitter » demande confirmation avant d'arrêter le moteur, elle doit savoir s'il y a des
+    // modifications non enregistrées.
+    const report = (dirty: boolean) => void window.etlDesktop?.setDirty?.(dirty).catch(() => undefined);
+    report(useEditor.getState().dirty);
+    const unsubscribe = useEditor.subscribe((s, prev) => {
+      if (s.dirty !== prev.dirty) report(s.dirty);
+    });
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("beforeunload", warn);
+      unsubscribe();
     };
   }, []);
 }

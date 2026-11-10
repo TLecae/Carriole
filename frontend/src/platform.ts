@@ -23,6 +23,7 @@ export interface DesktopApi {
   setKeepRunning?(enabled: boolean): Promise<void>;
   openAppFolder?(kind: "data" | "logs"): Promise<string>;
   relaunch?(): Promise<void>;
+  setDirty?(dirty: boolean): Promise<void>;
   pathForFile?(file: File): string;
   onOpenFile(callback: (path: string) => void): void;
   onNewFlow(callback: () => void): void;

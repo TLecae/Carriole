@@ -140,6 +140,50 @@ test("fermer la fenêtre arrête complètement Carriole (par défaut)", async ()
   expect(await backendUp(home)).toBe(false); // … et son moteur avec elle
 });
 
+test("modifications non enregistrées : fermer ou quitter demande confirmation", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "etl-desktop-"));
+  const app = await launch(home);
+  const exited = new Promise<void>((resolve) => app.process().once("exit", () => resolve()));
+  const page = await mainWindow(app);
+  await page.getByRole("button", { name: "+ Nouveau flux" }).click();
+  const reader = page.getByTestId("palette-CsvReader");
+  await reader.evaluate((el) => el.closest("details")?.setAttribute("open", ""));
+  await reader.dblclick(); // flux modifié, non enregistré
+  await expect(page.getByTestId("node-CsvReader_1")).toBeVisible();
+
+  // question simulée côté processus principal : « Annuler » (1) puis « Fermer sans enregistrer » (0)
+  const answer = (choice: number) =>
+    app.evaluate(({ dialog }, value) => {
+      const g = globalThis as { asked?: number };
+      g.asked = 0;
+      dialog.showMessageBoxSync = (() => {
+        g.asked = (g.asked ?? 0) + 1;
+        return value;
+      }) as typeof dialog.showMessageBoxSync;
+    }, choice);
+  const asked = () => app.evaluate(() => (globalThis as { asked?: number }).asked);
+
+  // la croix : la question est posée (avant, la fermeture était ignorée sans rien dire) ; « Annuler » garde tout
+  await answer(1);
+  await closeWindow(app);
+  await expect.poll(asked).toBe(1);
+  await expect(page.getByTestId("node-CsvReader_1")).toBeVisible();
+
+  // « Quitter » : la question vient avant l'arrêt du moteur ; « Annuler » le laisse tourner
+  await answer(1);
+  await app.evaluate(({ app: a }) => a.quit());
+  await expect.poll(asked).toBe(1);
+  await expect(page.getByTestId("node-CsvReader_1")).toBeVisible();
+  expect(await backendUp(home)).toBe(true);
+
+  // « Fermer sans enregistrer » : l'application s'arrête, moteur compris
+  await answer(0);
+  await closeWindow(app);
+  await exited;
+  await waitDown(home);
+  expect(await backendUp(home)).toBe(false);
+});
+
 test("réglage « arrière-plan » : fermer la fenêtre laisse Carriole et son moteur tourner", async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "etl-desktop-"));
   const app = await launch(home);

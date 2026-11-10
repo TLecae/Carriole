@@ -43,6 +43,8 @@ let tray: Tray | null = null;
 let info: ServerInfo | null = null;
 let quitting = false;
 let quitDecided = false;
+let pageDirty = false; // le flux affiché a des modifications non enregistrées (signalé par la page)
+let discardConfirmed = false; // l'utilisateur a accepté de les perdre (question posée avant de quitter)
 let pendingFile: string | null = process.argv.find((a, i) => i > 0 && /\.json$/i.test(a) && fs.existsSync(a)) ?? null;
 let trayHintShown = false;
 const startHidden = process.argv.includes("--hidden");
@@ -51,6 +53,21 @@ const origin = () => (info ? urlOf(info) : "");
 
 function say(message: string): void {
   if (Notification.isSupported()) new Notification({ title: "Carriole", body: message }).show();
+}
+
+/** Modifications non enregistrées : demande s'il faut les perdre (vrai) ou annuler la fermeture (faux). */
+function confirmDiscard(): boolean {
+  const options = {
+    type: "warning" as const,
+    title: "Carriole",
+    message: t("Le flux a des modifications non enregistrées."),
+    detail: t("Fermer sans enregistrer les perd."),
+    buttons: [t("Fermer sans enregistrer"), t("Annuler")],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  };
+  return (win ? dialog.showMessageBoxSync(win, options) : dialog.showMessageBoxSync(options)) === 0;
 }
 
 // ---------------------------------------------------------------------------------------------- fenêtre
@@ -91,6 +108,11 @@ function createWindow(): BrowserWindow {
       w.webContents.send("etl:open-file", pendingFile);
       pendingFile = null;
     }
+  });
+  // La page refuse de se fermer (« beforeunload » : modifications non enregistrées) : Electron n'affiche alors aucune
+  // question et ignore la fermeture, la croix ne faisait rien. La question est posée ici.
+  w.webContents.on("will-prevent-unload", (event) => {
+    if (discardConfirmed || quitDecided || confirmDiscard()) event.preventDefault(); // la page se ferme quand même
   });
   w.on("ready-to-show", () => {
     if (!startHidden) w.show();
@@ -389,6 +411,12 @@ function registerIpc(): void {
     if (!trusted(event) || !info) throw new Error("appel refusé");
     await call(info, "PATCH", "/api/settings", { keep_running: !!enabled });
   });
+  // Quitter (menu, zone de notification) arrête le moteur avant de fermer la page : la question sur les modifications
+  // non enregistrées doit venir avant, d'où cet état tenu à jour par la page.
+  ipcMain.handle("etl:set-dirty", (event, dirty: boolean) => {
+    if (!trusted(event)) throw new Error("appel refusé");
+    pageDirty = !!dirty;
+  });
   ipcMain.handle("etl:open-app-folder", (event, kind: string) => {
     if (!trusted(event)) throw new Error("appel refusé");
     const target = kind === "logs" ? path.join(appDirs().data, "logs") : kind === "data" ? appDirs().data : null;
@@ -497,6 +525,13 @@ if (!app.requestSingleInstanceLock()) {
     if (quitDecided) return;
     event.preventDefault();
     void (async () => {
+      if (pageDirty && win && !discardConfirmed) {
+        if (!confirmDiscard()) {
+          quitting = false;
+          return;
+        }
+        discardConfirmed = true;
+      }
       let stop = true;
       const n = await activeRuns();
       if (n > 0 && info) {

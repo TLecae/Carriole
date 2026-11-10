@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld("etlDesktop", {
   setKeepRunning: (enabled: boolean): Promise<void> => ipcRenderer.invoke("etl:set-keep-running", enabled),
   openAppFolder: (kind: "data" | "logs"): Promise<string> => ipcRenderer.invoke("etl:open-app-folder", kind),
   relaunch: (): Promise<void> => ipcRenderer.invoke("etl:relaunch"),
+  // Modifications non enregistrées : la fermeture de l'application les signale avant d'arrêter le moteur.
+  setDirty: (dirty: boolean): Promise<void> => ipcRenderer.invoke("etl:set-dirty", dirty),
   // Chemin réel d'un fichier glissé dans la page (l'assistant le joint à la question).
   pathForFile: (file: File): string => webUtils.getPathForFile(file),
   // Menu et zone de notification : la page ouvre le flux (avec sa confirmation s'il y a des modifications non enregistrées).

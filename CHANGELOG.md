@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Desktop app: closing the window with unsaved changes asks whether to close without saving (the close button did
+  nothing). Quitting from the menu or the tray asks before stopping the engine.
 - Canvas: links between nodes are near white in the dark theme (they were grey, hard to see).
 - DXF (AutoCAD): *DxfReader* reads the entities of a drawing (layer, line type, text; blocks exploded; closed
   polylines as polygons; layers to read; coordinate system to declare). *DxfWriter* writes each geometry on the
