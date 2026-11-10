@@ -2,7 +2,7 @@ import { applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, t
 import { create } from "zustand";
 import { ApiError, api, currentEmail, subscribeRun } from "../api/client";
 import { onConnection } from "../api/connection";
-import type { Analysis, FlowDoc, FlowRecord, FlowSummary, RunEvent, RunStatus, ModifierInfo } from "../api/types";
+import type { Access, Analysis, FlowDoc, FlowRecord, FlowSummary, RunEvent, RunStatus, ModifierInfo } from "../api/types";
 import { applyResult, IDLE_RUN, reduceEvent, type RunState, settle } from "../model/runState";
 import { differsFrom, signatures, staleNodes } from "../model/staleness";
 import { pickPath } from "../platform";
@@ -48,6 +48,8 @@ interface EditorState {
   flowId: string | null;
   flowPath: string | null; // flux en fichiers : son fichier (le flux porte le nom de ce fichier)
   revision: number | string | null;
+  access: Access; // mode serveur : « read », le flux d'un autre partagé en lecture (enregistré en copie)
+  flowOwner: string;
   meta: FlowMeta;
   nodes: AppNode[];
   edges: AppEdge[];
@@ -169,13 +171,14 @@ onConnection((online) => {
  * Moteur injoignable : l'enregistrement est refait dès son retour (rien n'est perdu, la page garde le flux).
  */
 async function persist(saveAs: boolean, chosen: string | null = null): Promise<boolean> {
-  const { flowId, revision, meta, nodes, edges } = useEditor.getState();
+  const { flowId, revision, meta, nodes, edges, access } = useEditor.getState();
   const doc = toFlowDoc(meta, nodes, edges);
   const files = useUi.getState().flowStorage === "files";
   let path = chosen;
+  const copy = access === "read" && !files; // flux partagé en lecture : une copie à son nom
   try {
     let rec: FlowRecord;
-    if (flowId && !(saveAs && files)) {
+    if (flowId && !(saveAs && files) && !copy) {
       rec = await api.saveFlow(flowId, doc, revision);
     } else if (files) {
       path ??= await pickPath({ mode: "write", title: t("Enregistrer le flux"), defaultName: fileName(meta.name), extensions: [".json"] });
@@ -191,7 +194,9 @@ async function persist(saveAs: boolean, chosen: string | null = null): Promise<b
       revision: rec.revision,
       meta: files ? { ...s.meta, name: rec.name } : s.meta,
       dirty: false,
-      notice: { kind: "info", text: t("Flux enregistré") },
+      access: copy ? "owner" : s.access,
+      flowOwner: copy ? rec.owner : s.flowOwner,
+      notice: { kind: "info", text: copy ? t("Copie enregistrée à votre nom : le flux d'origine est en lecture seule.") : t("Flux enregistré") },
     }));
     history.replaceState(null, "", `#flow=${rec.id}`); // l'URL désigne le flux : retrouvée au rechargement
     void useEditor.getState().loadFlows();
@@ -264,7 +269,7 @@ export const useEditor = create<EditorState>((set, get) => {
   /** Affiche un flux lu sur le serveur dans l'éditeur, puis rattache son dernier run (« reconnexion »). */
   const show = async (rec: FlowRecord): Promise<void> => {
     const { nodes, edges, meta } = fromFlowDoc(rec.flow);
-    replace(nodes, edges, meta, { flowId: rec.id, flowPath: rec.path ?? null, revision: rec.revision, run: IDLE_RUN });
+    replace(nodes, edges, meta, { flowId: rec.id, flowPath: rec.path ?? null, revision: rec.revision, run: IDLE_RUN, access: rec.access ?? "owner", flowOwner: rec.owner });
     history.replaceState(null, "", `#flow=${rec.id}`);
     useUi.getState().setView("editor");
     scheduleAnalysis();
@@ -285,6 +290,8 @@ export const useEditor = create<EditorState>((set, get) => {
     flowId: null,
     flowPath: null,
     revision: null,
+    access: "owner",
+    flowOwner: "",
     meta: { name: t("Nouveau flux"), description: "", publishedParams: [], variables: [], component: null },
     nodes: [],
     edges: [],
@@ -308,7 +315,7 @@ export const useEditor = create<EditorState>((set, get) => {
       unsubscribe?.();
       history.replaceState(null, "", "#new");
       useUi.getState().setView("editor");
-      replace([], [], { name: t("Nouveau flux"), description: "", publishedParams: [], variables: [], component: null }, { flowId: null, flowPath: null, revision: null, run: IDLE_RUN });
+      replace([], [], { name: t("Nouveau flux"), description: "", publishedParams: [], variables: [], component: null }, { flowId: null, flowPath: null, revision: null, access: "owner", flowOwner: "", run: IDLE_RUN });
     },
     openFlow: async (id) => {
       unsubscribe?.();
@@ -542,7 +549,7 @@ export const useEditor = create<EditorState>((set, get) => {
     /** Ouvre le flux proposé (un composant, par exemple) comme un flux neuf, à enregistrer où l'on veut. */
     openDraft: (doc) => {
       const { nodes, edges, meta } = fromFlowDoc(doc);
-      replace(nodes, edges, meta, { flowId: null, flowPath: null, revision: null, run: IDLE_RUN });
+      replace(nodes, edges, meta, { flowId: null, flowPath: null, revision: null, access: "owner", flowOwner: "", run: IDLE_RUN });
       history.replaceState(null, "", "#new");
       useUi.getState().setView("editor");
       set({ dirty: true });
@@ -680,7 +687,7 @@ export const useEditor = create<EditorState>((set, get) => {
       const detail = await api.run(id);
       const { nodes, edges, meta } = fromFlowDoc(detail.flow);
       // Le flux tel qu'il a été exécuté, pas le flux enregistré aujourd'hui : on ne le rattache pas au flux d'origine.
-      replace(nodes, edges, { ...meta, name: t("{{name}} (run {{id}})", { name: meta.name, id: id.slice(0, 6) }) }, { flowId: null, flowPath: null, revision: null });
+      replace(nodes, edges, { ...meta, name: t("{{name}} (run {{id}})", { name: meta.name, id: id.slice(0, 6) }) }, { flowId: null, flowPath: null, revision: null, access: "owner", flowOwner: "" });
       history.replaceState(null, "", "#new");
       useUi.getState().setView("editor");
       scheduleAnalysis();

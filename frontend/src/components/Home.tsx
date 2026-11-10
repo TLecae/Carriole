@@ -7,6 +7,8 @@ import { useEditor } from "../store/editor";
 import { useUi } from "../store/ui";
 import { AppBar, Divider, RunsButton, SettingsButton, Spacer, ToolsMenu, UserMenu } from "./AppBar";
 import { Loading } from "./Spinner";
+import { ShareDialog } from "./ShareDialog";
+import { useSession } from "../store/session";
 import { formatDateTime, t } from "../i18n";
 
 const runLabel = (status: RunStatus): string =>
@@ -38,6 +40,8 @@ export function Home() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [examples, setExamples] = useState<ExampleFlow[]>([]);
+  const [sharing, setSharing] = useState<FlowSummary | null>(null);
+  const server = useSession((s) => s.me?.mode === "server");
 
   useEffect(() => {
     void api
@@ -113,6 +117,17 @@ export function Home() {
           ) : (
             <small className="muted">{t("Jamais lancé")}</small>
           )}
+          {server && f.access && f.access !== "owner" && (
+            <span className="run-chip shared" title={t("Partagé par {{owner}}", { owner: f.owner })}>
+              {f.access === "write" ? t("partagé") : t("lecture seule")}
+            </span>
+          )}
+          {server && f.access === "owner" && !f.component && (
+            <button type="button" className="ghost share" onClick={() => setSharing(f)} aria-label={t("Partager {{name}}", { name: f.name })}>
+              {t("Partager")}
+            </button>
+          )}
+          {(!server || f.access === "owner") && (
           <button
             type="button"
             className="remove"
@@ -122,6 +137,7 @@ export function Home() {
           >
             ×
           </button>
+          )}
         </footer>
       </article>
     );
@@ -200,6 +216,7 @@ export function Home() {
           </section>
         )}
       </main>
+      {sharing && <ShareDialog kind="flow" id={sharing.id} title={sharing.name} onClose={() => setSharing(null)} />}
 
     </div>
   );

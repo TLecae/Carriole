@@ -5,10 +5,12 @@ from typing import Annotated, Any
 from etl_engine.analysis import analyze
 from etl_engine.flow import Flow
 from etl_engine.registry import Registry
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from etl_api.deps import get_registry, request_lang
+from etl_api import access
+from etl_api.auth import Identity
+from etl_api.deps import current_identity, get_registry, request_lang
 
 router = APIRouter(tags=["analyse"])
 
@@ -35,8 +37,14 @@ class ValuesIn(BaseModel):
 
 
 @router.post("/fields/values")
-def field_values(body: ValuesIn, registry: Annotated[Registry, Depends(get_registry)]) -> list[Any]:
+def field_values(
+    body: ValuesIn,
+    registry: Annotated[Registry, Depends(get_registry)],
+    request: Request,
+    identity: Annotated[Identity, Depends(current_identity)],
+) -> list[Any]:
     """Valeurs les plus fréquentes d'une colonne du fichier qu'un lecteur lit (aide à la saisie de son filtre)."""
+    access.require_connections(request, identity, body.flow, only=body.node)
     from etl_engine.field_values import reader_values
     from etl_engine.sdk import ConfigError
 
@@ -52,8 +60,14 @@ class ReaderIn(BaseModel):
 
 
 @router.post("/fields/columns")
-def field_columns(body: ReaderIn, registry: Annotated[Registry, Depends(get_registry)]) -> list[dict[str, str]]:
+def field_columns(
+    body: ReaderIn,
+    registry: Annotated[Registry, Depends(get_registry)],
+    request: Request,
+    identity: Annotated[Identity, Depends(current_identity)],
+) -> list[dict[str, str]]:
     """Colonnes du fichier qu'un lecteur lit, avant le choix de ses attributs (requête de lecture)."""
+    access.require_connections(request, identity, body.flow, only=body.node)
     from etl_engine.field_values import reader_columns
     from etl_engine.sdk import ConfigError
 
@@ -64,8 +78,14 @@ def field_columns(body: ReaderIn, registry: Annotated[Registry, Depends(get_regi
 
 
 @router.post("/fields/target")
-def field_target(body: ReaderIn, registry: Annotated[Registry, Depends(get_registry)]) -> dict[str, Any]:
+def field_target(
+    body: ReaderIn,
+    registry: Annotated[Registry, Depends(get_registry)],
+    request: Request,
+    identity: Annotated[Identity, Depends(current_identity)],
+) -> dict[str, Any]:
     """Écriture en ajout dans un fichier : colonnes de la couche visée, face aux attributs que le nœud reçoit."""
+    access.require_connections(request, identity, body.flow, only=body.node)
     from etl_engine.field_values import writer_target
     from etl_engine.sdk import ConfigError
 
@@ -76,8 +96,14 @@ def field_target(body: ReaderIn, registry: Annotated[Registry, Depends(get_regis
 
 
 @router.post("/fields/count")
-def field_count(body: ReaderIn, registry: Annotated[Registry, Depends(get_registry)]) -> dict[str, int]:
+def field_count(
+    body: ReaderIn,
+    registry: Annotated[Registry, Depends(get_registry)],
+    request: Request,
+    identity: Annotated[Identity, Depends(current_identity)],
+) -> dict[str, int]:
     """Entités du fichier qu'un lecteur lit, et celles que son filtre garde."""
+    access.require_connections(request, identity, body.flow, only=body.node)
     from etl_engine.field_values import reader_count
     from etl_engine.sdk import ConfigError
 

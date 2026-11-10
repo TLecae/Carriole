@@ -18,7 +18,7 @@ import time
 
 from etl_engine.components import embed_components
 from etl_engine.flow import Flow, resolve_params
-from etl_store import NotFound, Store
+from etl_store import NotFound, Store, access
 from etl_store.cron import Cron, CronError
 
 log = logging.getLogger("etl.scheduler")
@@ -49,7 +49,13 @@ def tick(store: Store, now: float | None = None, grace: float = GRACE_SECONDS) -
             )
             continue
         try:
-            flow = Flow.model_validate(store.get_flow(sched["flow_id"])["flow"])
+            record = store.get_flow(sched["flow_id"])
+            owner = access.who(store, sched["owner"])
+            if not access.allows(access.role(store, owner, "flow", sched["flow_id"], record.get("owner", "")), "read"):
+                message = f"le flux planifié n'est plus partagé avec {sched['owner']}"
+                store.mark_schedule_fired(sched["id"], None, now, following, message)
+                continue
+            flow = Flow.model_validate(record["flow"])
             resolve_params(flow, sched["params"])
             flow = embed_components(flow)
             options = {

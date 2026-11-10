@@ -12,7 +12,8 @@ from etl_engine import duck
 from etl_engine.executor import run_flow
 from etl_engine.flow import Flow
 from etl_engine.registry import Registry
-from etl_store import Settings, Store
+from etl_store import Settings, Store, access
+from etl_store.connections import RUN_USER
 
 from etl_worker.notify import notify_run_finished
 
@@ -93,6 +94,8 @@ def execute_run(
     error: str | None = None
     try:
         flow = Flow.model_validate(run["flow"])
+        # mode serveur : les connexions ne s'ouvrent que si elles sont partagées avec le propriétaire du run
+        RUN_USER.who = access.who(store, run.get("owner") or "") if access.server_mode() else None
         reuse = options.get("reuse_from")
         running = max(1, store.count_running())  # ce run compris : il partage la machine avec les autres
         memory_mb, threads = duck.machine_budget_mb() // running, max(1, duck.machine_threads() // running)
@@ -124,6 +127,7 @@ def execute_run(
         status, error = "error", f"{type(exc).__name__} : {exc}"
         events.push({"type": "run_finished", "status": "error", "error": error})
     finally:
+        RUN_USER.who = None
         done.set()
         events.close()
     store.finish_run(run_id, status, error, result_json)

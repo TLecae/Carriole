@@ -4,10 +4,15 @@ from typing import Annotated, Any
 
 from etl_engine.flow import Flow
 from etl_store import Conflict, DuplicateComponent, FileAccessError, InvalidFlowFile, NotFound, Store
+from etl_store import access as rights
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from etl_api.deps import current_user, get_store
+from etl_api import access
+from etl_api.auth import Identity
+from etl_api.deps import current_identity, current_user, get_store
+
+Who = Annotated[Identity, Depends(current_identity)]
 
 router = APIRouter(tags=["flux"])
 
@@ -28,9 +33,21 @@ def _dump(flow: Flow) -> dict[str, Any]:
 
 
 @router.get("/flows")
-def list_flows(store: Annotated[Store, Depends(get_store)]) -> list[dict[str, Any]]:
-    """Base : tous les flux. Fichiers : les flux récents."""
-    return store.list_flows()
+def list_flows(store: Annotated[Store, Depends(get_store)], identity: Who) -> list[dict[str, Any]]:
+    """Base : les flux visibles (mode serveur : les siens, ceux qu'on lui partage, les composants). Fichiers : les
+    flux récents. `access` : owner, write ou read."""
+    flows = store.list_flows()
+    shared = access.readable_flows(store, identity)
+    if shared is None:
+        return [{**f, "access": "owner"} for f in flows]
+    out = []
+    for f in flows:
+        granted = "owner" if f.get("owner") == identity.name else shared.get(f["id"])
+        if granted is None and f.get("component"):  # un composant s'utilise par tous : lisible depuis la palette
+            granted = "read"
+        if granted:
+            out.append({**f, "access": granted})
+    return out
 
 
 @router.get("/examples")
@@ -82,7 +99,12 @@ def create_flow(body: FlowIn, store: Annotated[Store, Depends(get_store)], user:
 
 
 @router.get("/flows/{flow_id}")
-def get_flow(flow_id: str, store: Annotated[Store, Depends(get_store)]):
+def get_flow(flow_id: str, store: Annotated[Store, Depends(get_store)], identity: Who):
+    if rights.server_mode():
+        if _component(store, flow_id):  # un composant se lit par tous (palette) ; le modifier suit ses partages
+            return {**store.get_flow(flow_id), "access": access.flow_role(store, identity, flow_id) or "read"}
+        record, granted = access.flow_access(store, identity, flow_id, "read")
+        return {**record, "access": granted}
     try:
         return store.get_flow(flow_id)
     except NotFound:
@@ -94,7 +116,9 @@ def get_flow(flow_id: str, store: Annotated[Store, Depends(get_store)]):
 
 
 @router.put("/flows/{flow_id}")
-def update_flow(flow_id: str, body: FlowIn, store: Annotated[Store, Depends(get_store)]):
+def update_flow(flow_id: str, body: FlowIn, store: Annotated[Store, Depends(get_store)], identity: Who):
+    if rights.server_mode():
+        access.flow_access(store, identity, flow_id, "write")
     try:
         return store.update_flow(flow_id, body.flow.name or "(sans nom)", _dump(body.flow), body.revision)
     except NotFound:
@@ -108,9 +132,33 @@ def update_flow(flow_id: str, body: FlowIn, store: Annotated[Store, Depends(get_
 
 
 @router.delete("/flows/{flow_id}", status_code=204)
-def delete_flow(flow_id: str, store: Annotated[Store, Depends(get_store)]) -> None:
+def delete_flow(flow_id: str, store: Annotated[Store, Depends(get_store)], identity: Who) -> None:
     """Base : supprime le flux. Fichiers : le retire des récents (le fichier n'est jamais supprimé)."""
+    if rights.server_mode():
+        access.flow_access(store, identity, flow_id, "owner")
     try:
         store.delete_flow(flow_id)
     except NotFound:
         raise HTTPException(404, "flux introuvable") from None
+
+
+def _component(store: Store, flow_id: str) -> bool:
+    try:
+        return bool(store.get_flow(flow_id).get("component"))
+    except NotFound:
+        return False
+
+
+@router.get("/flows/{flow_id}/shares")
+def flow_shares(flow_id: str, store: Annotated[Store, Depends(get_store)], identity: Who) -> dict[str, Any]:
+    """Partages d'un flux : visibles de qui le lit, modifiables par son propriétaire (ADR 0054)."""
+    record, granted = access.flow_access(store, identity, flow_id, "read")
+    return {**access.get_shares(store, "flow", flow_id), "owner": record.get("owner", ""), "access": granted}
+
+
+@router.put("/flows/{flow_id}/shares")
+def set_flow_shares(
+    flow_id: str, body: access.SharesIn, store: Annotated[Store, Depends(get_store)], identity: Who
+) -> dict[str, Any]:
+    access.flow_access(store, identity, flow_id, "owner")
+    return access.put_shares(store, "flow", flow_id, body)

@@ -1953,6 +1953,14 @@
   "le compte de service est refusé": "the service account is refused",
   "aucun bac à sable pour le code Python des flux : installer bubblewrap (bwrap) sur le serveur, ou régler ETL_USER_CODE (allow ou deny)": "no sandbox for the Python code of flows: install bubblewrap (bwrap) on the server, or set ETL_USER_CODE (allow or deny)",
   "le code Python des flux est désactivé sur ce serveur (réglage ETL_USER_CODE)": "the Python code of flows is disabled on this server (ETL_USER_CODE setting)",
-  "le code Python s'est arrêté (code {code}) : mémoire épuisée ou processus tué": "the Python code stopped (code {code}): out of memory or process killed"
+  "le code Python s'est arrêté (code {code}) : mémoire épuisée ou processus tué": "the Python code stopped (code {code}): out of memory or process killed",
+  "ce flux vous est partagé en lecture : enregistrer une copie à votre nom": "this flow is shared with you read-only: save a copy under your name",
+  "cette connexion vous est partagée en lecture : seul son propriétaire la modifie": "this connection is shared with you read-only: only its owner changes it",
+  "connexion « {name} » : non partagée avec {name2}": "connection \"{name}\": not shared with {name2}",
+  "destinataire invalide : « {principal} » (user:nom, group:nom ou *)": "invalid recipient: \"{principal}\" (user:name, group:name or *)",
+  "piloter ce run demande de pouvoir modifier son flux": "controlling this run requires the right to edit its flow",
+  "rôle inconnu : {level} (read ou write)": "unknown role: {level} (read or write)",
+  "seul le propriétaire de la connexion peut la supprimer ou la partager": "only the owner of the connection can delete or share it",
+  "seul le propriétaire du flux peut le supprimer ou le partager": "only the owner of the flow can delete or share it"
  }
 }

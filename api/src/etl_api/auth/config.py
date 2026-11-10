@@ -171,9 +171,6 @@ class AuthConfig:
         return []
 
     def is_admin(self, name: str, groups: tuple[str, ...] | list[str]) -> bool:
-        wanted = {a.lower() for a in self.admins}
-        return (
-            name.lower() in wanted
-            or f"user:{name}".lower() in wanted
-            or any(f"group:{g}".lower() in wanted for g in groups)
-        )
+        from etl_store import access
+
+        return access.is_admin(name, groups, self.admins)

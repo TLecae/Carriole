@@ -135,6 +135,19 @@ class ChatRow(Base):
     updated_at: Mapped[float] = mapped_column(Float, default=0.0)
 
 
+class ShareRow(Base):
+    """Partage d'un flux ou d'une connexion (mode serveur, schéma v10, ADR 0054)."""
+
+    __tablename__ = "shares"
+    __table_args__ = (UniqueConstraint("kind", "object_id", "principal", name="uq_share"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(20))  # flow | connection
+    object_id: Mapped[str] = mapped_column(String(100), index=True)
+    principal: Mapped[str] = mapped_column(String(120), index=True)  # user:nom | group:nom | *
+    role: Mapped[str] = mapped_column(String(10))  # read | write
+
+
 class SessionRow(Base):
     """Session ouverte par une connexion (mode serveur, schéma v9). Seule l'empreinte du jeton est gardée."""
 

@@ -74,6 +74,20 @@ composants, variables globales, fournisseurs de l'assistant), installent un modi
 arrêtent le serveur. Les autres utilisateurs consultent ces réglages. Chacun garde sa langue d'interface.
 L'onglet *Paramètres → Serveur* montre comment le serveur est réglé et teste l'annuaire LDAP.
 
+## Partage
+
+Chacun ne voit que ses flux, ses connexions et ses runs, plus ce qu'on lui partage
+([ADR 0054](decisions/0054-droits-et-partage.md)). *Partager…* (carte de l'accueil, menu *Fichier*, fenêtre
+*Connexions*) donne à un utilisateur, à un groupe ou à tout le monde :
+
+| Droit | Flux | Connexion |
+| --- | --- | --- |
+| Lecture | ouvrir, lancer, inspecter ses runs ; *Enregistrer* en fait une copie à son nom | l'utiliser dans un flux, voir ses tables |
+| Modification | en plus : enregistrer, arrêter ou mettre en pause ses runs | en plus : changer ses réglages |
+
+Supprimer et partager restent au propriétaire et aux administrateurs, qui voient tout. Les composants sont
+utilisables par tous. Une planification tourne avec les droits de son créateur, revérifiés à chaque échéance.
+
 ## Code Python des flux
 
 *PythonScript* exécute du code écrit dans un flux. Sur un serveur, il tourne par défaut dans un processus isolé par

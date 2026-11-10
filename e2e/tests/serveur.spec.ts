@@ -61,3 +61,29 @@ test("réglages : un utilisateur les consulte, un administrateur les modifie et 
   await page.getByRole("tab", { name: "Serveur" }).click();
   await expect(page.getByTestId("server-settings")).toContainText("group:carriole-admins");
 });
+
+test("partage : un flux partagé en lecture s'ouvre sans être modifié, Ctrl+S en fait une copie", async ({ page }) => {
+  await signIn(page, "alice", "alice-e2e-mdp");
+  const name = `Partage ${Date.now()}`;
+  const created = await page.request.post("/api/flows", { data: { flow: { name, nodes: [], links: [] } } });
+  expect(created.ok()).toBeTruthy();
+  await page.reload();
+  await page.getByRole("button", { name: `Partager ${name}` }).click();
+  await page.getByLabel("Partager avec").selectOption("group");
+  await page.getByLabel("Nom", { exact: true }).fill("equipe");
+  await page.getByRole("button", { name: "Ajouter" }).click();
+  await expect(page.getByTestId("share-list")).toContainText("Groupe equipe");
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("button", { name: "Alice Martin" }).click();
+  await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
+
+  await signIn(page, "carol", "carol-e2e-mdp");
+  const card = page.getByTestId("flow-card").filter({ hasText: name });
+  await expect(card).toContainText("lecture seule");
+  await expect(card.getByRole("button", { name: `Partager ${name}` })).toHaveCount(0);
+  await card.getByRole("button", { name: `Ouvrir ${name}` }).click();
+  await expect(page.getByTestId("flow-readonly")).toBeVisible();
+  await page.keyboard.press("Control+s");
+  await expect(page.getByText("Copie enregistrée à votre nom")).toBeVisible();
+  await expect(page.getByTestId("flow-readonly")).toHaveCount(0);
+});

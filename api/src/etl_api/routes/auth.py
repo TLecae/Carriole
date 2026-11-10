@@ -105,3 +105,13 @@ def logout(request: Request, response: Response) -> None:
     if service is not None and token:
         service.sessions.close(token)
     response.delete_cookie(COOKIE, path="/")
+
+
+@router.get("/users")
+def users(request: Request, identity: Annotated[Identity, Depends(current_identity)]) -> dict[str, Any]:
+    """Destinataires possibles d'un partage : les utilisateurs déjà connectés et leurs groupes (mode serveur)."""
+    if not server_mode():
+        return {"users": [], "groups": []}
+    people = request.app.state.store.list_users()
+    groups = sorted({g for u in people for g in u["groups"]})
+    return {"users": [{"name": u["name"], "display": u["display"]} for u in people], "groups": groups}

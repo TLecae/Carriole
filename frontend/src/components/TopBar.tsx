@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { ShareDialog } from "./ShareDialog";
+import { serverMode } from "../store/session";
 import { isEtl } from "../model/graph";
 import { goHome, openFlowFileFromHome } from "../navigation";
 import { pickPath } from "../platform";
@@ -18,6 +20,7 @@ export function TopBar() {
   const runDialog = useUi((u) => u.runRequest);
   const setRunDialog = useUi.getState().setRunRequest;
   const [batchOpen, setBatchOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const files = useUi((u) => u.flowStorage === "files");
 
   const picked = s.nodes.filter((n) => n.selected && isEtl(n));
@@ -58,6 +61,11 @@ export function TopBar() {
           title={t("Description, paramètres publiés et variables du flux")}>
           {t("Propriétés du flux")}
         </MenuItem>
+        {serverMode() && s.flowId && (
+          <MenuItem onSelect={() => setSharing(true)} title={t("Donner à d'autres utilisateurs le droit de lire ou de modifier ce flux")}>
+            {t("Partager…")}
+          </MenuItem>
+        )}
         <MenuSeparator />
         <MenuItem onSelect={goHome}>{t("Retour à la liste des flux")}</MenuItem>
       </Menu>
@@ -135,6 +143,12 @@ export function TopBar() {
       ) : (
         <input className="flow-name" aria-label={t("Nom du flux")} value={s.meta.name} onChange={(e) => s.setMeta({ name: e.target.value })} />
       )}
+      {s.access === "read" && (
+        <span className="unsaved-tag" data-testid="flow-readonly" title={t("Partagé en lecture par {{owner}} : Ctrl+S enregistre une copie à votre nom.", { owner: s.flowOwner })}>
+          {t("lecture seule")}
+        </span>
+      )}
+      {sharing && s.flowId && <ShareDialog kind="flow" id={s.flowId} title={s.meta.name} onClose={() => setSharing(false)} />}
       <button className="primary" onClick={() => void s.save()} disabled={!s.dirty && !!s.flowId} title="Ctrl+S">
         <Icon name="save" /> {t("Enregistrer")}
         {s.dirty ? " •" : ""}

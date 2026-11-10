@@ -8,10 +8,13 @@ from typing import Annotated, Any
 from etl_engine.components import embed_components
 from etl_engine.flow import Flow
 from etl_store import NothingToPublish, Store
+from etl_store import access as rights
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from etl_api.deps import current_user, get_store
+from etl_api import access
+from etl_api.auth import Identity
+from etl_api.deps import current_identity, get_store
 
 router = APIRouter(tags=["composants"])
 
@@ -48,9 +51,14 @@ def publish_version(
     name: str,
     body: PublishIn,
     store: Annotated[Store, Depends(get_store)],
-    user: Annotated[str, Depends(current_user)],
+    identity: Annotated[Identity, Depends(current_identity)],
 ) -> dict[str, Any]:
-    """Publie le composant **enregistré** comme nouvelle version immuable."""
+    """Publie le composant **enregistré** comme nouvelle version immuable ; en mode serveur, il faut pouvoir
+    modifier son flux."""
+    user = identity.name
+    row = store.get_component(name)
+    if row is not None and rights.server_mode():
+        access.flow_access(store, identity, row["id"], "write")
     try:
         return store.publish_component(name, _snapshot(store, name), body.note.strip(), user)
     except NothingToPublish as exc:

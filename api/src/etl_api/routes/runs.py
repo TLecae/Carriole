@@ -14,11 +14,14 @@ from etl_engine.components import embed_components
 from etl_engine.flow import Flow, resolve_params
 from etl_engine.registry import Registry
 from etl_store import FINAL_STATUSES, NotFound, Store
+from etl_store import access as rights
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
-from etl_api.deps import current_user, get_registry, get_store, request_lang
+from etl_api import access
+from etl_api.auth import Identity
+from etl_api.deps import current_identity, get_registry, get_store, request_lang
 
 router = APIRouter(tags=["runs"])
 
@@ -43,6 +46,21 @@ class RunIn(BaseModel):
 
 class RetryIn(BaseModel):
     resume: bool = False  # vrai : repart du cache du run d'origine (les nœuds terminés ne sont pas recalculés)
+
+
+Who = Annotated[Identity, Depends(current_identity)]
+
+
+def _check(request: Request, identity: Identity, store: Store, body: RunIn, flow: Flow) -> None:
+    """Mode serveur : lancer un flux enregistré demande de le lire ; ses connexions doivent être partagées ; un run
+    repris doit être visible (ADR 0054)."""
+    if not rights.server_mode():
+        return
+    if body.flow_id:
+        access.flow_access(store, identity, body.flow_id, "read")
+    if body.reuse_from:
+        access.run_access(store, identity, body.reuse_from, "read")
+    access.require_connections(request, identity, flow)
 
 
 def _run_or_404(store: Store, run_id: str, detail: bool = True) -> dict[str, Any]:
@@ -112,11 +130,14 @@ def create_run(
     body: RunIn,
     store: Annotated[Store, Depends(get_store)],
     registry: Annotated[Registry, Depends(get_registry)],
-    user: Annotated[str, Depends(current_user)],
+    identity: Who,
+    request: Request,
     lang: Annotated[str, Depends(request_lang)],
 ) -> dict[str, Any]:
     """Crée un job : un worker l'exécutera, indépendamment du navigateur."""
-    return _create(body, store, registry, user, lang)
+    prepared = _load_flow(body, store)
+    _check(request, identity, store, body, prepared[0])
+    return _create(body, store, registry, identity.name, lang, prepared=prepared)
 
 
 MAX_BATCH = 500
@@ -134,11 +155,14 @@ def create_batch(
     body: BatchIn,
     store: Annotated[Store, Depends(get_store)],
     registry: Annotated[Registry, Depends(get_registry)],
-    user: Annotated[str, Depends(current_user)],
+    identity: Who,
+    request: Request,
     lang: Annotated[str, Depends(request_lang)],
 ) -> dict[str, Any]:
     """Lot : le même flux, un run par fichier du motif (ou par valeur), regroupés par `options.batch`."""
     flow, flow_path = _load_flow(body, store)
+    _check(request, identity, store, body, flow)
+    user = identity.name
     if body.param not in {p.name for p in flow.published_params}:
         raise HTTPException(422, f"paramètre publié inconnu : {body.param}")
     if body.pattern:
@@ -168,14 +192,18 @@ def retry_run(
     run_id: str,
     body: RetryIn,
     store: Annotated[Store, Depends(get_store)],
-    user: Annotated[str, Depends(current_user)],
+    identity: Who,
+    request: Request,
 ) -> dict[str, Any]:
     """Relance un run avec le flux **tel qu'il a été exécuté** et les mêmes paramètres.
 
     `resume` : repart de son cache. Utile après une interruption ou un échec : seuls les nœuds non terminés
     sont recalculés.
     """
+    access.run_access(store, identity, run_id, "read")
     old = _run_or_404(store, run_id)
+    access.require_connections(request, identity, Flow.model_validate(old["flow"]))
+    user = identity.name
     if old["status"] in ("queued", "running"):
         raise HTTPException(409, "ce run n'est pas terminé")
     options = {**old["options"], "cache": True, "target": None, "reuse_from": run_id if body.resume else None}
@@ -188,21 +216,32 @@ def list_runs(
     status: str | None = Query(None, description="un ou plusieurs statuts séparés par des virgules"),
     mine: bool = False,
     flow_id: str | None = None,
-    user: Annotated[str, Depends(current_user)] = "",
+    identity: Who = None,  # type: ignore[assignment]
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    return store.list_runs(status=status, owner=user if mine else None, flow_id=flow_id, limit=min(limit, 500))
+    """Mode serveur : ses runs et ceux des flux qu'on peut lire (tous pour un administrateur)."""
+    readable = access.readable_flows(store, identity)
+    visible = None if readable is None else (identity.name, set(readable))
+    return store.list_runs(
+        status=status,
+        owner=identity.name if mine else None,
+        flow_id=flow_id,
+        limit=min(limit, 500),
+        visible_to=visible,
+    )
 
 
 @router.get("/runs/{run_id}")
-def get_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
+def get_run(run_id: str, store: Annotated[Store, Depends(get_store)], identity: Who) -> dict[str, Any]:
+    access.run_access(store, identity, run_id, "read")
     run = _run_or_404(store, run_id)
     run["counts"] = store.last_counts(run_id)  # pour repeindre les connexions à la reconnexion
     return run
 
 
 @router.post("/runs/{run_id}/cancel")
-def cancel_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
+def cancel_run(run_id: str, store: Annotated[Store, Depends(get_store)], identity: Who) -> dict[str, Any]:
+    access.run_access(store, identity, run_id, "write")
     try:
         return store.request_cancel(run_id)
     except NotFound:
@@ -219,15 +258,17 @@ def _pause(store: Store, run_id: str, paused: bool) -> dict[str, Any]:
 
 
 @router.post("/runs/{run_id}/pause")
-def pause_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
+def pause_run(run_id: str, store: Annotated[Store, Depends(get_store)], identity: Who) -> dict[str, Any]:
     """Pause : le run s'arrête au prochain point sûr (entre deux lots, paquets ou nœuds) et garde sa mémoire, ses
     résultats et sa place ; une étape d'un seul tenant (requête DuckDB) va d'abord à son terme."""
+    access.run_access(store, identity, run_id, "write")
     return _pause(store, run_id, True)
 
 
 @router.post("/runs/{run_id}/resume")
-def resume_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
+def resume_run(run_id: str, store: Annotated[Store, Depends(get_store)], identity: Who) -> dict[str, Any]:
     """Reprise d'un run en pause, au point où il s'était arrêté, avec le flux et les paramètres de son lancement."""
+    access.run_access(store, identity, run_id, "write")
     return _pause(store, run_id, False)
 
 
@@ -235,12 +276,13 @@ def resume_run(run_id: str, store: Annotated[Store, Depends(get_store)]) -> dict
 def run_logs(
     run_id: str,
     store: Annotated[Store, Depends(get_store)],
+    identity: Who,
     node: str | None = None,
     level: str | None = None,
     after: int = 0,
     limit: int = 1000,
 ) -> list[dict[str, Any]]:
-    _run_or_404(store, run_id, detail=False)
+    access.run_access(store, identity, run_id, "read")
     wanted = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40}
     floor = wanted.get((level or "").upper(), 0)
     logs = store.events_after(run_id, after, limit, types=("log",))
@@ -254,6 +296,7 @@ async def run_events(
     run_id: str,
     request: Request,
     store: Annotated[Store, Depends(get_store)],
+    identity: Who,
     after: int = 0,
     last_event_id: Annotated[str | None, Header()] = None,
     stream: bool = True,
@@ -261,7 +304,7 @@ async def run_events(
     """Événements du run. SSE avec reprise : un client qui se reconnecte renvoie `Last-Event-ID`
     (ou `?after=`) et ne reçoit que la suite. `?stream=false` renvoie la liste JSON.
     """
-    await asyncio.to_thread(_run_or_404, store, run_id, False)
+    await asyncio.to_thread(access.run_access, store, identity, run_id, "read")
     # À la reconnexion, le navigateur renvoie `Last-Event-ID` (à jour) avec le `after` initial (périmé) :
     # le plus grand gagne.
     start = max(after, int(last_event_id) if last_event_id and last_event_id.isdigit() else 0)

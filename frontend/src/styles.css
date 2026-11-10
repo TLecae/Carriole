@@ -699,3 +699,11 @@ button.icon-only { padding: 4px 6px; }
 .server-settings div { display: grid; grid-template-columns: 180px 1fr; gap: 10px; }
 .server-settings dt { color: var(--muted); }
 .server-settings dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Partage (mode serveur) */
+.share-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.share-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
+.share-add { display: flex; gap: 6px; margin-top: 10px; }
+.share-add input { flex: 1; }
+.run-chip.shared { background: var(--panel-2, transparent); border: 1px solid var(--line); }
+.flow-card footer .share { font-size: 12px; }

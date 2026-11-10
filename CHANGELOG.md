@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Server mode: flows, runs and connections are private to their owner until shared, read or write, with a user, a
+  group or everyone (*Share…* on the home cards, in the *File* menu and in *Connections*). A flow shared read-only
+  opens with a "read-only" tag and *Save* makes a copy. Connections are checked when the run is created and again
+  by the worker for the run's owner ([ADR 0054](docs/decisions/0054-droits-et-partage.md)). Metadata database schema
+  v10 (`shares`).
 - Server mode: the Python code of a flow (*PythonScript*) runs in an isolated process (bubblewrap): read-only system,
   no data, database, network or server variables; `ETL_USER_CODE` can also deny it. On a computer nothing changes
   ([ADR 0053](docs/decisions/0053-code-python-isole.md)).

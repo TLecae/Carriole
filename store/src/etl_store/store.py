@@ -10,7 +10,7 @@ from typing import Any
 
 from etl_engine import renames
 from etl_engine.complib import NothingToPublish  # noqa: F401 - réexporté : même exception pour les deux stockages
-from sqlalchemy import Engine, create_engine, delete, event, func, inspect, select, text, update
+from sqlalchemy import Engine, create_engine, delete, event, func, inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -23,11 +23,12 @@ from etl_store.models import (
     RunRow,
     ScheduleRow,
     SessionRow,
+    ShareRow,
     UserRow,
 )
 from etl_store.workers import alive_here
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 FINAL_STATUSES = ("done", "error", "cancelled", "interrupted")
 
 
@@ -75,7 +76,8 @@ MIGRATIONS = {
     7: _migrate_to_7,
     8: _migrate_to_8,
     9: lambda _engine: None,
-}  # v3 : `connections`, v5 : `schedules`, v6 : `component_versions`, v9 : `sessions`, `users` (create_all)
+    10: lambda _engine: None,
+}  # v3 `connections`, v5 `schedules`, v6 `component_versions`, v9 `sessions` `users`, v10 `shares` (create_all)
 
 
 def _component_name(content: dict[str, Any]) -> str | None:
@@ -366,6 +368,7 @@ class Store:
         with self._session.begin() as s:
             if s.execute(delete(FlowRow).where(FlowRow.id == flow_id)).rowcount == 0:
                 raise NotFound(flow_id)
+            s.execute(delete(ShareRow).where(ShareRow.kind == "flow", ShareRow.object_id == flow_id))
 
     # ---------------------------------------------------------------- runs
     def create_run(
@@ -399,9 +402,18 @@ class Store:
             return _run_dict(row, detail)
 
     def list_runs(
-        self, status: str | None = None, owner: str | None = None, flow_id: str | None = None, limit: int = 100
+        self,
+        status: str | None = None,
+        owner: str | None = None,
+        flow_id: str | None = None,
+        limit: int = 100,
+        visible_to: tuple[str, set[str]] | None = None,
     ) -> list[dict[str, Any]]:
+        """`visible_to` (nom, flux lisibles) : runs de cette personne ou de ces flux (mode serveur)."""
         stmt = select(RunRow).order_by(RunRow.created_at.desc()).limit(limit)
+        if visible_to is not None:
+            name, flows = visible_to
+            stmt = stmt.where(or_(RunRow.owner == name, RunRow.flow_id.in_(sorted(flows))))
         if status:
             stmt = stmt.where(RunRow.status.in_(status.split(",")))
         if owner:
@@ -760,3 +772,34 @@ class Store:
     def list_users(self) -> list[dict[str, Any]]:
         with self._session() as s:
             return [_user_dict(r) for r in s.scalars(select(UserRow).order_by(UserRow.name)).all()]
+
+    # ---------------------------------------------------------------- partages (mode serveur, ADR 0054)
+    def shares(self, kind: str, object_id: str) -> list[dict[str, str]]:
+        stmt = select(ShareRow).where(ShareRow.kind == kind, ShareRow.object_id == object_id)
+        with self._session() as s:
+            return [{"principal": r.principal, "role": r.role} for r in s.scalars(stmt.order_by(ShareRow.principal))]
+
+    def set_shares(self, kind: str, object_id: str, items: list[dict[str, str]]) -> None:
+        with self._session.begin() as s:
+            s.execute(delete(ShareRow).where(ShareRow.kind == kind, ShareRow.object_id == object_id))
+            s.add_all(ShareRow(kind=kind, object_id=object_id, principal=i["principal"], role=i["role"]) for i in items)
+
+    def best_share(self, kind: str, object_id: str, principals: frozenset[str]) -> str | None:
+        stmt = select(ShareRow.role).where(
+            ShareRow.kind == kind, ShareRow.object_id == object_id, ShareRow.principal.in_(sorted(principals))
+        )
+        with self._session() as s:
+            roles = set(s.scalars(stmt))
+        return "write" if "write" in roles else "read" if roles else None
+
+    def shared_ids(self, kind: str, principals: frozenset[str]) -> dict[str, str]:
+        """Objets partagés avec l'un de ces principaux : identifiant -> rôle le plus fort."""
+        stmt = select(ShareRow.object_id, ShareRow.role).where(
+            ShareRow.kind == kind, ShareRow.principal.in_(sorted(principals))
+        )
+        out: dict[str, str] = {}
+        with self._session() as s:
+            for object_id, granted in s.execute(stmt):
+                if out.get(object_id) != "write":
+                    out[object_id] = granted
+        return out

@@ -55,6 +55,7 @@ Mode serveur ([ADR 0052](decisions/0052-mode-serveur-et-authentification.md)) :
 | Requête forgée depuis un autre site | cookie `SameSite=Strict` ; écriture refusée si `Origin` n'est pas l'hôte | `ServerGuard` |
 | Accès aux fichiers du serveur | sans dossiers autorisés (`ETL_READ_ROOTS`, `ETL_WRITE_ROOTS`, [ADR 0016](decisions/0016-dossiers-autorises.md)), aucun fichier | `etl_engine.paths` |
 | Réglages de la machine | réservés aux administrateurs (`ETL_ADMINS`) | `etl_api.deps.require_admin` |
+| Accès aux flux, runs et connexions des autres | propriétaire, partages (`read`, `write`) à un utilisateur, un groupe ou tous ; invisible sans droit (404) ; connexion revérifiée par le worker pour le propriétaire du run | `etl_store.access`, `etl_api.access`, [ADR 0054](decisions/0054-droits-et-partage.md) |
 | Code Python d'un flux (*PythonScript*) | processus isolé par bubblewrap : système en lecture seule, ni données, ni base, ni réseau, ni variables du serveur ; ou refusé (`ETL_USER_CODE=deny`) | `etl_engine.sandbox`, [ADR 0053](decisions/0053-code-python-isole.md) | L'écriture en deux temps sur les partages réseau est active sur le poste
 ([ADR 0019](decisions/0019-partage-reseau-lecture-ecriture.md)).
 

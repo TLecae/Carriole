@@ -22,6 +22,7 @@ from starlette.concurrency import run_in_threadpool
 
 from etl_api import data_service as ds
 from etl_api import raster_service as rs
+from etl_api.access import ReadableRun
 
 router = APIRouter(tags=["inspecteur"])
 
@@ -79,37 +80,37 @@ class LocateIn(BaseModel):
     fid: int
 
 
-@router.get("/data/{run}/{node}/{port}/info")
+@router.get("/data/{run}/{node}/{port}/info", dependencies=[ReadableRun])
 def info(port: PortDep) -> dict[str, Any]:
     return ds.info(port)
 
 
-@router.post("/data/{run}/{node}/{port}/rows")
+@router.post("/data/{run}/{node}/{port}/rows", dependencies=[ReadableRun])
 def rows(port: PortDep, query: ds.Query) -> dict[str, Any]:
     return ds.rows(port, query)
 
 
-@router.get("/data/{run}/{node}/{port}/stats")
+@router.get("/data/{run}/{node}/{port}/stats", dependencies=[ReadableRun])
 async def column_stats(port: PortDep, column: str, request: Request) -> dict[str, Any]:
     return await _until_gone(request, lambda gone: ds.column_stats(port, column, gone))
 
 
-@router.post("/data/{run}/{node}/{port}/values")
+@router.post("/data/{run}/{node}/{port}/values", dependencies=[ReadableRun])
 def values(port: PortDep, body: ValuesIn) -> list[dict[str, Any]]:
     return ds.values(port, body.column, body.query, min(body.limit, 500))
 
 
-@router.post("/data/{run}/{node}/{port}/classes")
+@router.post("/data/{run}/{node}/{port}/classes", dependencies=[ReadableRun])
 def classes(port: PortDep, body: ClassesIn) -> dict[str, Any]:
     return ds.classes(port, body.column, body.query, body.count)
 
 
-@router.post("/data/{run}/{node}/{port}/locate")
+@router.post("/data/{run}/{node}/{port}/locate", dependencies=[ReadableRun])
 def locate(port: PortDep, body: LocateIn) -> dict[str, int | None]:
     return {"index": ds.locate(port, body.query, body.fid)}
 
 
-@router.get("/data/{run}/{node}/{port}/feature/{fid}")
+@router.get("/data/{run}/{node}/{port}/feature/{fid}", dependencies=[ReadableRun])
 def feature(port: PortDep, fid: int, zoom: float | None = None, bbox: str | None = None) -> dict[str, Any]:
     """`zoom` et `bbox` (ouest,sud,est,nord en WGS84) : la vue de la carte, pour la sélection d'une entité énorme."""
     view = None
@@ -122,12 +123,12 @@ def feature(port: PortDep, fid: int, zoom: float | None = None, bbox: str | None
     return ds.feature(port, fid, view)
 
 
-@router.get("/data/{run}/{node}/{port}/raster/{fid}")
+@router.get("/data/{run}/{node}/{port}/raster/{fid}", dependencies=[ReadableRun])
 def raster_info(port: RasterPortDep, fid: int) -> dict[str, Any]:
     return rs.info(port, fid)
 
 
-@router.get("/data/{run}/{node}/{port}/raster/{fid}/pixel")
+@router.get("/data/{run}/{node}/{port}/raster/{fid}/pixel", dependencies=[ReadableRun])
 def raster_pixel(port: RasterPortDep, fid: int, lon: float, lat: float) -> dict[str, Any]:
     return rs.pixel(port, fid, lon, lat)
 
@@ -135,7 +136,7 @@ def raster_pixel(port: RasterPortDep, fid: int, lon: float, lat: float) -> dict[
 _EXPORTS = {"csv": ("csv", ".csv"), "gpkg": ("gpkg", ".gpkg"), "parquet": ("parquet", ".parquet")}
 
 
-@router.post("/data/{run}/{node}/{port}/export")
+@router.post("/data/{run}/{node}/{port}/export", dependencies=[ReadableRun])
 def export(
     port: PortDep, query: ds.Query, request: Request, format: Literal["csv", "gpkg", "parquet"] = "csv"
 ) -> FileResponse:
@@ -178,7 +179,7 @@ def decode_query(q: str | None) -> ds.Query:
 tiles = APIRouter(tags=["tuiles"])
 
 
-@tiles.get("/tiles/{run}/{node}/{port}/{z}/{x}/{y}.pbf")
+@tiles.get("/tiles/{run}/{node}/{port}/{z}/{x}/{y}.pbf", dependencies=[ReadableRun])
 async def tile(
     port: PortDep,
     request: Request,
@@ -198,7 +199,7 @@ async def tile(
     return Response(data, media_type="application/x-protobuf", headers=headers)
 
 
-@tiles.get("/tiles/raster/{run}/{node}/{port}/{fid}/{z}/{x}/{y}.png")
+@tiles.get("/tiles/raster/{run}/{node}/{port}/{fid}/{z}/{x}/{y}.png", dependencies=[ReadableRun])
 def raster_tile(
     port: RasterPortDep,
     fid: int,

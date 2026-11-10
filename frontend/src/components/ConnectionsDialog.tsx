@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { ConnectionInfo, ConnectionInput, ConnectionTest, DbKind } from "../api/types";
+import type { Access, ConnectionInfo, ConnectionInput, ConnectionTest, DbKind } from "../api/types";
 import { DB_KINDS, defaultPort, kindLabel } from "../model/databases";
 import { useConnections } from "../store/connections";
 import { t } from "../i18n";
 import { InfoTip } from "./InfoTip";
+import { ShareDialog } from "./ShareDialog";
+import { serverMode } from "../store/session";
 
 const SSL_MODES = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"];
 const EMPTY: ConnectionInput = { kind: "postgres", host: "", port: 5432, dbname: "", user: "", sslmode: "prefer", options: {}, password: "" };
@@ -21,6 +23,9 @@ export function ConnectionsDialog({ onClose }: { onClose: () => void }) {
   const [hasPassword, setHasPassword] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [access, setAccess] = useState<Access>("owner"); // mode serveur : rôle sur la connexion choisie
+  const [sharing, setSharing] = useState(false);
+  const readOnly = !isNew && access === "read";
 
   useEffect(() => {
     void refresh();
@@ -36,6 +41,7 @@ export function ConnectionsDialog({ onClose }: { onClose: () => void }) {
     setIsNew(false);
     setForm({ kind: c.kind || "postgres", host: c.host, port: c.port, dbname: c.dbname, user: c.user, sslmode: c.sslmode, options: c.options ?? {}, password: null });
     setHasPassword(c.has_password);
+    setAccess(c.access ?? "owner");
     setMessage(null);
   };
   const fresh = () => {
@@ -43,6 +49,7 @@ export function ConnectionsDialog({ onClose }: { onClose: () => void }) {
     setIsNew(true);
     setForm(EMPTY);
     setHasPassword(false);
+    setAccess("owner");
     setMessage(null);
   };
   const set = <K extends keyof ConnectionInput>(key: K, value: ConnectionInput[K]) => setForm((f) => ({ ...f, [key]: value }));
@@ -173,8 +180,14 @@ export function ConnectionsDialog({ onClose }: { onClose: () => void }) {
                 {message.text}
               </p>
             )}
+            {readOnly && (
+              <p className="muted" data-testid="connection-readonly">
+                {t("Connexion partagée en lecture : utilisable dans vos flux, modifiable par son propriétaire.")}
+              </p>
+            )}
             <div className="modal-actions">
-              {!isNew && (
+              {serverMode() && !isNew && access === "owner" && <button onClick={() => setSharing(true)}>{t("Partager…")}</button>}
+              {!isNew && access === "owner" && (
                 <button className="danger" disabled={busy} onClick={() => void remove()}>
                   {t("Supprimer")}
                 </button>
@@ -182,7 +195,7 @@ export function ConnectionsDialog({ onClose }: { onClose: () => void }) {
               <button disabled={busy || isNew} onClick={() => void test()}>
                 {t("Tester")}
               </button>
-              <button className="primary" disabled={busy || !valid} onClick={() => void save()}>
+              <button className="primary" disabled={busy || !valid || readOnly} onClick={() => void save()}>
                 {t("Enregistrer")}
               </button>
             </div>
@@ -191,6 +204,7 @@ export function ConnectionsDialog({ onClose }: { onClose: () => void }) {
         <div className="modal-actions">
           <button onClick={onClose}>{t("Fermer")}</button>
         </div>
+        {sharing && <ShareDialog kind="connection" id={name} title={name} onClose={() => setSharing(false)} />}
       </div>
     </div>
   );

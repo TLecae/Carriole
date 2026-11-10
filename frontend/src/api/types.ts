@@ -119,6 +119,21 @@ export interface FlowSummary {
   path?: string; // flux en fichiers : emplacement du fichier
   description?: string; // absents de la réponse d'un enregistrement (voir FlowRecord)
   node_count?: number;
+  access?: Access; // mode serveur : rôle de l'utilisateur sur ce flux
+}
+
+/** Mode serveur (ADR 0054) : propriétaire, ou partage en modification ou en lecture. */
+export type Access = "owner" | "write" | "read";
+
+export interface Share {
+  principal: string; // user:nom, group:nom ou *
+  role: "read" | "write";
+}
+
+export interface Shares {
+  shares: Share[];
+  owner: string;
+  access: Access;
 }
 
 export interface FlowRecord extends FlowSummary {
@@ -371,6 +386,7 @@ export interface ConnectionInfo {
   has_password: boolean;
   owner: string;
   updated_at: number;
+  access?: Access;
 }
 
 /** Réglages propres à un type de base (aucun type n'en a aujourd'hui). */

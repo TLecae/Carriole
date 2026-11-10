@@ -15,6 +15,7 @@ from typing import Any
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
 
+from etl_store import access
 from etl_store.models import ConnectionRow
 from etl_store.store import NotFound, Store
 
@@ -34,6 +35,16 @@ def _loads(text: str | None) -> dict[str, Any]:
     except ValueError:
         return {}
     return value if isinstance(value, dict) else {}
+
+
+class _RunUser:
+    """Mode serveur : le propriétaire du run en cours dans ce worker (un run à la fois par worker). Le fournisseur
+    de connexions refuse celles qui ne sont pas partagées avec lui (ADR 0054). `None` : pas de vérification."""
+
+    who: access.Who | None = None
+
+
+RUN_USER = _RunUser()
 
 
 class InvalidConnection(ValueError):
@@ -113,6 +124,12 @@ class ConnectionStore:
             if row is None:
                 raise NotFound(name)
             s.delete(row)
+        self.store.set_shares("connection", name, [])
+
+    def owner(self, name: str) -> str | None:
+        with self.store.session() as s:
+            row = s.get(ConnectionRow, name)
+            return None if row is None else row.owner
 
     def _password(self, row: ConnectionRow) -> str:
         if not row.secret_enc:
@@ -135,6 +152,10 @@ class ConnectionStore:
                 row = s.get(ConnectionRow, name)
                 if row is None:
                     return None
+                if RUN_USER.who is not None and not access.allows(
+                    access.role(self.store, RUN_USER.who, "connection", row.name, row.owner), "read"
+                ):
+                    raise ConfigError(f"connexion « {row.name} » : non partagée avec {RUN_USER.who.name}")
                 try:
                     password = self._password(row)
                 except InvalidConnection as exc:

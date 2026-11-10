@@ -42,6 +42,8 @@ import type {
   ModifierInfo,
   AuthInfo,
   Me,
+  Share,
+  Shares,
 } from "./types";
 import { language, t } from "../i18n";
 import { reportOffline, reportOnline } from "./connection";
@@ -134,6 +136,12 @@ export const api = {
   me: () => call<Me>("/auth/me"),
   login: (username: string, password: string) => call<Me>("/auth/login", { method: "POST", ...json({ username, password }) }),
   logout: () => call<void>("/auth/logout", { method: "POST" }),
+  users: () => call<{ users: { name: string; display: string }[]; groups: string[] }>("/users"),
+  flowShares: (id: string) => call<Shares>(`/flows/${id}/shares`),
+  setFlowShares: (id: string, shares: Share[]) => call<{ shares: Share[] }>(`/flows/${id}/shares`, { method: "PUT", ...json({ shares }) }),
+  connectionShares: (name: string) => call<Shares>(`/connections/${encodeURIComponent(name)}/shares`),
+  setConnectionShares: (name: string, shares: Share[]) =>
+    call<{ shares: Share[] }>(`/connections/${encodeURIComponent(name)}/shares`, { method: "PUT", ...json({ shares }) }),
   authCheck: () => call<{ ok: boolean; message: string }>("/auth/check", { method: "POST" }),
   modifiers: () => call<{ modifiers: ModifierInfo[]; errors: Record<string, string> }>("/modifiers"),
   flows: () => call<FlowSummary[]>("/flows"),
