@@ -119,6 +119,17 @@ def default_threads() -> int:
     return max(1, round(machine_cores() * CPU_SHARE))
 
 
+def user_quota() -> tuple[int | None, int | None]:
+    """Mode serveur : mémoire (Mo) et cœurs qu'un utilisateur peut occuper avec tous ses runs (`ETL_USER_MEMORY_MB`,
+    `ETL_USER_CPU_BUDGET`, *Paramètres → Calcul*) ; `None` : pas de limite propre, la part de la machine suffit."""
+
+    def read(name: str) -> int | None:
+        value = os.environ.get(name, "").strip()
+        return int(value) if value.isdigit() and int(value) > 0 else None
+
+    return read("ETL_USER_MEMORY_MB"), read("ETL_USER_CPU_BUDGET")
+
+
 def machine_threads() -> int:
     """Cœurs que les runs peuvent utiliser : `ETL_CPU_BUDGET` (*Paramètres → Calcul*), sinon `default_threads`. Tout
     calcul parallèle en découle : part de chaque run, threads de DuckDB, lots et nœuds en parallèle, fenêtres raster,

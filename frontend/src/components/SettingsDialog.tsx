@@ -264,6 +264,9 @@ function Compute({ data, save }: { data: AppSettings; save: (p: Patch) => Promis
   const [memory, setMemory] = useState(String(data.values.memory_budget_mb ?? ""));
   const [cores, setCores] = useState(String(data.values.cpu_budget ?? ""));
   const [cache, setCache] = useState(data.values.cache_dir);
+  const [perUser, setPerUser] = useState(String(data.values.max_running_per_user ?? ""));
+  const [userMemory, setUserMemory] = useState(String(data.values.user_memory_mb ?? ""));
+  const [userCores, setUserCores] = useState(String(data.values.user_cpu_budget ?? ""));
   const number = (text: string) => (text.trim() === "" ? null : Number(text));
   const m = data.machine;
   const pct = (share: number) => Math.round(share * 100);
@@ -324,6 +327,44 @@ function Compute({ data, save }: { data: AppSettings; save: (p: Patch) => Promis
           onBlur={() => void save({ cpu_budget: number(cores) })}
         />
       </Field>
+      {data.server && (
+        <>
+          <Field label={t("Runs simultanés par utilisateur")} hint={t("Au-delà, ses runs attendent leur tour ; la file fait passer d'abord ceux qui ont le moins de runs en cours. Vide : 2 ; 0 : pas de limite.")}>
+            <input
+              type="number"
+              min={0}
+              max={64}
+              value={perUser}
+              placeholder="2"
+              aria-label={t("Runs simultanés par utilisateur")}
+              onChange={(e) => setPerUser(e.target.value)}
+              onBlur={() => void save({ max_running_per_user: number(perUser) })}
+            />
+          </Field>
+          <Field label={t("Mémoire par utilisateur (Mo)")} hint={t("Mémoire que tous les runs d'un utilisateur se partagent, en plus de la part de la machine. Vide : pas de limite propre.")}>
+            <input
+              type="number"
+              min={0}
+              step={256}
+              value={userMemory}
+              aria-label={t("Mémoire par utilisateur (Mo)")}
+              onChange={(e) => setUserMemory(e.target.value)}
+              onBlur={() => void save({ user_memory_mb: number(userMemory) })}
+            />
+          </Field>
+          <Field label={t("Cœurs par utilisateur")} hint={t("Cœurs que tous les runs d'un utilisateur se partagent, en plus de la part de la machine. Vide : pas de limite propre.")}>
+            <input
+              type="number"
+              min={0}
+              max={m.cores}
+              value={userCores}
+              aria-label={t("Cœurs par utilisateur")}
+              onChange={(e) => setUserCores(e.target.value)}
+              onBlur={() => void save({ user_cpu_budget: number(userCores) })}
+            />
+          </Field>
+        </>
+      )}
       <div className="field" data-testid="compute-share">
         <small className="muted">
           {t("Répartition : {{cores}} cœur(s) pour le moteur sur {{total}}. Avec {{runs}} run(s) en même temps, chacun en reçoit {{perRun}} ; dans un run, deux nœuds lourds (tri, jointure, fusion, superposition) au plus tournent ensemble et se partagent ces cœurs, un nœud seul les a tous.", {

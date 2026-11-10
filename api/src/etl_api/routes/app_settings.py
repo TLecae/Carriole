@@ -19,7 +19,18 @@ from etl_api.deps import Admin, current_identity
 router = APIRouter(tags=["réglages"])
 
 DEFAULT_WORKERS = 3
-RESTART_KEYS = frozenset({"workers", "memory_budget_mb", "cpu_budget", "proxy", "cache_dir"})  # lus au démarrage
+RESTART_KEYS = frozenset(
+    {
+        "workers",
+        "memory_budget_mb",
+        "cpu_budget",
+        "proxy",
+        "cache_dir",
+        "max_running_per_user",
+        "user_memory_mb",
+        "user_cpu_budget",
+    }
+)  # lus au démarrage
 _TILE_HOST = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d{1,5})?$")
 _VARIABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -38,6 +49,10 @@ class SettingsIn(BaseModel):
     tile_hosts: list[str] | None = None
     variables: dict[str, str] | None = None
     keep_running: bool | None = None  # poste de bureau : fermer la fenêtre laisse Carriole en arrière-plan
+    # mode serveur (ADR 0055) : runs simultanés, mémoire et cœurs d'un utilisateur ; 0 ou vide : pas de limite propre
+    max_running_per_user: int | None = Field(None, ge=0, le=64)
+    user_memory_mb: int | None = Field(None, ge=0, le=4_194_304)
+    user_cpu_budget: int | None = Field(None, ge=0, le=4096)
 
     @field_validator("proxy")
     @classmethod
@@ -110,6 +125,9 @@ def _state() -> dict[str, Any]:
             "tile_hosts": [str(h) for h in settings.get("tile_hosts", []) or []],
             "variables": {str(k): str(v) for k, v in (settings.get("variables", {}) or {}).items()},
             "keep_running": settings.get("keep_running"),
+            "max_running_per_user": settings.get("max_running_per_user"),
+            "user_memory_mb": settings.get("user_memory_mb"),
+            "user_cpu_budget": settings.get("user_cpu_budget"),
         },
         "defaults": {"workers": DEFAULT_WORKERS, "cpu_budget": duck.default_threads()},
         # le poste, pour l'aide du panneau : ce que donnent les valeurs par défaut, comment le budget se partage

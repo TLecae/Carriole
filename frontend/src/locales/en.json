@@ -822,5 +822,11 @@
  "Partager avec": "Share with",
  "Groupe": "Group",
  "Donner à d'autres utilisateurs le droit de lire ou de modifier ce flux": "Give other users the right to read or edit this flow",
- "Partagé en lecture par {{owner}} : Ctrl+S enregistre une copie à votre nom.": "Shared read-only by {{owner}}: Ctrl+S saves a copy under your name."
+ "Partagé en lecture par {{owner}} : Ctrl+S enregistre une copie à votre nom.": "Shared read-only by {{owner}}: Ctrl+S saves a copy under your name.",
+ "Runs simultanés par utilisateur": "Simultaneous runs per user",
+ "Au-delà, ses runs attendent leur tour ; la file fait passer d'abord ceux qui ont le moins de runs en cours. Vide : 2 ; 0 : pas de limite.": "Beyond this, their runs wait their turn; the queue lets through first those with the fewest runs in progress. Empty: 2; 0: no limit.",
+ "Mémoire par utilisateur (Mo)": "Memory per user (MB)",
+ "Mémoire que tous les runs d'un utilisateur se partagent, en plus de la part de la machine. Vide : pas de limite propre.": "Memory shared by all the runs of a user, on top of the machine's share. Empty: no limit of its own.",
+ "Cœurs par utilisateur": "Cores per user",
+ "Cœurs que tous les runs d'un utilisateur se partagent, en plus de la part de la machine. Vide : pas de limite propre.": "Cores shared by all the runs of a user, on top of the machine's share. Empty: no limit of its own."
 }

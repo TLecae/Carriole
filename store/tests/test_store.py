@@ -57,11 +57,18 @@ def test_concurrency_limits_global_and_per_user(store):
     a = [store.create_run(FLOW, None, {}, {}, "alice")["id"] for _ in range(3)]
     b = store.create_run(FLOW, None, {}, {}, "bob")["id"]
     first = store.claim_next_run("w", max_running=3, max_per_user=2)
-    second = store.claim_next_run("w", max_running=3, max_per_user=2)
-    assert {first["id"], second["id"]} == {a[0], a[1]}
-    third = store.claim_next_run("w", max_running=3, max_per_user=2)  # alice a atteint sa limite : bob passe
-    assert third["id"] == b
+    second = store.claim_next_run("w", max_running=3, max_per_user=2)  # file équitable : bob n'a rien en cours
+    third = store.claim_next_run("w", max_running=3, max_per_user=2)
+    assert [first["id"], second["id"], third["id"]] == [a[0], b, a[1]]
     assert store.claim_next_run("w", max_running=3, max_per_user=2) is None  # limite globale atteinte
+
+
+def test_fair_queue_lets_others_pass_a_long_batch(store):
+    batch = [store.create_run(FLOW, None, {}, {}, "alice")["id"] for _ in range(5)]
+    late = store.create_run(FLOW, None, {}, {}, "bob")["id"]
+    assert store.claim_next_run("w")["id"] == batch[0]
+    assert store.claim_next_run("w")["id"] == late  # alice a déjà un run en cours, bob aucun
+    assert store.claim_next_run("w")["id"] == batch[1]
 
 
 def test_cancel_queued_and_running(store):

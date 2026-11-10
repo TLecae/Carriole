@@ -431,9 +431,11 @@ class Store:
             return int(s.scalar(stmt) or 0)
 
     def claim_next_run(self, worker: str, max_running: int = 0, max_per_user: int = 0) -> dict[str, Any] | None:
-        """Réserve atomiquement le plus ancien run en attente, dans le respect des limites de concurrence.
+        """Réserve atomiquement un run en attente, dans le respect des limites de concurrence.
 
-        Un run dont le propriétaire a atteint sa limite est sauté : il garde sa place et un autre passe.
+        File équitable : passe d'abord le run du propriétaire qui a le moins de runs en cours, puis le plus ancien (un
+        utilisateur qui lance cinquante runs ne bloque pas les autres). Un run dont le propriétaire a atteint sa
+        limite est sauté : il garde sa place et un autre passe.
         """
         with self._session.begin() as s:
             if (
@@ -442,16 +444,13 @@ class Store:
                 >= max_running
             ):
                 return None
-            busy: dict[str, int] = {}
-            if max_per_user:
-                busy = dict(
-                    s.execute(
-                        select(RunRow.owner, func.count()).where(RunRow.status == "running").group_by(RunRow.owner)
-                    ).all()
-                )
-            for candidate in s.scalars(
-                select(RunRow).where(RunRow.status == "queued").order_by(RunRow.created_at).limit(50)
-            ):
+            busy: dict[str, int] = dict(
+                s.execute(
+                    select(RunRow.owner, func.count()).where(RunRow.status == "running").group_by(RunRow.owner)
+                ).all()
+            )
+            queued = s.scalars(select(RunRow).where(RunRow.status == "queued").order_by(RunRow.created_at).limit(200))
+            for candidate in sorted(queued, key=lambda r: (busy.get(r.owner, 0), r.created_at)):
                 if max_per_user and busy.get(candidate.owner, 0) >= max_per_user:
                     continue
                 now = time.time()

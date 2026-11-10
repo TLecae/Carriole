@@ -58,6 +58,9 @@ test("réglages : un utilisateur les consulte, un administrateur les modifie et 
   await page.getByRole("tab", { name: "Calcul" }).click();
   await expect(page.getByTestId("settings-readonly")).toHaveCount(0);
   await expect(page.locator("fieldset.settings-fieldset input").first()).toBeEnabled();
+  await page.getByLabel("Runs simultanés par utilisateur").fill("3");
+  await page.getByLabel("Mémoire par utilisateur (Mo)").focus(); // la sortie du champ enregistre
+  await expect(page.getByText("Ce réglage s'applique au prochain démarrage de l'application.")).toBeVisible();
   await page.getByRole("tab", { name: "Serveur" }).click();
   await expect(page.getByTestId("server-settings")).toContainText("group:carriole-admins");
 });

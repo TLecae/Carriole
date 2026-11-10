@@ -268,3 +268,30 @@ def test_each_run_gets_its_share_of_the_machine(env, monkeypatch):
     assert execute_run(store, registry, third, settings, threading.Event()) == "done"
     assert seen[-1] == (3000, 6)
     assert second is not None
+
+
+def test_run_budget_is_bounded_by_the_owners_quota(tmp_path, monkeypatch):
+    from etl_store import Store
+    from etl_worker.runner import run_budget
+
+    store = Store(f"sqlite:///{(tmp_path / 'q.db').as_posix()}")
+    flow = {"name": "f", "nodes": [], "links": []}
+    for owner in ("alice", "alice", "bob"):
+        store.create_run(flow, None, {}, {}, owner)
+    for _ in range(3):
+        store.claim_next_run("w")
+    monkeypatch.setenv("ETL_MEMORY_BUDGET_MB", "30000")
+    monkeypatch.setenv("ETL_CPU_BUDGET", "24")
+    monkeypatch.delenv("ETL_USER_MEMORY_MB", raising=False)
+    monkeypatch.delenv("ETL_USER_CPU_BUDGET", raising=False)
+    monkeypatch.setenv("ETL_MODE", "server")
+    from etl_engine import duck
+
+    share = max(1, duck.machine_threads() // 3)  # cœurs plafonnés par ceux du poste
+    assert run_budget(store, "alice") == (10000, share)  # sa part de la machine : 3 runs en cours
+    monkeypatch.setenv("ETL_USER_MEMORY_MB", "8000")
+    monkeypatch.setenv("ETL_USER_CPU_BUDGET", "2")
+    assert run_budget(store, "alice") == (4000, 1)  # quota d'alice partagé entre ses 2 runs
+    assert run_budget(store, "bob") == (8000, min(share, 2))
+    monkeypatch.setenv("ETL_MODE", "desktop")
+    assert run_budget(store, "alice") == (10000, share)  # poste de bureau : pas de quota

@@ -74,6 +74,17 @@ composants, variables globales, fournisseurs de l'assistant), installent un modi
 arrêtent le serveur. Les autres utilisateurs consultent ces réglages. Chacun garde sa langue d'interface.
 L'onglet *Paramètres → Serveur* montre comment le serveur est réglé et teste l'annuaire LDAP.
 
+## Partage de la machine
+
+Les runs attendent leur tour dans une file équitable : passe d'abord celui de l'utilisateur qui a le moins de runs en
+cours ([ADR 0055](decisions/0055-file-equitable-et-quotas.md)). Réglages dans *Paramètres → Calcul* (administrateurs) :
+
+| Variable | Rôle | Défaut |
+| --- | --- | --- |
+| `ETL_MAX_RUNNING_PER_USER` | runs simultanés d'un utilisateur (0 : pas de limite) | 2 |
+| `ETL_USER_MEMORY_MB` | mémoire que tous les runs d'un utilisateur se partagent | pas de limite propre |
+| `ETL_USER_CPU_BUDGET` | cœurs que tous les runs d'un utilisateur se partagent | pas de limite propre |
+
 ## Partage
 
 Chacun ne voit que ses flux, ses connexions et ses runs, plus ce qu'on lui partage

@@ -54,6 +54,21 @@ class EventBuffer:
         self.flush()
 
 
+def run_budget(store: Store, owner: str) -> tuple[int, int]:
+    """Mémoire (Mo) et cœurs d'un run : sa part de la machine (partagée avec les runs en cours, lui compris) ; en mode
+    serveur, au plus sa part du quota de son propriétaire (partagé avec ses autres runs, ADR 0055)."""
+    running = max(1, store.count_running())
+    memory_mb, threads = duck.machine_budget_mb() // running, max(1, duck.machine_threads() // running)
+    quota_mb, quota_cores = duck.user_quota()
+    if access.server_mode() and owner and (quota_mb or quota_cores):
+        mine = max(1, store.count_running(owner))
+        if quota_mb:
+            memory_mb = min(memory_mb, quota_mb // mine)
+        if quota_cores:
+            threads = max(1, min(threads, quota_cores // mine))
+    return memory_mb, threads
+
+
 def execute_run(
     store: Store,
     registry: Registry,
@@ -97,8 +112,7 @@ def execute_run(
         # mode serveur : les connexions ne s'ouvrent que si elles sont partagées avec le propriétaire du run
         RUN_USER.who = access.who(store, run.get("owner") or "") if access.server_mode() else None
         reuse = options.get("reuse_from")
-        running = max(1, store.count_running())  # ce run compris : il partage la machine avec les autres
-        memory_mb, threads = duck.machine_budget_mb() // running, max(1, duck.machine_threads() // running)
+        memory_mb, threads = run_budget(store, run.get("owner") or "")
         result = run_flow(
             flow,
             registry,

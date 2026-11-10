@@ -204,6 +204,15 @@ def apply_environment() -> None:
     cores = get("cpu_budget")  # cœurs du moteur (`duck.machine_threads`)
     if isinstance(cores, int) and not isinstance(cores, bool) and cores > 0:
         os.environ.setdefault("ETL_CPU_BUDGET", str(cores))
+    # mode serveur : runs simultanés, mémoire et cœurs d'un utilisateur (ADR 0055)
+    for key, variable in (
+        ("max_running_per_user", "ETL_MAX_RUNNING_PER_USER"),
+        ("user_memory_mb", "ETL_USER_MEMORY_MB"),
+        ("user_cpu_budget", "ETL_USER_CPU_BUDGET"),
+    ):
+        value = get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            os.environ.setdefault(variable, str(value))
     cache = str(get("cache_dir", "") or "").strip()  # résultats des runs et débordement des calculs : un disque local
     if cache:
         os.environ.setdefault("ETL_CACHE_DIR", cache)

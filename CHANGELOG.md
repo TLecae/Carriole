@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Server mode: a fair queue lets through first the run of the user with the fewest runs in progress, so a long
+  batch no longer holds everyone back; optional quotas of memory and cores per user, set in *Settings →
+  Computation* ([ADR 0055](docs/decisions/0055-file-equitable-et-quotas.md)).
 - Server mode: flows, runs and connections are private to their owner until shared, read or write, with a user, a
   group or everyone (*Share…* on the home cards, in the *File* menu and in *Connections*). A flow shared read-only
   opens with a "read-only" tag and *Save* makes a copy. Connections are checked when the run is created and again

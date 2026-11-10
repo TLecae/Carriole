@@ -171,6 +171,9 @@ export interface AppSettingsValues {
   tile_hosts: string[];
   variables: Record<string, string>;
   keep_running: boolean | null; // poste de bureau : en arrière-plan à la fermeture (null : choix de l'installeur)
+  max_running_per_user?: number | null; // mode serveur : runs simultanés d'un utilisateur
+  user_memory_mb?: number | null; // mode serveur : mémoire de tous les runs d'un utilisateur
+  user_cpu_budget?: number | null; // mode serveur : cœurs de tous les runs d'un utilisateur
 }
 
 export interface AppSettings {
