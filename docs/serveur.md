@@ -74,6 +74,19 @@ composants, variables globales, fournisseurs de l'assistant), installent un modi
 arrêtent le serveur. Les autres utilisateurs consultent ces réglages. Chacun garde sa langue d'interface.
 L'onglet *Paramètres → Serveur* montre comment le serveur est réglé et teste l'annuaire LDAP.
 
+## Code Python des flux
+
+*PythonScript* exécute du code écrit dans un flux. Sur un serveur, il tourne par défaut dans un processus isolé par
+bubblewrap ([ADR 0053](decisions/0053-code-python-isole.md)) : il ne voit ni les fichiers, ni la base, ni le réseau.
+
+| Variable | Rôle |
+| --- | --- |
+| `ETL_USER_CODE` | `sandbox` (défaut du serveur) : processus isolé ; `deny` : *PythonScript* refusé ; `allow` : dans le worker, avec les droits du serveur (à réserver à des utilisateurs de confiance) |
+| `ETL_SANDBOX` | `bwrap` (défaut, paquet `bubblewrap`) ; `process` : sans isolation (essais) ; ou la commande d'un autre outil d'isolation |
+
+bubblewrap a besoin des espaces de noms utilisateur (*user namespaces*). Dans un conteneur Docker, le profil seccomp
+par défaut les refuse : lancer le conteneur avec un profil qui les permet, ou garder `ETL_USER_CODE=deny`.
+
 ## Fichiers
 
 En mode serveur, Carriole ne lit et n'écrit que dans les dossiers autorisés ; sans eux, aucun fichier n'est

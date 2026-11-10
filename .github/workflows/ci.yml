@@ -20,6 +20,11 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --frozen
+      - name: Bubblewrap, for the isolated Python code of server mode (ADR 0053)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
       - run: uv run --frozen ruff check .
       - run: uv run --frozen ruff format --check .
       - run: uv run --frozen pytest engine api store worker assistant -q -p no:cacheprovider -m "not slow" --ignore=engine/tests/test_postgres.py

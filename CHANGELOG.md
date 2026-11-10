@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Server mode: the Python code of a flow (*PythonScript*) runs in an isolated process (bubblewrap): read-only system,
+  no data, database, network or server variables; `ETL_USER_CODE` can also deny it. On a computer nothing changes
+  ([ADR 0053](docs/decisions/0053-code-python-isole.md)).
 - Server mode: only administrators change the machine settings (*Settings*, assistant providers), install a
   modifier written by the assistant and stop the server; other users see the settings read-only. Each user keeps
   their own interface language. *Settings → Server* shows how the server is set and tests the LDAP directory.
