@@ -132,3 +132,20 @@ def process(table, ctx):
 def test_protocol_round_trips_tables():
     t = table(n=[1, 2], s=["a", None])
     assert sandbox.from_ipc(sandbox.to_ipc(t)).equals(t)
+
+
+def test_an_unusable_bubblewrap_is_reported_with_its_reason(monkeypatch):
+    class Done:
+        returncode = 1
+        stderr = b"bwrap: No permissions to create new namespace\n"
+
+    sandbox._bwrap_problem.cache_clear()
+    monkeypatch.setattr(sandbox.sys, "platform", "linux")
+    monkeypatch.setattr(sandbox.shutil, "which", lambda _name: "/usr/bin/bwrap")
+    monkeypatch.setattr(sandbox.subprocess, "run", lambda *a, **k: Done())
+    monkeypatch.setenv("ETL_SANDBOX", "bwrap")
+    try:
+        with pytest.raises(ConfigError, match="No permissions to create new namespace"):
+            sandbox.command("python")
+    finally:
+        sandbox._bwrap_problem.cache_clear()

@@ -41,6 +41,8 @@ autre. Carriole est un logiciel distribué : l'authentification doit convenir à
    ne se lisent que dans l'environnement ou un fichier (`ETL_LDAP_BIND_PASSWORD_FILE`).
 
 ## Conséquences
+- Livraison : une image Docker (`Dockerfile` : utilisateur sans droits, volume `/var/lib/carriole`, extensions DuckDB
+  et grilles PROJ incluses) et un exemple `docker/compose.yaml` ; un job de la CI la construit et la vérifie.
 - L'interface affiche une page de connexion tant qu'il n'y a pas de session ; une réponse 401 y ramène.
 - La ligne de commande (`etl run --submit`) reste réservée au backend local.
 - Droits sur les flux et les connexions, exécution isolée du code des utilisateurs, quotas et journal d'activité :

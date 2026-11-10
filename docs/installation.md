@@ -178,9 +178,9 @@ mots de passe. Le poste doit atteindre les serveurs PostgreSQL de l'entreprise (
 
 ## Mode serveur (Linux, cloud)
 
-`etl serve --server` : plusieurs utilisateurs dans leur navigateur, identité exigée (annuaire LDAP, proxy
-d'authentification ou fichier de comptes), fichiers limités aux dossiers autorisés. Voir [Carriole sur un
-serveur](serveur.md).
+Image Docker (`Dockerfile`, exemple `docker/compose.yaml`) ou `etl serve --server` : plusieurs utilisateurs dans
+leur navigateur, identité exigée (annuaire LDAP, proxy d'authentification ou fichier de comptes), fichiers limités
+aux dossiers autorisés. Voir [Carriole sur un serveur](serveur.md).
 
 ## Dépannage
 

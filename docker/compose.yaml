@@ -1,0 +1,76 @@
+# Exemple de déploiement de Carriole en mode serveur (docs/serveur.md) : annuaire LDAP, base PostgreSQL pour les
+# métadonnées, partage de fichiers monté. Adapter les valeurs `exemple`, créer les fichiers de docker/secrets/ (non
+# versionnés), puis :  docker compose -f docker/compose.yaml up -d --build
+# Placer un proxy HTTPS (nginx, Caddy, Traefik…) devant le port 8080 : les mots de passe ne doivent pas circuler en clair.
+
+services:
+  carriole:
+    build: ..
+    image: carriole:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080" # joignable par le proxy HTTPS de la machine seulement
+    environment:
+      # identité : annuaire LDAP (autres choix : proxy, file ; voir docs/serveur.md)
+      ETL_AUTH: ldap
+      ETL_LDAP_URL: ldaps://annuaire.exemple.org:636
+      ETL_LDAP_BIND_DN: cn=service-carriole,ou=Services,dc=exemple,dc=org
+      ETL_LDAP_BIND_PASSWORD_FILE: /run/secrets/ldap_password
+      ETL_LDAP_USER_BASE: ou=People,dc=exemple,dc=org
+      ETL_LDAP_USER_FILTER: (uid={username})
+      ETL_LDAP_DISPLAY_ATTRIBUTES: givenName,sn
+      ETL_LDAP_GROUP_BASE: ou=Groupes,dc=exemple,dc=org
+      ETL_LDAP_REQUIRED_GROUP: cn=carriole,ou=Groupes,dc=exemple,dc=org
+      ETL_ADMINS: group:carriole-admins
+      ETL_TRUSTED_PROXIES: 127.0.0.1,172.16.0.0/12 # le proxy HTTPS (réseau de Docker)
+      # métadonnées dans PostgreSQL (sans ces lignes : SQLite dans le volume carriole)
+      ETL_DB_URL_FILE: /run/secrets/db_url
+      # fichiers : seulement le partage monté ci-dessous
+      ETL_READ_ROOTS: /mnt/donnees
+      ETL_WRITE_ROOTS: /mnt/donnees/sorties
+      ETL_ROOT_LABELS: /mnt/donnees=Données (Z:)
+      # mémoire, cœurs et runs se règlent aussi dans Paramètres → Calcul (administrateurs)
+      ETL_MAX_RUNNING_PER_USER: "2"
+    volumes:
+      - carriole:/var/lib/carriole # réglages, cache des runs, journaux
+      - donnees:/mnt/donnees
+    secrets:
+      - ldap_password
+      - db_url
+    # Code Python des flux (PythonScript) : isolé par bubblewrap, qui a besoin des espaces de noms utilisateur.
+    # Le profil seccomp par défaut de Docker les refuse : soit autoriser `unshare` et `clone` avec un profil seccomp
+    # adapté (security_opt: ["seccomp=chemin/profil.json"]), soit désactiver PythonScript :
+    # ETL_USER_CODE: deny
+    depends_on:
+      - db
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carriole
+      POSTGRES_DB: carriole
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - db:/var/lib/postgresql/data
+    secrets:
+      - db_password
+
+volumes:
+  carriole:
+  db:
+  # partage de fichiers de l'organisation (SMB/CIFS) ; uid 10001 : l'utilisateur de Carriole dans l'image
+  donnees:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: //serveur/partage
+      o: "addr=serveur,credentials=/etc/carriole/partage.credentials,uid=10001,gid=10001,file_mode=0660,dir_mode=0770"
+
+secrets:
+  ldap_password:
+    file: ./secrets/ldap_password # mot de passe du compte de service LDAP
+  db_password:
+    file: ./secrets/db_password # mot de passe de la base (le même que dans db_url)
+  db_url:
+    file: ./secrets/db_url # postgresql+psycopg://carriole:<mot de passe>@db/carriole

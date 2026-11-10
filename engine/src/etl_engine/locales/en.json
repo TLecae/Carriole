@@ -1961,6 +1961,7 @@
   "piloter ce run demande de pouvoir modifier son flux": "controlling this run requires the right to edit its flow",
   "rôle inconnu : {level} (read ou write)": "unknown role: {level} (read or write)",
   "seul le propriétaire de la connexion peut la supprimer ou la partager": "only the owner of the connection can delete or share it",
-  "seul le propriétaire du flux peut le supprimer ou le partager": "only the owner of the flow can delete or share it"
+  "seul le propriétaire du flux peut le supprimer ou le partager": "only the owner of the flow can delete or share it",
+  "bac à sable bubblewrap inutilisable sur ce serveur ({problem}) : il lui faut les espaces de noms utilisateur (voir le guide du serveur), ou régler ETL_USER_CODE": "bubblewrap sandbox unusable on this server ({problem}): it needs user namespaces (see the server guide), or set ETL_USER_CODE"
  }
 }

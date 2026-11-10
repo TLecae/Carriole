@@ -46,9 +46,11 @@ installer. Sur une machine partagée, `etl serve --server` accueille plusieurs u
 - **Assistant IA** facultatif (Claude, OpenAI, OpenRouter, Ollama) : il lit le flux et propose des modifications que
   l'on applique d'un clic ; ce qu'il peut lire se règle : [ADR 0027](docs/decisions/0027-assistant-ia.md).
 - **Français et anglais**, au choix dans les paramètres ([ADR 0023](docs/decisions/0023-internationalisation.md)).
-- **Poste ou serveur** : en mode serveur, connexion par un annuaire LDAP, un proxy d'authentification ou un
-  fichier de comptes ; fichiers limités aux dossiers autorisés par l'administrateur ; réglages de la machine réservés
-  aux administrateurs ([ADR 0052](docs/decisions/0052-mode-serveur-et-authentification.md)).
+- **Poste ou serveur** : en mode serveur (image Docker, exemple complet dans `docker/compose.yaml`), connexion
+  par un annuaire LDAP, un proxy d'authentification ou un fichier de comptes ; flux et connexions privés tant qu'ils
+  ne sont pas partagés avec un utilisateur ou un groupe ; fichiers limités aux dossiers autorisés ; code Python des
+  flux isolé (bubblewrap) ; file équitable et quotas par utilisateur ; journal d'activité ; métadonnées dans SQLite
+  ou PostgreSQL ([guide du serveur](docs/serveur.md)).
 - **Ligne de commande** `etl`, facultative : exécuter, valider, inspecter un fichier, piloter le serveur local.
 
 ![Inspecteur en pleine page : communes colorées selon la densité de population, table triée par densité, commune sélectionnée sur les deux](site/img/inspecteur-fr.webp)

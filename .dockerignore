@@ -1,0 +1,16 @@
+.git
+.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+.ruff_cache
+desktop/release
+desktop/build/runtime
+e2e
+bench
+data
+site
+frontend/dist
+docker/secrets
+*.log
+.env

@@ -58,6 +58,36 @@ jobs:
       - run: uv sync --frozen
       - run: uv run --frozen pytest store api/tests/test_auth.py api/tests/test_rights.py api/tests/test_audit.py -q -p no:cacheprovider
 
+  docker:
+    # server image (Dockerfile): builds, starts, requires an identity, and isolates the Python code of flows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t carriole:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name carriole -p 8080:8080 -e ETL_AUTH=proxy -e ETL_TRUSTED_PROXIES=0.0.0.0/0 carriole:ci
+          for i in $(seq 60); do curl -fs http://127.0.0.1:8080/api/health && break; sleep 2; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/flows)" = 401
+          curl -fs -H 'X-Forwarded-User: essai' http://127.0.0.1:8080/api/auth/me | grep -q '"name":"essai"'
+          curl -fs http://127.0.0.1:8080/ | grep -qi '<html'
+      - name: Python code of flows in bubblewrap, inside the container
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          cat > check.py <<'PY'
+          from etl_engine.modifiers.python_script import PythonScript
+          from etl_engine.testing import run_modifier, table
+
+          code = "import os\ndef process(table, ctx):\n    return pa.table({'home': [os.path.exists('/var/lib/carriole')]})"
+          out = run_modifier(PythonScript, {"code": code}, table(n=[1]))["output"]
+          assert out.column("home").to_pylist() == [False], out
+          print("PythonScript isolated: ok")
+          PY
+          docker run -i --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
+            -e ETL_MODE=server --entrypoint python carriole:ci - < check.py
+      - if: always()
+        run: docker logs carriole 2>&1 | tail -40 || true
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

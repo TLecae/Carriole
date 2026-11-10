@@ -15,6 +15,7 @@ remontent avec chaque réponse, `ctx.state` vit dans le fils.
 from __future__ import annotations
 
 import contextlib
+import functools
 import json
 import os
 import shlex
@@ -102,6 +103,25 @@ def _bwrap_args() -> list[str]:
     return args
 
 
+@functools.cache
+def _bwrap_problem(exe: str) -> str:
+    """Vide si bubblewrap fonctionne ici ; sinon sa réponse (un conteneur qui refuse les espaces de noms…). Essayé une
+    fois par processus."""
+    try:
+        done = subprocess.run(  # noqa: S603 - commande construite ici, sans shell
+            [exe, *_bwrap_args(), "--", sys.executable, "-I", "-c", "pass"], capture_output=True, timeout=60
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return str(exc)
+    if done.returncode == 0:
+        return ""
+    return (
+        done.stderr.decode(errors="replace").strip().splitlines()[-1:][0]
+        if done.stderr.strip()
+        else f"code {done.returncode}"
+    )
+
+
 def command(python: str) -> list[str]:
     """Commande qui lance le fils ; `ConfigError` si le bac à sable demandé n'existe pas sur cette machine."""
     kind = os.environ.get("ETL_SANDBOX", "bwrap").strip() or "bwrap"
@@ -114,6 +134,12 @@ def command(python: str) -> list[str]:
             raise ConfigError(
                 "aucun bac à sable pour le code Python des flux : installer bubblewrap (bwrap) sur le serveur, "
                 "ou régler ETL_USER_CODE (allow ou deny)"
+            )
+        problem = _bwrap_problem(exe)
+        if problem:
+            raise ConfigError(
+                f"bac à sable bubblewrap inutilisable sur ce serveur ({problem}) : il lui faut les espaces de noms "
+                "utilisateur (voir le guide du serveur), ou régler ETL_USER_CODE"
             )
         return [exe, *_bwrap_args(), "--", *child]
     return [*shlex.split(kind), *child]

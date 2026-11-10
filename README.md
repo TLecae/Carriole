@@ -45,8 +45,9 @@ map.</p>
   one click; what it may read is configurable. [ADR 0027](docs/decisions/0027-assistant-ia.md)
 - **Desktop or server**: on a computer, Carriole runs with the user's own permissions on local drives and network
   shares, with no server to install. On a shared machine, `etl serve --server` serves several users in their
-  browser: sign-in through an LDAP directory, an authentication proxy or a file of accounts; files limited to the
-  folders the administrator allows; machine settings reserved to administrators.
+  browser: sign-in through an LDAP directory, an authentication proxy or a file of accounts; flows and connections
+  private until shared with a user or a group; files limited to the folders the administrator allows; Python code
+  of flows isolated (bubblewrap); fair queue and quotas per user; activity log; metadata in SQLite or PostgreSQL.
   [Server guide](docs/serveur.md) (French)
 - Interface in English and French.
 
@@ -66,8 +67,9 @@ Download from the [latest release](https://github.com/TLecae/Carriole/releases/l
 Everything is bundled (Python, GDAL, DuckDB Spatial, PROJ grids): no Internet access is needed to work.
 More in the [installation guide](docs/installation.md) (French).
 
-On a shared server, Carriole runs from a source install (see [Develop](#develop)) with `etl serve --server`; identity
-provider, allowed folders and administrators are set by `ETL_*` variables, described in the
+On a shared server, Carriole runs as a Docker image (`Dockerfile`; a complete example with LDAP, PostgreSQL and a
+mounted file share in `docker/compose.yaml`) or from a source install with `etl serve --server`. Identity provider,
+allowed folders, administrators and quotas are set by `ETL_*` variables, described in the
 [server guide](docs/serveur.md) (French).
 
 ## Write a modifier

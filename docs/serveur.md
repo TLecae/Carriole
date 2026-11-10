@@ -3,7 +3,29 @@
 Plusieurs personnes utilisent Carriole dans leur navigateur, sur une machine partagée. Choix d'architecture :
 [ADR 0052](decisions/0052-mode-serveur-et-authentification.md).
 
-## Démarrer
+## Installer avec Docker
+
+L'image (fichier `Dockerfile` à la racine du dépôt) contient Carriole, son interface, les extensions de DuckDB, les
+grilles PROJ et bubblewrap. Elle démarre `etl serve --server` sur le port 8080, sous un utilisateur sans droits
+(uid 10001), avec ses données dans le volume `/var/lib/carriole`.
+
+```
+docker build -t carriole .
+docker compose -f docker/compose.yaml up -d
+```
+
+`docker/compose.yaml` est un exemple complet à adapter : annuaire LDAP, base PostgreSQL pour les métadonnées, partage
+de fichiers de l'organisation monté (SMB/CIFS) et déclaré comme dossier autorisé, secrets dans `docker/secrets/` (non
+versionné). Placer un proxy HTTPS devant le port 8080 et déclarer son adresse dans `ETL_TRUSTED_PROXIES`.
+
+Le code Python des flux s'exécute dans bubblewrap, qui a besoin des espaces de noms utilisateur : le profil seccomp par
+défaut de Docker les refuse, et certaines distributions les restreignent (Ubuntu 24.04 :
+`kernel.apparmor_restrict_unprivileged_userns`). Sans eux, *PythonScript* le dit dès l'analyse du flux ;
+`ETL_USER_CODE=deny` le désactive simplement.
+
+## Démarrer sans Docker
+
+Depuis une installation des sources (voir le README) :
 
 ```
 etl serve --server
