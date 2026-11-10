@@ -167,6 +167,29 @@ export interface AppSettings {
   component_dirs_found: Record<string, boolean>;
   paths: { data: string; settings: string; logs: string; plugins: string; cache: string };
   restart_required?: string[];
+  server?: ServerSettings | null; // mode serveur seulement
+}
+
+/** Mode serveur : réglages du serveur (variables `ETL_…`), le détail pour les administrateurs seulement. */
+export interface ServerSettings {
+  provider: "ldap" | "proxy" | "file" | string;
+  admin: boolean;
+  admins?: string[];
+  session_hours?: number;
+  trusted_proxies?: string[];
+  read_roots?: string[];
+  write_roots?: string[];
+  ldap?: {
+    url: string;
+    starttls: boolean;
+    bind_dn: string;
+    bind_password_set: boolean;
+    user_base: string;
+    user_filter: string;
+    group_base: string;
+    group_filter: string;
+    required_group: string;
+  } | null;
 }
 
 export interface Analysis {

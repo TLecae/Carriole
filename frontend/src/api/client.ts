@@ -134,6 +134,7 @@ export const api = {
   me: () => call<Me>("/auth/me"),
   login: (username: string, password: string) => call<Me>("/auth/login", { method: "POST", ...json({ username, password }) }),
   logout: () => call<void>("/auth/logout", { method: "POST" }),
+  authCheck: () => call<{ ok: boolean; message: string }>("/auth/check", { method: "POST" }),
   modifiers: () => call<{ modifiers: ModifierInfo[]; errors: Record<string, string> }>("/modifiers"),
   flows: () => call<FlowSummary[]>("/flows"),
   examples: () => call<ExampleFlow[]>("/examples"),

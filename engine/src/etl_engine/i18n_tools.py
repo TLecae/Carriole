@@ -37,6 +37,7 @@ MESSAGE_CALLS = {
     "AuthError",
     "AuthUnavailable",
     "deny",
+    "outcome",
     "info",
     "warning",
     "error",

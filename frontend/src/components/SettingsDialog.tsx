@@ -12,7 +12,7 @@ import { Modal } from "./Dialogs";
 import { InfoTip } from "./InfoTip";
 import { Loading } from "./Spinner";
 
-type TabId = "general" | "compute" | "network" | "components" | "variables" | "assistant";
+type TabId = "general" | "compute" | "network" | "components" | "variables" | "assistant" | "server";
 type Patch = Partial<{ [K in keyof AppSettingsValues]: AppSettingsValues[K] | null }>;
 
 const TABS: { id: TabId; label: () => string }[] = [
@@ -22,6 +22,7 @@ const TABS: { id: TabId; label: () => string }[] = [
   { id: "components", label: () => t("Composants") },
   { id: "variables", label: () => t("Variables globales") },
   { id: "assistant", label: () => t("Assistant") },
+  { id: "server", label: () => t("Serveur") },
 ];
 
 /** Paramètres de l'application : tout ce qui se règle ici s'applique sans ligne de commande. */
@@ -30,6 +31,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [data, setData] = useState<AppSettings | null>(null);
   const [error, setError] = useState("");
   const [restart, setRestart] = useState(false);
+  const admin = useSession((s) => s.me?.admin ?? true);
+  const tabs = TABS.filter((x) => x.id !== "server" || !!data?.server);
 
   const fail = (err: unknown) => setError(err instanceof Error ? err.message : String(err));
 
@@ -58,7 +61,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     <Modal title={t("Paramètres")} onClose={onClose} className="settings">
       <div className="settings-body">
         <div className="settings-tabs" role="tablist" aria-orientation="vertical">
-          {TABS.map((x) => (
+          {tabs.map((x) => (
             <button
               key={x.id}
               role="tab"
@@ -76,11 +79,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="settings-pane" role="tabpanel">
           {!data && !error && tab !== "assistant" && <Loading text={t("Chargement des paramètres…")} />}
           {tab === "general" && <General data={data} fail={fail} />}
-          {tab === "compute" && data && <Compute data={data} save={save} />}
-          {tab === "network" && data && <Network data={data} save={save} />}
-          {tab === "components" && data && <Components data={data} save={save} />}
-          {tab === "variables" && data && <Variables data={data} save={save} />}
-          {tab === "assistant" && <AssistantTab />}
+          {tab !== "general" && tab !== "server" && !admin && (
+            <p className="settings-note" role="note" data-testid="settings-readonly">
+              {t("Réglages du serveur : seuls les administrateurs de Carriole les modifient.")}
+            </p>
+          )}
+          <fieldset className="settings-fieldset" disabled={!admin && tab !== "general"}>
+            {tab === "compute" && data && <Compute data={data} save={save} />}
+            {tab === "network" && data && <Network data={data} save={save} />}
+            {tab === "components" && data && <Components data={data} save={save} />}
+            {tab === "variables" && data && <Variables data={data} save={save} />}
+            {tab === "assistant" && <AssistantTab />}
+          </fieldset>
+          {tab === "server" && data?.server && <ServerTab server={data.server} />}
         </div>
       </div>
       {restart && (
@@ -476,6 +487,57 @@ function AssistantTab() {
             void loadConfig();
           }}
         />
+      )}
+    </>
+  );
+}
+
+// ------------------------------------------------------------------------------------------------ Serveur
+const PROVIDERS: Record<string, () => string> = {
+  ldap: () => t("annuaire LDAP"),
+  proxy: () => t("proxy d'authentification"),
+  file: () => t("fichier de comptes"),
+};
+
+/** Mode serveur : réglages lus dans les variables `ETL_…` du serveur (voir docs/serveur.md), modifiés par son
+ * administrateur ; ici on les consulte et on teste l'annuaire. */
+function ServerTab({ server }: { server: NonNullable<AppSettings["server"]> }) {
+  const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const rows: [string, string | undefined][] = [
+    [t("Identité"), PROVIDERS[server.provider]?.() ?? server.provider],
+    [t("Administrateurs"), server.admins?.join(", ")],
+    [t("Durée d'une session"), server.session_hours !== undefined ? t("{{hours}} h sans activité", { hours: server.session_hours }) : undefined],
+    [t("Proxys de confiance"), server.trusted_proxies?.join(", ")],
+    [t("Dossiers lisibles"), server.read_roots ? server.read_roots.join(", ") || t("aucun") : undefined],
+    [t("Dossiers où écrire"), server.write_roots ? server.write_roots.join(", ") || t("aucun") : undefined],
+  ];
+  const ldap = server.ldap;
+  if (ldap)
+    rows.push(
+      [t("Annuaire"), `${ldap.url}${ldap.starttls ? " (StartTLS)" : ""}`],
+      [t("Compte de service"), ldap.bind_dn ? `${ldap.bind_dn}${ldap.bind_password_set ? "" : ` (${t("mot de passe manquant")})`}` : t("connexion anonyme")],
+      [t("Comptes"), `${ldap.user_base} · ${ldap.user_filter}`],
+      [t("Groupes"), ldap.group_base ? `${ldap.group_base} · ${ldap.group_filter}` : t("non lus")],
+      [t("Groupe requis"), ldap.required_group || t("aucun")],
+    );
+  return (
+    <>
+      <p className="muted">{t("Réglés par l'administrateur du serveur (variables ETL_…, voir le guide « Carriole sur un serveur »).")}</p>
+      <dl className="server-settings" data-testid="server-settings">
+        {rows
+          .filter(([, value]) => value !== undefined)
+          .map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+      </dl>
+      {server.admin && server.provider === "ldap" && (
+        <p>
+          <button onClick={() => void api.authCheck().then(setCheck, (err: unknown) => setCheck({ ok: false, message: String(err) }))}>{t("Tester l'annuaire")}</button>{" "}
+          {check && <span className={check.ok ? "ok-text" : "error-text"}>{check.message}</span>}
+        </p>
       )}
     </>
   );

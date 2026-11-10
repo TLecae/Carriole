@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Server mode: only administrators change the machine settings (*Settings*, assistant providers), install a
+  modifier written by the assistant and stop the server; other users see the settings read-only. Each user keeps
+  their own interface language. *Settings → Server* shows how the server is set and tests the LDAP directory.
 - Server mode (`etl serve --server`): several users work in their browser on a shared machine. Identity is required,
   from interchangeable providers set by `ETL_AUTH`: an LDAP directory (search filter, groups, required group,
   `ldaps://` or StartTLS), an authentication proxy trusted by address, or a file of accounts with scrypt hashes

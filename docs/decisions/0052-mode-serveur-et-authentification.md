@@ -31,7 +31,9 @@ autre. Carriole est un logiciel distribué : l'authentification doit convenir à
    `/tiles` exige une identité ; l'en-tête `X-ETL-User` du navigateur est ignoré ; une écriture dont l'`Origin` n'est
    pas l'hôte est refusée ; `X-Forwarded-For` / `-Proto` ne sont lus que derrière un proxy de confiance.
 5. **Administrateurs** : `ETL_ADMINS` (noms et `group:…`, par défaut `group:carriole-admins`), recalculé à chaque
-   requête. Sur le poste de bureau, l'utilisateur est administrateur de son poste.
+   requête. Eux seuls modifient les réglages de la machine (*Paramètres*, fournisseurs de l'assistant), installent un
+   plugin et arrêtent le serveur ; les autres les consultent. La langue de l'interface est propre à chaque
+   utilisateur (table `users`). Sur le poste de bureau, l'utilisateur est administrateur de son poste.
 6. **Fichiers** : en mode serveur, sans `ETL_READ_ROOTS` / `ETL_WRITE_ROOTS`, aucun fichier n'est accessible (sur le
    poste : aucune restriction, comme avant). Les partages de l'organisation se montent sur le serveur et se déclarent
    comme dossiers autorisés, avec un libellé (`ETL_ROOT_LABELS`).

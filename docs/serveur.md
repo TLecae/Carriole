@@ -67,6 +67,13 @@ etl users list
 etl users remove dupont
 ```
 
+## Administrateurs
+
+Seuls les administrateurs (`ETL_ADMINS`) modifient les réglages de la machine dans *Paramètres* (calcul, réseau,
+composants, variables globales, fournisseurs de l'assistant), installent un modificateur écrit par l'assistant et
+arrêtent le serveur. Les autres utilisateurs consultent ces réglages. Chacun garde sa langue d'interface.
+L'onglet *Paramètres → Serveur* montre comment le serveur est réglé et teste l'annuaire LDAP.
+
 ## Fichiers
 
 En mode serveur, Carriole ne lit et n'écrit que dans les dossiers autorisés ; sans eux, aucun fichier n'est

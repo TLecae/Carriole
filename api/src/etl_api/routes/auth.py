@@ -5,14 +5,16 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Any
 
+from etl_engine import i18n
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from etl_api.auth import AuthError, AuthService, AuthUnavailable, Identity, server_mode
+from etl_api.auth.providers import LdapProvider
 from etl_api.auth.service import session_token
 from etl_api.auth.sessions import COOKIE
-from etl_api.deps import current_identity
+from etl_api.deps import Admin, current_identity, request_lang
 
 router = APIRouter(tags=["authentification"])
 log = logging.getLogger("etl.auth")
@@ -81,6 +83,19 @@ async def login(body: LoginIn, request: Request, response: Response) -> dict[str
         path="/",
     )
     return service.with_role(identity).as_json()
+
+
+@router.post("/auth/check")
+def check(request: Request, _: Admin) -> dict[str, Any]:
+    """*Paramètres* (administrateur) : l'annuaire LDAP répond-il avec les réglages du serveur ?"""
+    service = _service(request)
+    if not isinstance(service.passwords, LdapProvider):
+        raise HTTPException(400, "le fournisseur d'identité n'est pas un annuaire LDAP")
+    try:
+        result = service.passwords.check()
+    except AuthUnavailable as exc:
+        result = {"ok": False, "message": str(exc)}
+    return {**result, "message": i18n.tr(result["message"], request_lang(request))}
 
 
 @router.post("/auth/logout", status_code=204)

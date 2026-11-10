@@ -9,8 +9,12 @@ from typing import Annotated, Any
 
 import psutil
 from etl_engine import __version__, drives, duck, settings
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+from etl_api.auth import Identity, server_mode
+from etl_api.auth.config import AuthConfig
+from etl_api.deps import Admin, current_identity
 
 router = APIRouter(tags=["réglages"])
 
@@ -126,13 +130,38 @@ def _state() -> dict[str, Any]:
     }
 
 
+def _server(identity: Identity) -> dict[str, Any] | None:
+    """Mode serveur : comment le serveur est réglé (variables `ETL_…` de son administrateur), pour *Paramètres*.
+    Le détail (annuaire, proxys, dossiers) n'est montré qu'aux administrateurs."""
+    if not server_mode():
+        return None
+    config = AuthConfig.load()
+    out: dict[str, Any] = {"provider": config.provider, "admin": identity.admin}
+    if identity.admin:
+        out.update(
+            admins=list(config.admins),
+            session_hours=config.session_hours,
+            trusted_proxies=list(config.trusted_proxies),
+            ldap=config.ldap.public() if config.provider == "ldap" else None,
+            read_roots=[r["label"] for r in _roots("read")],
+            write_roots=[r["label"] for r in _roots("write")],
+        )
+    return out
+
+
+def _roots(mode: str) -> list[dict[str, Any]]:
+    from etl_engine import paths
+
+    return paths.browse_roots(mode)  # type: ignore[arg-type]
+
+
 @router.get("/settings")
-def get_settings() -> dict[str, Any]:
-    return _state()
+def get_settings(identity: Annotated[Identity, Depends(current_identity)]) -> dict[str, Any]:
+    return {**_state(), "server": _server(identity)}
 
 
 @router.patch("/settings")
-def patch_settings(raw: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
+def patch_settings(raw: Annotated[dict[str, Any], Body()], identity: Admin) -> dict[str, Any]:
     try:
         body = SettingsIn.model_validate(raw)
     except ValidationError as exc:  # message court, traduit comme les autres erreurs de l'API
@@ -150,4 +179,8 @@ def patch_settings(raw: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
         elif current.get(key) != value:
             settings.set_value(key, value)
             changed.append(key)
-    return {**_state(), "restart_required": sorted(k for k in changed if k in RESTART_KEYS)}
+    return {
+        **_state(),
+        "server": _server(identity),
+        "restart_required": sorted(k for k in changed if k in RESTART_KEYS),
+    }

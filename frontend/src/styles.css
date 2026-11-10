@@ -692,3 +692,10 @@ button.icon-only { padding: 4px 6px; }
 .login-card label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .login-card button { margin-top: 6px; }
 .user-menu { margin-left: 4px; }
+
+.settings-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; align-content: start; gap: 12px; }
+.settings-note { margin: 0; padding: 6px 10px; border-radius: 6px; background: var(--warn-soft); border: 1px solid var(--warn-line); }
+.server-settings { display: grid; gap: 6px; margin: 0; }
+.server-settings div { display: grid; grid-template-columns: 180px 1fr; gap: 10px; }
+.server-settings dt { color: var(--muted); }
+.server-settings dd { margin: 0; overflow-wrap: anywhere; }

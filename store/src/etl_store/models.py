@@ -157,6 +157,7 @@ class UserRow(Base):
     display: Mapped[str] = mapped_column(String(200), default="")
     groups: Mapped[str] = mapped_column(Text, default="[]")  # JSON
     last_login: Mapped[float] = mapped_column(Float, default=0.0)
+    language: Mapped[str] = mapped_column(String(10), default="")  # langue de l'interface choisie
 
 
 class AssistantKeyRow(Base):

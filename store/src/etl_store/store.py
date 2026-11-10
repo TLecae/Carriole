@@ -185,6 +185,7 @@ def _user_dict(row: UserRow) -> dict[str, Any]:
         "display": row.display,
         "groups": json.loads(row.groups or "[]"),
         "last_login": row.last_login,
+        "language": row.language or "",
     }
 
 
@@ -742,6 +743,14 @@ class Store:
             row.display = display
             row.groups = json.dumps(sorted(groups), ensure_ascii=False)
             row.last_login = time.time()
+
+    def set_user_language(self, name: str, language: str) -> None:
+        with self._session.begin() as s:
+            row = s.get(UserRow, name)
+            if row is None:
+                row = UserRow(name=name)
+                s.add(row)
+            row.language = language
 
     def get_user(self, name: str) -> dict[str, Any] | None:
         with self._session() as s:

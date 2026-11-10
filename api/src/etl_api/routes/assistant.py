@@ -25,7 +25,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from etl_api.assistant_backend import ApiBackend
-from etl_api.deps import current_user, get_registry, get_settings, request_lang
+from etl_api.deps import Admin, current_user, get_registry, get_settings, request_lang
 
 router = APIRouter(tags=["assistant"])
 
@@ -104,7 +104,7 @@ def get_config(chats: Chats) -> dict[str, Any]:
 
 
 @router.put("/assistant/providers/{provider_id}")
-def put_provider(provider_id: str, body: ProviderIn, chats: Chats) -> dict[str, Any]:
+def put_provider(provider_id: str, body: ProviderIn, chats: Chats, _: Admin) -> dict[str, Any]:
     if not ID_RE.match(provider_id):
         raise HTTPException(422, "identifiant de fournisseur invalide : minuscules, chiffres, « - » et « _ »")
     if body.kind not in KINDS:
@@ -135,7 +135,7 @@ def put_provider(provider_id: str, body: ProviderIn, chats: Chats) -> dict[str, 
 
 
 @router.delete("/assistant/providers/{provider_id}", status_code=204)
-def delete_provider(provider_id: str, chats: Chats) -> None:
+def delete_provider(provider_id: str, chats: Chats, _: Admin) -> None:
     providers = _providers()
     if provider_id not in providers:
         raise HTTPException(404, "fournisseur introuvable")
@@ -147,7 +147,7 @@ def delete_provider(provider_id: str, chats: Chats) -> None:
 
 
 @router.put("/assistant/default/{provider_id}")
-def put_default(provider_id: str) -> dict[str, str]:
+def put_default(provider_id: str, _: Admin) -> dict[str, str]:
     if provider_id not in _providers():
         raise HTTPException(404, "fournisseur introuvable")
     settings.set_value("assistant.default", provider_id)
@@ -325,7 +325,7 @@ class ModifierIn(BaseModel):
 
 @router.post("/assistant/modifiers")
 def install_modifier(
-    body: ModifierIn, request: Request, cfg: Annotated[Settings, Depends(get_settings)]
+    body: ModifierIn, request: Request, cfg: Annotated[Settings, Depends(get_settings)], _: Admin
 ) -> dict[str, Any]:
     """Teste le plugin dans un processus isolé, puis l'installe s'il passe. Appelé sur le clic de l'utilisateur."""
     if not NAME_RE.match(body.name):

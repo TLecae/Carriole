@@ -153,13 +153,18 @@ class LdapProvider:
 
         service = self._bind(self.config.bind_dn or None, self.config.bind_password or None)
         if service is None:
-            return {"ok": False, "message": "le compte de service est refusé"}
+            return outcome(False, "le compte de service est refusé")
         try:
             service.search(self.config.user_base, "(objectClass=*)", BASE, attributes=["objectClass"])
             found = len(service.entries) == 1
         finally:
             service.unbind()
-        return {"ok": found, "message": "annuaire joignable" if found else "base des comptes introuvable"}
+        return outcome(True, "annuaire joignable") if found else outcome(False, "base des comptes introuvable")
+
+
+def outcome(ok: bool, message: str) -> dict[str, Any]:
+    """Résultat d'un test des réglages ; le message est traduit par la route."""
+    return {"ok": ok, "message": message}
 
 
 def _first(entry: Any, attribute: str) -> str:

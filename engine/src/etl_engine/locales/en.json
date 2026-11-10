@@ -1946,6 +1946,10 @@
   "annuaire LDAP : le compte de service est refusé (ETL_LDAP_BIND_DN)": "LDAP directory: the service account is refused (ETL_LDAP_BIND_DN)",
   "annuaire LDAP : StartTLS refusé": "LDAP directory: StartTLS refused",
   "origine de la requête refusée": "request origin refused",
-  "hôte non autorisé": "host not allowed"
+  "hôte non autorisé": "host not allowed",
+  "le fournisseur d'identité n'est pas un annuaire LDAP": "the identity provider is not an LDAP directory",
+  "annuaire joignable": "directory reachable",
+  "base des comptes introuvable": "account base not found",
+  "le compte de service est refusé": "the service account is refused"
  }
 }

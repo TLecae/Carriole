@@ -139,3 +139,30 @@ def test_desktop_mode_is_unchanged(tmp_path, monkeypatch):
         me = client.get("/api/auth/me", headers={"X-ETL-User": "dupont"}).json()
         assert (me["name"], me["admin"], me["mode"]) == ("dupont", True, "desktop")
         assert client.post("/api/auth/login", json={"username": "a", "password": "b"}).status_code == 404
+
+
+def test_machine_settings_are_reserved_to_administrators(server_env):
+    with make_client(server_env) as client:
+        login(client, "alice", "motdepasse-a")
+        assert client.get("/api/settings").json()["server"] == {"provider": "file", "admin": False}
+        assert client.patch("/api/settings", json={"workers": 2}).status_code == 403
+        assert client.put("/api/assistant/default/fake").status_code == 403
+        assert client.post("/api/auth/check").status_code == 403
+    with make_client(server_env) as client:
+        login(client, "bob", "motdepasse-b")
+        server = client.get("/api/settings").json()["server"]
+        assert server["admins"] == ["group:carriole-admins"] and server["read_roots"] == []
+        assert client.patch("/api/settings", json={"workers": 2}).status_code == 200
+        assert client.post("/api/auth/check").status_code == 400  # pas un annuaire LDAP
+
+
+def test_each_user_keeps_their_own_language(server_env):
+    from etl_engine import settings as user_settings
+
+    with make_client(server_env) as alice, make_client(server_env) as bob:
+        login(alice, "alice", "motdepasse-a")
+        login(bob, "bob", "motdepasse-b")
+        assert alice.put("/api/preferences/language", json={"language": "en"}).json()["language"] == "en"
+        assert alice.get("/api/preferences").json()["language"] == "en"
+        assert bob.get("/api/preferences").json()["language"] == "fr"
+    assert user_settings.get("language") is None  # la machine n'a pas changé de langue
