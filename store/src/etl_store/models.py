@@ -148,6 +148,20 @@ class ShareRow(Base):
     role: Mapped[str] = mapped_column(String(10))  # read | write
 
 
+class AuditRow(Base):
+    """Journal d'activité (mode serveur, schéma v11, ADR 0056)."""
+
+    __tablename__ = "audit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[float] = mapped_column(Float, index=True)
+    user: Mapped[str] = mapped_column(String(100), index=True)
+    action: Mapped[str] = mapped_column(String(40), index=True)
+    target: Mapped[str] = mapped_column(String(200), default="")
+    detail: Mapped[str] = mapped_column(Text, default="{}")  # JSON
+    ip: Mapped[str] = mapped_column(String(64), default="")
+
+
 class SessionRow(Base):
     """Session ouverte par une connexion (mode serveur, schéma v9). Seule l'empreinte du jeton est gardée."""
 

@@ -74,6 +74,13 @@ composants, variables globales, fournisseurs de l'assistant), installent un modi
 arrêtent le serveur. Les autres utilisateurs consultent ces réglages. Chacun garde sa langue d'interface.
 L'onglet *Paramètres → Serveur* montre comment le serveur est réglé et teste l'annuaire LDAP.
 
+## Journal d'activité
+
+*Outils → Journal d'activité* (administrateurs) : connexions et échecs de connexion, flux créés, enregistrés,
+supprimés ou partagés, connexions aux bases, runs lancés ou arrêtés, planifications, réglages modifiés, avec
+l'utilisateur, la date et l'adresse ([ADR 0056](decisions/0056-journal-d-activite.md)). Ni mot de passe ni contenu de
+flux. Gardé `ETL_AUDIT_DAYS` jours (365 ; 0 : sans limite).
+
 ## Partage de la machine
 
 Les runs attendent leur tour dans une file équitable : passe d'abord celui de l'utilisateur qui a le moins de runs en

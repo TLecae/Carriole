@@ -707,3 +707,12 @@ button.icon-only { padding: 4px 6px; }
 .share-add input { flex: 1; }
 .run-chip.shared { background: var(--panel-2, transparent); border: 1px solid var(--line); }
 .flow-card footer .share { font-size: 12px; }
+
+/* Journal d'activité (mode serveur) */
+.modal.audit-dialog { width: min(1000px, 94vw); }
+.audit-filters { display: flex; gap: 8px; margin-bottom: 8px; }
+.audit-table { max-height: 60vh; overflow: auto; }
+.audit-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.audit-table th, .audit-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.audit-table th { position: sticky; top: 0; background: var(--panel); }
+.audit-table .audit-failed td { color: var(--danger, #b42318); }

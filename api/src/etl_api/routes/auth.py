@@ -115,3 +115,18 @@ def users(request: Request, identity: Annotated[Identity, Depends(current_identi
     people = request.app.state.store.list_users()
     groups = sorted({g for u in people for g in u["groups"]})
     return {"users": [{"name": u["name"], "display": u["display"]} for u in people], "groups": groups}
+
+
+@router.get("/audit")
+def audit_log(
+    request: Request,
+    _: Admin,
+    user: str | None = None,
+    action: str | None = None,
+    before: int | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    """Journal d'activité (administrateurs, mode serveur) : du plus récent au plus ancien, par pages."""
+    if not server_mode():
+        return []
+    return request.app.state.store.list_audit(user or None, action or None, before, min(max(limit, 1), 1000))

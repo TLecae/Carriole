@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from etl_api import audit
 from etl_api.auth import AuthConfig, AuthService, ServerGuard
 from etl_api.cache_hold import Holds, sweep_loop
 from etl_api.data_service import DataError, Duck
@@ -50,10 +51,16 @@ async def _sweep(store, stale_seconds: float) -> None:
 
 
 async def _expire_sessions(store) -> None:
-    """Mode serveur : efface les sessions expirées."""
+    """Mode serveur : efface les sessions expirées et le journal d'activité plus vieux que `ETL_AUDIT_DAYS` (365)."""
+    import os
+    import time
+
+    days = float(os.environ.get("ETL_AUDIT_DAYS", "365") or 365)
     while True:
         with contextlib.suppress(Exception):
             await asyncio.to_thread(store.purge_sessions)
+            if days > 0:
+                await asyncio.to_thread(store.purge_audit, time.time() - days * 86400)
         await asyncio.sleep(600)
 
 
@@ -163,6 +170,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if web:  # monté en dernier : les routes /api et /tiles passent avant
         app.mount("/", Frontend(directory=web, html=True), name="frontend")
     if settings.mode == "server":  # identité exigée : session (LDAP, fichier) ou proxy de confiance (ADR 0052)
+        app.add_middleware(audit.AuditMiddleware)  # sous le garde : l'identité est connue (ADR 0056)
         app.add_middleware(ServerGuard, hosts=settings.allowed_hosts)
     else:
         app.add_middleware(LocalGuard, token=settings.api_token, hosts=settings.allowed_hosts)

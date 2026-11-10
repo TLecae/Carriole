@@ -44,6 +44,7 @@ import type {
   Me,
   Share,
   Shares,
+  AuditEntry,
 } from "./types";
 import { language, t } from "../i18n";
 import { reportOffline, reportOnline } from "./connection";
@@ -142,6 +143,8 @@ export const api = {
   connectionShares: (name: string) => call<Shares>(`/connections/${encodeURIComponent(name)}/shares`),
   setConnectionShares: (name: string, shares: Share[]) =>
     call<{ shares: Share[] }>(`/connections/${encodeURIComponent(name)}/shares`, { method: "PUT", ...json({ shares }) }),
+  audit: (q: { user?: string; action?: string; before?: number }) =>
+    call<AuditEntry[]>(`/audit?${new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]))}`),
   authCheck: () => call<{ ok: boolean; message: string }>("/auth/check", { method: "POST" }),
   modifiers: () => call<{ modifiers: ModifierInfo[]; errors: Record<string, string> }>("/modifiers"),
   flows: () => call<FlowSummary[]>("/flows"),

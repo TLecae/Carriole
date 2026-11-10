@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Server mode: activity log for administrators (*Tools → Activity log*): sign-ins and refused sign-ins, writes on
+  flows, connections, runs, schedules and settings, with user, date and address, never a password or flow content;
+  kept `ETL_AUDIT_DAYS` days ([ADR 0056](docs/decisions/0056-journal-d-activite.md)). Metadata database schema v11
+  (`audit`).
 - Server mode: a fair queue lets through first the run of the user with the fewest runs in progress, so a long
   batch no longer holds everyone back; optional quotas of memory and cores per user, set in *Settings →
   Computation* ([ADR 0055](docs/decisions/0055-file-equitable-et-quotas.md)).

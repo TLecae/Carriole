@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useAssistant } from "../store/assistant";
 import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
+import { AuditDialog } from "./AuditDialog";
 import { Menu, MenuItem } from "./Menu";
 
 /** Barre du haut commune à l'accueil et à l'éditeur : menus, zone d'actions, outils de l'application. Le nom de
@@ -26,11 +28,17 @@ export function HomeButton({ onClick }: { onClick: () => void }) {
 /** Menu « Outils » : ce qui se règle rarement (planifications, connexions aux bases). */
 export function ToolsMenu() {
   const ui = useUi.getState();
+  const auditable = useSession((s) => s.me?.mode === "server" && s.me.admin);
+  const [audit, setAudit] = useState(false);
   return (
-    <Menu label={t("Outils")}>
-      <MenuItem onSelect={() => ui.setSchedulesOpen(true)}>{t("Planification")}</MenuItem>
-      <MenuItem onSelect={() => ui.setConnectionsOpen(true)}>{t("Connexions")}</MenuItem>
-    </Menu>
+    <>
+      <Menu label={t("Outils")}>
+        <MenuItem onSelect={() => ui.setSchedulesOpen(true)}>{t("Planification")}</MenuItem>
+        <MenuItem onSelect={() => ui.setConnectionsOpen(true)}>{t("Connexions")}</MenuItem>
+        {auditable && <MenuItem onSelect={() => setAudit(true)}>{t("Journal d'activité")}</MenuItem>}
+      </Menu>
+      {audit && <AuditDialog onClose={() => setAudit(false)} />}
+    </>
   );
 }
 

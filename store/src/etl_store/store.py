@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from etl_store.models import (
+    AuditRow,
     Base,
     ComponentVersionRow,
     EventRow,
@@ -28,7 +29,7 @@ from etl_store.models import (
 )
 from etl_store.workers import alive_here
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 FINAL_STATUSES = ("done", "error", "cancelled", "interrupted")
 
 
@@ -77,6 +78,7 @@ MIGRATIONS = {
     8: _migrate_to_8,
     9: lambda _engine: None,
     10: lambda _engine: None,
+    11: lambda _engine: None,  # `audit`
 }  # v3 `connections`, v5 `schedules`, v6 `component_versions`, v9 `sessions` `users`, v10 `shares` (create_all)
 
 
@@ -802,3 +804,50 @@ class Store:
                 if out.get(object_id) != "write":
                     out[object_id] = granted
         return out
+
+    # ---------------------------------------------------------------- journal d'activité (mode serveur, ADR 0056)
+    def add_audit(self, user: str, action: str, target: str, detail: dict[str, Any], ip: str) -> None:
+        with self._session.begin() as s:
+            s.add(
+                AuditRow(
+                    ts=time.time(),
+                    user=user[:100],
+                    action=action[:40],
+                    target=target[:200],
+                    detail=json.dumps(detail, ensure_ascii=False, default=str),
+                    ip=(ip or "")[:64],
+                )
+            )
+
+    def list_audit(
+        self,
+        user: str | None = None,
+        action: str | None = None,
+        before: int | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Du plus récent au plus ancien ; `before` : identifiant de la dernière ligne déjà lue (page suivante)."""
+        stmt = select(AuditRow).order_by(AuditRow.id.desc()).limit(limit)
+        if user:
+            stmt = stmt.where(AuditRow.user == user)
+        if action:
+            stmt = stmt.where(AuditRow.action.startswith(action))
+        if before:
+            stmt = stmt.where(AuditRow.id < before)
+        with self._session() as s:
+            return [
+                {
+                    "id": r.id,
+                    "ts": r.ts,
+                    "user": r.user,
+                    "action": r.action,
+                    "target": r.target,
+                    "detail": json.loads(r.detail or "{}"),
+                    "ip": r.ip,
+                }
+                for r in s.scalars(stmt)
+            ]
+
+    def purge_audit(self, older_than: float) -> int:
+        with self._session.begin() as s:
+            return s.execute(delete(AuditRow).where(AuditRow.ts < older_than)).rowcount

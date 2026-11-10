@@ -31,6 +31,12 @@ test("API : sans session, rien ; un en-tête d'identité posé par le client n'o
   expect((await request.get("/api/flows")).status()).toBe(200);
 });
 
+async function signOut(page: import("@playwright/test").Page, display: string) {
+  await page.getByRole("button", { name: display }).click();
+  await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
+  await expect(page.getByTestId("login-form")).toBeVisible(); // la page s'est rechargée
+}
+
 async function signIn(page: import("@playwright/test").Page, name: string, password: string) {
   await page.goto("/");
   await page.getByLabel("Identifiant").fill(name);
@@ -50,8 +56,7 @@ test("réglages : un utilisateur les consulte, un administrateur les modifie et 
   await expect(page.getByTestId("server-settings")).toContainText("fichier de comptes");
   await expect(page.getByTestId("server-settings")).not.toContainText("Administrateurs");
   await page.getByRole("button", { name: "Fermer" }).click();
-  await page.getByRole("button", { name: "Alice Martin" }).click();
-  await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
+  await signOut(page, "Alice Martin");
 
   await signIn(page, "admin", "admin-e2e-mdp");
   await page.getByRole("button", { name: "Paramètres" }).click();
@@ -77,8 +82,7 @@ test("partage : un flux partagé en lecture s'ouvre sans être modifié, Ctrl+S 
   await page.getByRole("button", { name: "Ajouter" }).click();
   await expect(page.getByTestId("share-list")).toContainText("Groupe equipe");
   await page.getByRole("button", { name: "Enregistrer" }).click();
-  await page.getByRole("button", { name: "Alice Martin" }).click();
-  await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
+  await signOut(page, "Alice Martin");
 
   await signIn(page, "carol", "carol-e2e-mdp");
   const card = page.getByTestId("flow-card").filter({ hasText: name });
@@ -89,4 +93,21 @@ test("partage : un flux partagé en lecture s'ouvre sans être modifié, Ctrl+S 
   await page.keyboard.press("Control+s");
   await expect(page.getByText("Copie enregistrée à votre nom")).toBeVisible();
   await expect(page.getByTestId("flow-readonly")).toHaveCount(0);
+});
+
+test("journal d'activité : l'administrateur voit les connexions et les écritures, pas les autres", async ({ page }) => {
+  await signIn(page, "alice", "alice-e2e-mdp");
+  await page.getByRole("button", { name: "Outils" }).click();
+  await expect(page.getByRole("menuitem", { name: "Journal d'activité" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await signOut(page, "Alice Martin");
+
+  await signIn(page, "admin", "admin-e2e-mdp");
+  await page.getByRole("button", { name: "Outils" }).click();
+  await page.getByRole("menuitem", { name: "Journal d'activité" }).click();
+  const table = page.getByTestId("audit-table");
+  await expect(table).toContainText("Connexion refusée"); // le mauvais mot de passe du premier scénario
+  await page.getByLabel("Utilisateur", { exact: true }).fill("alice");
+  await expect(table).toContainText("Déconnexion");
+  await expect(table).not.toContainText("admin");
 });

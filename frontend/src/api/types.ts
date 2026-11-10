@@ -652,3 +652,14 @@ export interface Me {
   mode?: "desktop" | "server";
   logout?: boolean; // une session à fermer (pas avec un proxy d'authentification)
 }
+
+/** Ligne du journal d'activité (mode serveur, ADR 0056). */
+export interface AuditEntry {
+  id: number;
+  ts: number;
+  user: string;
+  action: string;
+  target: string;
+  detail: Record<string, unknown>;
+  ip: string;
+}
