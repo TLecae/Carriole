@@ -10,6 +10,8 @@ from etl_store import ConnectionStore, Settings, access
 from etl_store.connections import RUN_USER
 from fastapi.testclient import TestClient
 
+pytestmark = pytest.mark.usefixtures("server_store")  # PostgreSQL si ETL_TEST_STORE_URL
+
 HOST = "carriole.exemple.org"
 EMPTY = {"name": "vide", "nodes": [], "links": []}
 DB_FLOW = {

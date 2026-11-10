@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Server mode: the metadata (flows, runs, sessions, shares, activity log) can live in PostgreSQL (`ETL_DB_URL` or
+  `ETL_DB_URL_FILE`); the store tests and the server scenarios also run on a disposable PostgreSQL, locally and in a
+  CI job. Text fields are bounded to their column size ([ADR 0057](docs/decisions/0057-metadonnees-postgresql.md)).
 - Server mode: activity log for administrators (*Tools → Activity log*): sign-ins and refused sign-ins, writes on
   flows, connections, runs, schedules and settings, with user, date and address, never a password or flow content;
   kept `ETL_AUDIT_DAYS` days ([ADR 0056](docs/decisions/0056-journal-d-activite.md)). Metadata database schema v11

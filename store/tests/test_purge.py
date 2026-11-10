@@ -12,8 +12,8 @@ MB = 2**20
 
 
 @pytest.fixture
-def store(tmp_path):
-    return Store(f"sqlite:///{(tmp_path / 'm.db').as_posix()}")
+def store(store_url):
+    return Store(store_url)
 
 
 def make_run(store, cache, size_mb, age_days, status="done", options=None, now=None):

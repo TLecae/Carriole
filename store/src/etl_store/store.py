@@ -235,7 +235,7 @@ class Store:
         now = time.time()
         row = FlowRow(
             id=uuid.uuid4().hex,
-            name=name,
+            name=name[:200],  # longueur des colonnes : PostgreSQL refuse ce que SQLite accepte
             content=json.dumps(content, ensure_ascii=False),
             owner=owner,
             created_at=now,
@@ -271,7 +271,7 @@ class Store:
                 raise Conflict(f"révision {row.revision} sur le serveur, {revision} côté client")
             component = _component_name(content)
             self._check_component_name(s, component, flow_id)
-            row.name, row.content, row.component_name = name, json.dumps(content, ensure_ascii=False), component
+            row.name, row.content, row.component_name = name[:200], json.dumps(content, ensure_ascii=False), component
             row.updated_at, row.revision = time.time(), row.revision + 1
             return _flow_dict(row)
 
@@ -384,7 +384,7 @@ class Store:
         row = RunRow(
             id=uuid.uuid4().hex,
             flow_id=flow_id,
-            flow_name=flow.get("name", "") or "(sans nom)",
+            flow_name=(flow.get("name", "") or "(sans nom)")[:200],
             flow_json=json.dumps(flow, ensure_ascii=False),
             params=json.dumps(params, ensure_ascii=False),
             options=json.dumps(options, ensure_ascii=False),
@@ -709,8 +709,8 @@ class Store:
             s.add(
                 SessionRow(
                     id=token_hash,
-                    name=name,
-                    display=display,
+                    name=name[:100],
+                    display=display[:200],
                     groups=json.dumps(groups, ensure_ascii=False),
                     created_at=time.time(),
                     expires_at=expires_at,
@@ -753,7 +753,7 @@ class Store:
             if row is None:
                 row = UserRow(name=name)
                 s.add(row)
-            row.display = display
+            row.display = display[:200]
             row.groups = json.dumps(sorted(groups), ensure_ascii=False)
             row.last_login = time.time()
 

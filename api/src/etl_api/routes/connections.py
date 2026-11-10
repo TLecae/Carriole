@@ -30,12 +30,12 @@ Conns = Annotated[ConnectionStore, Depends(get_connections)]
 
 
 class ConnectionIn(BaseModel):
-    kind: str = "postgres"
-    host: str
+    kind: str = Field("postgres", max_length=20)
+    host: str = Field(max_length=255)
     port: int | None = None  # absent : celui du type de base
-    dbname: str
-    user: str = ""
-    sslmode: str = "prefer"
+    dbname: str = Field(max_length=100)
+    user: str = Field("", max_length=100)
+    sslmode: str = Field("prefer", max_length=20)
     options: dict[str, Any] = {}
     password: str | None = Field(default=None, description="Absent : conserver le mot de passe actuel.")
 

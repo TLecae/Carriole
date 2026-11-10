@@ -8,6 +8,8 @@ from etl_api.main import create_app
 from etl_store import Settings
 from fastapi.testclient import TestClient
 
+pytestmark = pytest.mark.usefixtures("server_store")  # PostgreSQL si ETL_TEST_STORE_URL
+
 HOST = "carriole.exemple.org"
 
 
@@ -70,7 +72,10 @@ def test_session_survives_a_restart_and_is_stored_hashed(server_env):
         token = login(client, "alice", "motdepasse-a").cookies["etl_session"]
     with make_client(server_env, cookies={"etl_session": token}) as client:
         assert client.get("/api/auth/me").json()["name"] == "alice"
-        rows = client.app.state.store.session().execute(__import__("sqlalchemy").text("SELECT id FROM sessions")).all()
+        from sqlalchemy import text
+
+        with client.app.state.store.session() as session:
+            rows = session.execute(text("SELECT id FROM sessions")).all()
         assert rows and all(token not in r[0] for r in rows)
 
 

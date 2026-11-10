@@ -124,7 +124,15 @@ class Settings:
 
     @property
     def url(self) -> str:
-        explicit = self.db_url or os.environ.get("ETL_DB_URL", "")
+        """Base des métadonnées : `ETL_DB_URL` (ou `ETL_DB_URL_FILE`, fichier de secret : l'adresse porte le mot de
+        passe), par exemple `postgresql+psycopg://carriole:…@db/carriole` pour un serveur ; sinon SQLite dans
+        `meta_dir` (poste de bureau)."""
+        path = os.environ.get("ETL_DB_URL_FILE", "").strip()
+        explicit = (
+            self.db_url
+            or os.environ.get("ETL_DB_URL", "")
+            or (Path(path).read_text(encoding="utf-8").strip() if path else "")
+        )
         if explicit:
             return explicit
         self.meta_dir.mkdir(parents=True, exist_ok=True)

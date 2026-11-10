@@ -25,7 +25,8 @@ Before opening a pull request (the CI runs the first three on Linux and Windows)
 
 - `uv run ruff format .` then `uv run ruff check .` (lines up to 120 characters);
 - `uv run pytest engine api store worker assistant -m "not slow"`; the PostgreSQL tests run only when `ETL_TEST_PG`
-  points to a disposable database;
+  points to a disposable database; with `ETL_TEST_STORE_URL` (`postgresql+psycopg://…`, a disposable database too),
+  the store tests and the server-mode scenarios run on PostgreSQL instead of SQLite;
 - in `frontend/`: `npx tsc --noEmit`, `npx vitest run`, `npx vite build`;
 - end-to-end tests (Playwright), after `npx vite build`: in `e2e/`, `npm ci` then `npx playwright test`. They use
   Microsoft Edge; elsewhere, `npx playwright install chromium` and set `E2E_CHANNEL=chromium`;

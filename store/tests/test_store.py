@@ -9,8 +9,8 @@ FLOW = {"name": "f", "nodes": [], "links": []}
 
 
 @pytest.fixture
-def store(tmp_path):
-    return Store(f"sqlite:///{(tmp_path / 'm.db').as_posix()}")
+def store(store_url):
+    return Store(store_url)
 
 
 def test_flow_crud_and_revision_conflict(store):
@@ -161,3 +161,15 @@ def test_try_acquire_survives_a_worker_creating_the_lock_just_before(tmp_path, m
 
     monkeypatch.setattr(Session, "get", stale_get)
     assert store.try_acquire("purge", 3600) is False  # perdu, sans IntegrityError
+
+
+def test_database_address_can_come_from_a_secret_file(tmp_path, monkeypatch):
+    from etl_store import Settings
+
+    secret = tmp_path / "db_url"
+    secret.write_bytes(f"sqlite:///{(tmp_path / 'secret.db').as_posix()}\n".encode())
+    monkeypatch.delenv("ETL_DB_URL", raising=False)
+    monkeypatch.setenv("ETL_DB_URL_FILE", str(secret))
+    assert Settings(meta_dir=tmp_path / "meta").url.endswith("/secret.db")
+    monkeypatch.setenv("ETL_DB_URL", "sqlite:///autre.db")  # la variable l'emporte sur le fichier
+    assert Settings(meta_dir=tmp_path / "meta").url == "sqlite:///autre.db"

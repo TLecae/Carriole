@@ -16,6 +16,18 @@ pas circuler en clair.
 Chaque réglage se lit dans la variable `ETL_<CLÉ>`, sinon dans `settings.json` (clé en minuscules, sans `ETL_`).
 Les mots de passe ne se lisent que dans l'environnement ou dans un fichier (`…_FILE`, par exemple un secret Docker).
 
+## Base des métadonnées
+
+Flux, runs, sessions, partages et journal sont dans SQLite (dossier des métadonnées) par défaut : suffisant pour une
+petite équipe. Pour une base PostgreSQL ([ADR 0057](decisions/0057-metadonnees-postgresql.md)) :
+
+| Variable | Rôle |
+| --- | --- |
+| `ETL_DB_URL` | `postgresql+psycopg://carriole:motdepasse@db.exemple.org/carriole` |
+| `ETL_DB_URL_FILE` | la même adresse dans un fichier de secret (elle porte le mot de passe) |
+
+Les tables se créent au premier démarrage. Les résultats des runs restent sur le disque du serveur (`ETL_CACHE_DIR`).
+
 ## Identité
 
 | Variable | Rôle |

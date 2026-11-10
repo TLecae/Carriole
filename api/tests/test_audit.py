@@ -8,6 +8,8 @@ from etl_api.main import create_app
 from etl_store import Settings
 from fastapi.testclient import TestClient
 
+pytestmark = pytest.mark.usefixtures("server_store")  # PostgreSQL si ETL_TEST_STORE_URL
+
 HOST = "carriole.exemple.org"
 EMPTY = {"name": "vide", "nodes": [], "links": []}
 

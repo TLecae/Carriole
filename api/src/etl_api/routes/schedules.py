@@ -27,7 +27,7 @@ router = APIRouter(tags=["planifications"])
 class ScheduleIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     flow_id: str
-    cron: str
+    cron: str = Field(max_length=100)
     params: dict[str, str] = {}
     cache: bool = False
     notify_email: str | None = None
