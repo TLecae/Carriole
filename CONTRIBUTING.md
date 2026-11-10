@@ -15,15 +15,8 @@ without changing Carriole; propose it here if it is useful to others.
 
 ## Develop
 
-Requirements: [uv](https://docs.astral.sh/uv/), Node.js 22+.
-
-```bash
-uv sync                                   # Python environment
-cd frontend && npm ci && npx vite build   # user interface
-cd ..
-uv run etl open                           # local backend + UI in the browser
-cd desktop && npm ci && npm start         # or the desktop window (Electron)
-```
+Download, build, start and update: see [Develop](README.md#develop) in the README (`git clone`, `uv sync`,
+`npm ci`, `npx vite build`, then `uv run etl open` or `npm start` in `desktop/`).
 
 The first test run downloads DuckDB's spatial extension (internet needed once). Tests never touch your own Carriole
 data: each one runs in a temporary `ETL_HOME`.

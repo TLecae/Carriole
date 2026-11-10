@@ -91,15 +91,47 @@ Guide: [writing a modifier](docs/ecrire_un_modificateur.md) (French).
 
 ## Develop
 
-Requirements: [uv](https://docs.astral.sh/uv/) and Node.js 22+.
+Requirements: [Git](https://git-scm.com/), [uv](https://docs.astral.sh/uv/) and Node.js 22+. The commands below
+work the same in PowerShell and in a Linux shell.
+
+First time: download the code and build it.
 
 ```bash
-uv sync                                   # Python environment
-cd frontend && npm ci && npx vite build   # user interface
+git clone https://github.com/TLecae/Carriole.git
+cd Carriole
+uv sync              # Python environment (.venv folder)
+cd frontend
+npm ci               # interface dependencies
+npx vite build       # builds the interface (frontend/dist), served by the local backend
 cd ..
-uv run etl open                           # starts the local backend and opens the UI in the browser
-cd desktop && npm ci && npm start         # or the desktop window (Electron)
 ```
+
+Start, from the `Carriole` folder:
+
+```bash
+uv run etl open      # starts the local backend and opens the interface in the browser
+```
+
+Or the desktop window (Electron):
+
+```bash
+cd desktop
+npm ci               # first time and after each update
+npm start
+```
+
+Update to the latest code, from the `Carriole` folder (close Carriole first):
+
+```bash
+git pull
+uv sync
+cd frontend
+npm ci
+npx vite build       # the interface must be rebuilt after each update
+cd ..
+```
+
+Then `npm ci` in `desktop/` if you use the desktop window.
 
 | Folder | Role |
 | --- | --- |

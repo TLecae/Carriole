@@ -62,17 +62,52 @@ installer.
 
 ## Démarrage (développement)
 
-Prérequis : [uv](https://docs.astral.sh/uv/) et Node.js 22 ou plus.
+Utilisateurs : [télécharger](https://github.com/TLecae/Carriole/releases/latest) l'installeur Windows
+`Carriole-Setup-<version>.exe` (double-clic) ou l'AppImage Linux ; tout est embarqué (voir
+[installation.md](docs/installation.md)). Ce qui suit concerne le code source.
+
+Prérequis : [Git](https://git-scm.com/), [uv](https://docs.astral.sh/uv/) et Node.js 22 ou plus. Les commandes
+sont les mêmes sous PowerShell et dans un terminal Linux.
+
+Première fois : récupérer le code et le construire.
 
 ```powershell
-uv sync                                  # environnement Python
-cd frontend; npm ci; npx vite build      # interface
+git clone https://github.com/TLecae/Carriole.git
+cd Carriole
+uv sync              # environnement Python (dossier .venv)
+cd frontend
+npm ci               # dépendances de l'interface
+npx vite build       # construit l'interface (frontend/dist), servie par le backend local
 cd ..
-uv run etl open                          # démarre le backend local et ouvre l'interface
 ```
 
-Utilisateurs : [télécharger](https://github.com/TLecae/Carriole/releases/latest) l'installeur Windows
-`Carriole-Setup-<version>.exe` (double-clic) ou l'AppImage Linux ; tout est embarqué (voir [installation.md](docs/installation.md)). Fenêtre de bureau en développement : `cd desktop; npm ci; npm start` (depuis la racine du dépôt). Pour contribuer, voir [CONTRIBUTING.md](CONTRIBUTING.md).
+Lancer, depuis le dossier `Carriole` :
+
+```powershell
+uv run etl open      # démarre le backend local et ouvre l'interface dans le navigateur
+```
+
+Ou la fenêtre de bureau (Electron) :
+
+```powershell
+cd desktop
+npm ci               # la première fois et après chaque mise à jour
+npm start
+```
+
+Mettre à jour, depuis le dossier `Carriole` (Carriole fermé) :
+
+```powershell
+git pull
+uv sync
+cd frontend
+npm ci
+npx vite build       # l'interface se reconstruit après chaque mise à jour
+cd ..
+```
+
+Puis `npm ci` dans `desktop/` si vous utilisez la fenêtre de bureau. Pour contribuer, voir
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Structure
 
