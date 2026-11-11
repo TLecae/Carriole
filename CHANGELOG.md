@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1
 
 - Server mode: each release publishes the server image to `ghcr.io/tlecae/carriole` (version and `latest`); on any
   Linux server, `compose.yaml` and `carriole.env` are enough: `docker compose pull && docker compose up -d`. The
