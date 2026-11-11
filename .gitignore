@@ -50,3 +50,7 @@ desktop/build/install.json
 desktop/test-results/
 e2e/plugins/double_value.py
 e2e/media-out/
+
+# réglages et données locales du déploiement Docker (mots de passe)
+docker/carriole.env
+docker/donnees/

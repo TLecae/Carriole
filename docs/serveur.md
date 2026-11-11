@@ -9,14 +9,18 @@ L'image (fichier `Dockerfile` à la racine du dépôt) contient Carriole, son in
 grilles PROJ et bubblewrap. Elle démarre `etl serve --server` sur le port 8080, sous un utilisateur sans droits
 (uid 10001), avec ses données dans le volume `/var/lib/carriole`.
 
+Les réglages (variables `ETL_…` décrites plus bas) vont dans `docker/carriole.env`, copie non versionnée de
+`docker/carriole.env.example` : elle contient les mots de passe. Puis, dans le dossier `docker` :
+
 ```
-docker build -t carriole .
-docker compose -f docker/compose.yaml up -d
+docker compose up -d --build
 ```
 
-`docker/compose.yaml` est un exemple complet à adapter : annuaire LDAP, base PostgreSQL pour les métadonnées, partage
-de fichiers de l'organisation monté (SMB/CIFS) et déclaré comme dossier autorisé, secrets dans `docker/secrets/` (non
-versionné). Placer un proxy HTTPS devant le port 8080 et déclarer son adresse dans `ETL_TRUSTED_PROXIES`.
+Le dossier de la machine monté sur `/mnt/donnees` (le dossier autorisé) se choisit par `CARRIOLE_DONNEES` (défaut :
+`docker/donnees`), par exemple le partage de fichiers de l'organisation déjà monté sur la machine. Pour garder les
+métadonnées dans PostgreSQL : renseigner `POSTGRES_PASSWORD` et `ETL_DB_URL` dans `carriole.env`, puis
+`docker compose --profile postgres up -d --build`. Placer un proxy HTTPS devant le port 8080 et déclarer son adresse
+dans `ETL_TRUSTED_PROXIES`.
 
 Le code Python des flux s'exécute dans bubblewrap, qui a besoin des espaces de noms utilisateur : le profil seccomp par
 défaut de Docker les refuse, et certaines distributions les restreignent (Ubuntu 24.04 :

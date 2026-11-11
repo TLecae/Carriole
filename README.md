@@ -67,8 +67,8 @@ Download from the [latest release](https://github.com/TLecae/Carriole/releases/l
 Everything is bundled (Python, GDAL, DuckDB Spatial, PROJ grids): no Internet access is needed to work.
 More in the [installation guide](docs/installation.md) (French).
 
-On a shared server, Carriole runs as a Docker image (`Dockerfile`; a complete example with LDAP, PostgreSQL and a
-mounted file share in `docker/compose.yaml`) or from a source install with `etl serve --server`. Identity provider,
+On a shared server, Carriole runs as a Docker image (`Dockerfile`; `docker/compose.yaml` with its settings in
+`docker/carriole.env`) or from a source install with `etl serve --server`. Identity provider,
 allowed folders, administrators and quotas are set by `ETL_*` variables, described in the
 [server guide](docs/serveur.md) (French).
 

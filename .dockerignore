@@ -11,6 +11,6 @@ bench
 data
 site
 frontend/dist
-docker/secrets
+docker
 *.log
 .env

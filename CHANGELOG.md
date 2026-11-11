@@ -3,9 +3,10 @@
 ## Unreleased
 
 - Server mode: Docker image (`Dockerfile`: Carriole, its interface, DuckDB extensions, PROJ grids and bubblewrap,
-  unprivileged user, `/var/lib/carriole` volume) and a complete example in `docker/compose.yaml` (LDAP, PostgreSQL,
-  mounted file share, secrets). A CI job builds the image, checks that an identity is required and that the Python
-  code of flows is isolated inside the container. An unusable bubblewrap is reported with its reason at analysis.
+  unprivileged user, `/var/lib/carriole` volume) and an example in `docker/compose.yaml`, its settings in a local
+  `docker/carriole.env` (template `carriole.env.example`), PostgreSQL as an optional profile. A CI job builds the
+  image, checks that an identity is required and that the Python code of flows is isolated inside the container. An
+  unusable bubblewrap is reported with its reason at analysis.
 - Server mode: the metadata (flows, runs, sessions, shares, activity log) can live in PostgreSQL (`ETL_DB_URL` or
   `ETL_DB_URL_FILE`); the store tests and the server scenarios also run on a disposable PostgreSQL, locally and in a
   CI job. Text fields are bounded to their column size ([ADR 0057](docs/decisions/0057-metadonnees-postgresql.md)).
