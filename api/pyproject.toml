@@ -9,7 +9,6 @@ dependencies = [
     "etl-assistant",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "ldap3>=2.9",  # authentification LDAP du mode serveur (Python pur)
 ]
 
 [build-system]

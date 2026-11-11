@@ -4,8 +4,8 @@ compte."""
 from __future__ import annotations
 
 import pytest
+from etl_api.auth.accounts import hash_password, write_users
 from etl_api.auth.config import AuthConfig
-from etl_api.auth.providers import AuthUnavailable, ChainProvider, FileProvider, hash_password, write_users
 from etl_api.main import create_app
 from etl_store import Settings
 from fastapi.testclient import TestClient
@@ -20,7 +20,6 @@ def env(tmp_path, monkeypatch):
     users = tmp_path / "users.json"
     write_users(users, {"chef": {"password": hash_password("mdp-du-chef"), "groups": ["carriole-admins"]}})
     monkeypatch.setenv("ETL_MODE", "server")
-    monkeypatch.setenv("ETL_AUTH", "file")
     monkeypatch.setenv("ETL_USERS_FILE", str(users))
     for name in ("ETL_ADMINS", "ETL_ADMIN_PASSWORD", "ETL_ADMIN_USER"):
         monkeypatch.delenv(name, raising=False)
@@ -84,7 +83,6 @@ def test_users_change_their_own_password(env):
 
 def test_first_administrator_comes_from_the_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("ETL_MODE", "server")
-    monkeypatch.setenv("ETL_AUTH", "file")
     monkeypatch.setenv("ETL_USERS_FILE", str(tmp_path / "users.json"))
     monkeypatch.delenv("ETL_ADMINS", raising=False)
     monkeypatch.delenv("ETL_ADMIN_PASSWORD", raising=False)
@@ -96,54 +94,3 @@ def test_first_administrator_comes_from_the_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("ETL_ADMIN_PASSWORD", "autre-mot-de-passe")  # ensuite, la variable ne change plus rien
     with client(tmp_path) as c:
         assert login(c, "admin", "autre-mot-de-passe") == 401
-
-
-def test_accounts_need_the_file_provider(env, monkeypatch):
-    monkeypatch.setenv("ETL_AUTH", "proxy")
-    monkeypatch.setenv("ETL_TRUSTED_PROXIES", "10.0.0.0/8")
-    monkeypatch.setenv("ETL_AUTH_GROUPS_HEADER", "X-Forwarded-Groups")
-    with TestClient(create_app(Settings(meta_dir=env / "m")), base_url=f"http://{HOST}", client=("10.0.0.2", 1)) as c:
-        headers = {"X-Forwarded-User": "chef", "X-Forwarded-Groups": "carriole-admins"}
-        assert c.get("/api/accounts", headers=headers).status_code == 404
-        assert c.get("/api/auth/me", headers=headers).json()["accounts"] is False
-
-
-def test_chain_tries_the_directory_then_local_accounts(tmp_path):
-    from etl_api.auth.providers import AuthError, bad_credentials
-
-    class Directory:
-        def __init__(self, behaviour):
-            self.behaviour = behaviour
-
-        def authenticate(self, username, password):
-            if self.behaviour == "down":
-                raise AuthUnavailable("annuaire LDAP injoignable")
-            if username == "annuaire" and password == "ok-annuaire":
-                from etl_api.auth import Identity
-
-                return Identity(name="annuaire")
-            raise bad_credentials()
-
-    path = tmp_path / "users.json"
-    local = FileProvider(path)
-    local.create("invite", "mdp-invite-local", groups=["externes"])
-    chain = ChainProvider([Directory("up"), local])
-    assert chain.authenticate("annuaire", "ok-annuaire").name == "annuaire"
-    assert chain.authenticate("invite", "mdp-invite-local").groups == ("externes",)
-    with pytest.raises(AuthError):
-        chain.authenticate("invite", "faux")
-    down = ChainProvider([Directory("down"), local])
-    assert down.authenticate("invite", "mdp-invite-local").name == "invite"  # l'annuaire arrêté n'empêche rien
-    with pytest.raises(AuthUnavailable):
-        down.authenticate("annuaire", "ok-annuaire")
-
-
-def test_combined_providers_settings(monkeypatch):
-    monkeypatch.setenv("ETL_AUTH", "proxy,file")
-    assert any("ne se combine pas" in p for p in AuthConfig.load().problems())
-    monkeypatch.setenv("ETL_AUTH", "ldap,file")
-    monkeypatch.setenv("ETL_LDAP_URL", "ldaps://annuaire.exemple.org")
-    monkeypatch.setenv("ETL_LDAP_USER_BASE", "ou=People,dc=exemple,dc=org")
-    monkeypatch.delenv("ETL_LDAP_BIND_DN", raising=False)
-    config = AuthConfig.load()
-    assert config.providers == ("ldap", "file") and config.problems() == []  # pas de compte local exigé

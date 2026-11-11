@@ -12,8 +12,8 @@ l'administrateur. Dernière révision : jalon 9 (application de bureau, [ADR 002
 
 ## Identification
 Poste de bureau : pas d'authentification, l'utilisateur est le compte du système. Mode serveur
-([ADR 0052](decisions/0052-mode-serveur-et-authentification.md)) : identité exigée, par un annuaire LDAP, un proxy
-d'authentification de confiance ou un fichier de comptes ; session dans un cookie `HttpOnly; SameSite=Strict`.
+([ADR 0052](decisions/0052-mode-serveur-et-authentification.md), [ADR 0059](decisions/0059-comptes-locaux-seulement.md)) :
+identité exigée, par un compte local (identifiant et mot de passe) ; session dans un cookie `HttpOnly; SameSite=Strict`.
 
 ## Mesures en place
 
@@ -48,10 +48,10 @@ Mode serveur ([ADR 0052](decisions/0052-mode-serveur-et-authentification.md)) :
 
 | Risque | Mesure | Où |
 | --- | --- | --- |
-| Usurpation d'identité | l'en-tête `X-ETL-User` du navigateur est ignoré ; identité par session (LDAP, fichier) ou par un proxy de confiance (`ETL_TRUSTED_PROXIES`) | `etl_api.auth` |
+| Usurpation d'identité | l'en-tête `X-ETL-User` du navigateur est ignoré ; identité par la session d'un compte local ; `X-Forwarded-For` / `-Proto` lus seulement derrière un proxy de confiance (`ETL_TRUSTED_PROXIES`) | `etl_api.auth` |
 | Vol de session | jeton aléatoire, cookie `HttpOnly; SameSite=Strict` (`Secure` derrière HTTPS) ; la base ne garde que son empreinte ; expiration glissante | `etl_api.auth.sessions` |
 | Essais de mots de passe | délai qui double après 5 échecs, par compte et par adresse ; même réponse pour un compte inconnu et un mauvais mot de passe | `etl_api.auth.throttle` |
-| Injection dans le filtre LDAP, connexion anonyme | identifiant échappé ; mot de passe vide refusé ; compte ambigu refusé | `etl_api.auth.providers` |
+| Mots de passe des comptes | hachés par scrypt (sel aléatoire) ; 8 caractères au moins ; réinitialisés par un administrateur, changés par leur utilisateur (l'actuel redemandé) ; le journal ne les garde jamais | `etl_api.auth.accounts` |
 | Requête forgée depuis un autre site | cookie `SameSite=Strict` ; écriture refusée si `Origin` n'est pas l'hôte | `ServerGuard` |
 | Accès aux fichiers du serveur | sans dossiers autorisés (`ETL_READ_ROOTS`, `ETL_WRITE_ROOTS`, [ADR 0016](decisions/0016-dossiers-autorises.md)), aucun fichier | `etl_engine.paths` |
 | Réglages de la machine | réservés aux administrateurs (`ETL_ADMINS`) | `etl_api.deps.require_admin` |

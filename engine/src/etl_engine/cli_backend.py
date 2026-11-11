@@ -22,7 +22,7 @@ FINAL = ("done", "error", "cancelled", "interrupted")
 
 runs_app = typer.Typer(help="Runs du backend local.", no_args_is_help=True)
 users_app = typer.Typer(
-    help="Comptes du mode serveur quand l'identité vient d'un fichier (ETL_AUTH=file, fichier ETL_USERS_FILE).",
+    help="Comptes du mode serveur (fichier ETL_USERS_FILE) ; aussi dans Outils → Comptes.",
     no_args_is_help=True,
 )
 
@@ -82,7 +82,7 @@ def users_add(
     group: Annotated[list[str], typer.Option("--group", "-g", help="Groupe (répétable), ex. carriole-admins.")] = [],  # noqa: B006
 ) -> None:
     """Crée un compte ou change son mot de passe (demandé deux fois, jamais affiché)."""
-    from etl_api.auth.providers import hash_password, read_users, write_users
+    from etl_api.auth.accounts import hash_password, read_users, write_users
 
     path = _users_file()
     users = read_users(path)
@@ -103,7 +103,7 @@ def users_add(
 @users_app.command("remove")
 def users_remove(name: Annotated[str, typer.Argument()]) -> None:
     """Supprime un compte (ses sessions expirent d'elles-mêmes)."""
-    from etl_api.auth.providers import read_users, write_users
+    from etl_api.auth.accounts import read_users, write_users
 
     path = _users_file()
     users = read_users(path)
@@ -117,7 +117,7 @@ def users_remove(name: Annotated[str, typer.Argument()]) -> None:
 @users_app.command("list")
 def users_list() -> None:
     """Comptes du fichier, avec leurs groupes."""
-    from etl_api.auth.providers import read_users
+    from etl_api.auth.accounts import read_users
 
     for name, entry in sorted(read_users(_users_file()).items()):
         groups = ", ".join(entry.get("groups", []))
@@ -139,7 +139,7 @@ def register(app: typer.Typer) -> None:
         ] = False,
         server: Annotated[
             bool,
-            typer.Option("--server", help="Mode serveur : plusieurs utilisateurs, identité exigée (voir ETL_AUTH)."),
+            typer.Option("--server", help="Mode serveur : plusieurs utilisateurs, connexion par comptes locaux."),
         ] = False,
     ) -> None:
         """Démarre le backend (API + workers) et reste au premier plan jusqu'à l'arrêt."""

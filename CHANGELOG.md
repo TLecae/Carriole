@@ -2,15 +2,14 @@
 
 ## Unreleased
 
-- Server mode: administrators create, edit and delete local accounts in *Tools → Accounts* (name, groups, new
-  password); each user changes their own password from their menu. Local accounts combine with a directory
-  (`ETL_AUTH=ldap,file`: the directory first, local accounts still work when it is down). `ETL_ADMIN_PASSWORD` creates
-  the first administrator account on a server without any ([ADR 0058](docs/decisions/0058-comptes-locaux.md)).
+- Server mode: administrators create, edit and delete accounts in *Tools → Accounts* (name, groups, new password);
+  each user changes their own password from their menu. `ETL_ADMIN_PASSWORD` creates the first administrator account
+  on a server without any ([ADR 0058](docs/decisions/0058-comptes-locaux.md),
+  [ADR 0059](docs/decisions/0059-comptes-locaux-seulement.md)).
 - Server mode: Docker image (`Dockerfile`: Carriole, its interface, DuckDB extensions, PROJ grids and bubblewrap,
   unprivileged user, `/var/lib/carriole` volume) and an example in `docker/compose.yaml`, its settings in a local
-  `docker/carriole.env`, copied from one example per sign-in method in `docker/examples/` (LDAP, proxy, local
-  accounts), PostgreSQL as an optional profile. A CI job builds the
-  image, checks that an identity is required and that the Python code of flows is isolated inside the container. An
+  `docker/carriole.env` copied from `docker/carriole.env.example`, PostgreSQL as an optional profile. A CI job builds
+  the image, checks that an identity is required and that the Python code of flows is isolated inside the container. An
   unusable bubblewrap is reported with its reason at analysis.
 - Server mode: the metadata (flows, runs, sessions, shares, activity log) can live in PostgreSQL (`ETL_DB_URL` or
   `ETL_DB_URL_FILE`); the store tests and the server scenarios also run on a disposable PostgreSQL, locally and in a
@@ -32,12 +31,11 @@
   ([ADR 0053](docs/decisions/0053-code-python-isole.md)).
 - Server mode: only administrators change the machine settings (*Settings*, assistant providers), install a
   modifier written by the assistant and stop the server; other users see the settings read-only. Each user keeps
-  their own interface language. *Settings → Server* shows how the server is set and tests the LDAP directory.
-- Server mode (`etl serve --server`): several users work in their browser on a shared machine. Identity is required,
-  from interchangeable providers set by `ETL_AUTH`: an LDAP directory (search filter, groups, required group,
-  `ldaps://` or StartTLS), an authentication proxy trusted by address, or a file of accounts with scrypt hashes
-  (`etl users`). Sessions in an `HttpOnly; SameSite=Strict` cookie, password attempts slowed down, administrators set
-  by `ETL_ADMINS`; without allowed folders, no file is accessible. Login page and user menu in the interface
+  their own interface language. *Settings → Server* shows how the server is set.
+- Server mode (`etl serve --server`): several users work in their browser on a shared machine. Each one signs in
+  with a local account (scrypt hashes, also managed by `etl users`). Sessions in an `HttpOnly; SameSite=Strict`
+  cookie, password attempts slowed down, administrators set by `ETL_ADMINS`; without allowed folders, no file is
+  accessible. Login page and user menu in the interface
   ([ADR 0052](docs/decisions/0052-mode-serveur-et-authentification.md), [server guide](docs/serveur.md)). Metadata
   database schema v9 (`sessions`, `users`).
 - Desktop app: closing the window with unsaved changes asks whether to close without saving (the close button did

@@ -1,19 +1,18 @@
-"""Connexion, déconnexion et identité courante (ADR 0052)."""
+"""Connexion, déconnexion et identité courante (comptes locaux, ADR 0052, 0059)."""
 
 from __future__ import annotations
 
 import logging
 from typing import Annotated, Any
 
-from etl_engine import i18n
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from etl_api.auth import AuthError, AuthService, AuthUnavailable, Identity, server_mode
+from etl_api.auth import AuthError, AuthService, Identity, server_mode
 from etl_api.auth.service import session_token
 from etl_api.auth.sessions import COOKIE
-from etl_api.deps import Admin, current_identity, request_lang
+from etl_api.deps import Admin, current_identity
 
 router = APIRouter(tags=["authentification"])
 log = logging.getLogger("etl.auth")
@@ -33,32 +32,27 @@ def _service(request: Request) -> AuthService:
 
 @router.get("/auth/info")
 def info(request: Request) -> dict[str, Any]:
-    """Pour la page de connexion : mode, fournisseur, et s'il faut un formulaire (le proxy, lui, identifie seul)."""
+    """Pour la page de connexion : serveur (identifiant et mot de passe) ou poste de bureau (pas de connexion)."""
     service = getattr(request.app.state, "auth", None)
-    if service is None:
-        return {"mode": "desktop", "provider": None, "password": False}
-    return {"mode": "server", "provider": service.config.provider, "password": service.passwords is not None}
+    return {"mode": "desktop" if service is None else "server", "password": service is not None}
 
 
 @router.get("/auth/me")
 def me(request: Request, identity: Annotated[Identity, Depends(current_identity)]) -> dict[str, Any]:
     service = getattr(request.app.state, "auth", None)
-    accounts = service.accounts if service is not None else None
     return {
         **identity.as_json(),
         "mode": "server" if server_mode() else "desktop",
-        "logout": service is not None and service.passwords is not None,
-        # comptes locaux : l'administrateur les gère, chacun change son mot de passe
-        "accounts": accounts is not None,
-        "local": accounts is not None and accounts.find(identity.name) is not None,
+        # serveur : une session à fermer, des comptes gérés par l'administrateur, un mot de passe à changer
+        "logout": service is not None,
+        "accounts": service is not None,
+        "local": service is not None and service.accounts.find(identity.name) is not None,
     }
 
 
 @router.post("/auth/login")
 async def login(body: LoginIn, request: Request, response: Response) -> dict[str, Any]:
     service = _service(request)
-    if service.passwords is None:
-        raise HTTPException(400, "la connexion passe par le proxy d'authentification")
     keys = (f"user:{body.username.strip().lower()}", f"ip:{request.state.client_ip}")
     wait = service.throttle.wait(*keys)
     if wait > 0:
@@ -66,13 +60,11 @@ async def login(body: LoginIn, request: Request, response: Response) -> dict[str
             429, "trop d'essais : réessayer dans un instant", headers={"Retry-After": str(int(wait) + 1)}
         )
     try:
-        identity = await run_in_threadpool(service.passwords.authenticate, body.username, body.password)
+        identity = await run_in_threadpool(service.accounts.authenticate, body.username, body.password)
     except AuthError as exc:
         service.throttle.fail(*keys)
         log.info("connexion refusée : %s depuis %s (%s)", body.username.strip()[:100], request.state.client_ip, exc)
         raise HTTPException(401, str(exc)) from None
-    except AuthUnavailable as exc:
-        raise HTTPException(503, f"connexion impossible : {exc}") from None
     service.throttle.succeed(keys[0])
     token = await run_in_threadpool(service.sessions.open, identity)
     log.info("connexion : %s depuis %s", identity.name, request.state.client_ip)
@@ -88,19 +80,6 @@ async def login(body: LoginIn, request: Request, response: Response) -> dict[str
     return service.with_role(identity).as_json()
 
 
-@router.post("/auth/check")
-def check(request: Request, _: Admin) -> dict[str, Any]:
-    """*Paramètres* (administrateur) : l'annuaire LDAP répond-il avec les réglages du serveur ?"""
-    service = _service(request)
-    if service.ldap is None:
-        raise HTTPException(400, "le fournisseur d'identité n'est pas un annuaire LDAP")
-    try:
-        result = service.ldap.check()
-    except AuthUnavailable as exc:
-        result = {"ok": False, "message": str(exc)}
-    return {**result, "message": i18n.tr(result["message"], request_lang(request))}
-
-
 @router.post("/auth/logout", status_code=204)
 def logout(request: Request, response: Response) -> None:
     service = getattr(request.app.state, "auth", None)
@@ -112,10 +91,11 @@ def logout(request: Request, response: Response) -> None:
 
 @router.get("/users")
 def users(request: Request, identity: Annotated[Identity, Depends(current_identity)]) -> dict[str, Any]:
-    """Destinataires possibles d'un partage : les utilisateurs déjà connectés et leurs groupes (mode serveur)."""
-    if not server_mode():
+    """Destinataires possibles d'un partage : les comptes et leurs groupes (mode serveur)."""
+    service = getattr(request.app.state, "auth", None)
+    if service is None:
         return {"users": [], "groups": []}
-    people = request.app.state.store.list_users()
+    people = service.accounts.accounts()
     groups = sorted({g for u in people for g in u["groups"]})
     return {"users": [{"name": u["name"], "display": u["display"]} for u in people], "groups": groups}
 

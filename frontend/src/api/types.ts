@@ -190,24 +190,12 @@ export interface AppSettings {
 
 /** Mode serveur : réglages du serveur (variables `ETL_…`), le détail pour les administrateurs seulement. */
 export interface ServerSettings {
-  provider: "ldap" | "proxy" | "file" | string;
   admin: boolean;
   admins?: string[];
   session_hours?: number;
   trusted_proxies?: string[];
   read_roots?: string[];
   write_roots?: string[];
-  ldap?: {
-    url: string;
-    starttls: boolean;
-    bind_dn: string;
-    bind_password_set: boolean;
-    user_base: string;
-    user_filter: string;
-    group_base: string;
-    group_filter: string;
-    required_group: string;
-  } | null;
 }
 
 export interface Analysis {
@@ -636,10 +624,9 @@ export interface SendBody {
   notes: string[];
 }
 
-/** Mode serveur (ADR 0052) : fournisseur d'identité ; `password` : la page de connexion demande un mot de passe. */
+/** Mode serveur (ADR 0052, 0059) : la page de connexion demande identifiant et mot de passe. */
 export interface AuthInfo {
   mode: "desktop" | "server";
-  provider: "ldap" | "proxy" | "file" | null;
   password: boolean;
 }
 
@@ -650,7 +637,7 @@ export interface Me {
   groups: string[];
   admin: boolean;
   mode?: "desktop" | "server";
-  logout?: boolean; // une session à fermer (pas avec un proxy d'authentification)
+  logout?: boolean; // une session à fermer (mode serveur)
   accounts?: boolean; // le serveur a des comptes locaux (administrateur : Outils → Comptes)
   local?: boolean; // l'utilisateur a un compte local : il peut changer son mot de passe
 }

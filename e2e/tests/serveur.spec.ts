@@ -53,7 +53,7 @@ test("réglages : un utilisateur les consulte, un administrateur les modifie et 
   await expect(page.getByTestId("settings-readonly")).toBeVisible();
   await expect(page.locator("fieldset.settings-fieldset input").first()).toBeDisabled();
   await page.getByRole("tab", { name: "Serveur" }).click();
-  await expect(page.getByTestId("server-settings")).toContainText("fichier de comptes");
+  await expect(page.getByTestId("server-settings")).toContainText("comptes locaux");
   await expect(page.getByTestId("server-settings")).not.toContainText("Administrateurs");
   await page.getByRole("button", { name: "Fermer" }).click();
   await signOut(page, "Alice Martin");

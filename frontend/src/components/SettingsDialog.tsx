@@ -534,33 +534,17 @@ function AssistantTab() {
 }
 
 // ------------------------------------------------------------------------------------------------ Serveur
-const PROVIDERS: Record<string, () => string> = {
-  ldap: () => t("annuaire LDAP"),
-  proxy: () => t("proxy d'authentification"),
-  file: () => t("fichier de comptes"),
-};
-
 /** Mode serveur : réglages lus dans les variables `ETL_…` du serveur (voir docs/serveur.md), modifiés par son
- * administrateur ; ici on les consulte et on teste l'annuaire. */
+ * administrateur ; ici on les consulte. */
 function ServerTab({ server }: { server: NonNullable<AppSettings["server"]> }) {
-  const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
   const rows: [string, string | undefined][] = [
-    [t("Identité"), PROVIDERS[server.provider]?.() ?? server.provider],
+    [t("Identité"), t("comptes locaux (Outils → Comptes)")],
     [t("Administrateurs"), server.admins?.join(", ")],
     [t("Durée d'une session"), server.session_hours !== undefined ? t("{{hours}} h sans activité", { hours: server.session_hours }) : undefined],
     [t("Proxys de confiance"), server.trusted_proxies?.join(", ")],
     [t("Dossiers lisibles"), server.read_roots ? server.read_roots.join(", ") || t("aucun") : undefined],
     [t("Dossiers où écrire"), server.write_roots ? server.write_roots.join(", ") || t("aucun") : undefined],
   ];
-  const ldap = server.ldap;
-  if (ldap)
-    rows.push(
-      [t("Annuaire"), `${ldap.url}${ldap.starttls ? " (StartTLS)" : ""}`],
-      [t("Compte de service"), ldap.bind_dn ? `${ldap.bind_dn}${ldap.bind_password_set ? "" : ` (${t("mot de passe manquant")})`}` : t("connexion anonyme")],
-      [t("Comptes"), `${ldap.user_base} · ${ldap.user_filter}`],
-      [t("Groupes"), ldap.group_base ? `${ldap.group_base} · ${ldap.group_filter}` : t("non lus")],
-      [t("Groupe requis"), ldap.required_group || t("aucun")],
-    );
   return (
     <>
       <p className="muted">{t("Réglés par l'administrateur du serveur (variables ETL_…, voir le guide « Carriole sur un serveur »).")}</p>
@@ -574,12 +558,6 @@ function ServerTab({ server }: { server: NonNullable<AppSettings["server"]> }) {
             </div>
           ))}
       </dl>
-      {server.admin && server.provider === "ldap" && (
-        <p>
-          <button onClick={() => void api.authCheck().then(setCheck, (err: unknown) => setCheck({ ok: false, message: String(err) }))}>{t("Tester l'annuaire")}</button>{" "}
-          {check && <span className={check.ok ? "ok-text" : "error-text"}>{check.message}</span>}
-        </p>
-      )}
     </>
   );
 }

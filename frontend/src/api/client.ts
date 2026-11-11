@@ -153,7 +153,6 @@ export const api = {
     call<{ shares: Share[] }>(`/connections/${encodeURIComponent(name)}/shares`, { method: "PUT", ...json({ shares }) }),
   audit: (q: { user?: string; action?: string; before?: number }) =>
     call<AuditEntry[]>(`/audit?${new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]))}`),
-  authCheck: () => call<{ ok: boolean; message: string }>("/auth/check", { method: "POST" }),
   modifiers: () => call<{ modifiers: ModifierInfo[]; errors: Record<string, string> }>("/modifiers"),
   flows: () => call<FlowSummary[]>("/flows"),
   examples: () => call<ExampleFlow[]>("/examples"),

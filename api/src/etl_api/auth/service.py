@@ -1,7 +1,9 @@
-"""Service d'authentification du mode serveur : qui fait la requête, et le middleware qui l'exige (ADR 0052)."""
+"""Service d'authentification du mode serveur (comptes locaux, ADR 0052, 0059) : qui fait la requête, et le
+middleware qui l'exige."""
 
 from __future__ import annotations
 
+import ipaddress
 import json
 from dataclasses import dataclass, field, replace
 from http.cookies import CookieError, SimpleCookie
@@ -11,18 +13,9 @@ from urllib.parse import urlsplit
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from etl_api.auth.accounts import LocalAccounts, bootstrap_admin
 from etl_api.auth.config import AuthConfig
 from etl_api.auth.identity import Identity
-from etl_api.auth.providers import (
-    ChainProvider,
-    FileProvider,
-    LdapProvider,
-    ProxyProvider,
-    bootstrap_admin,
-    part,
-    password_provider,
-    trusted,
-)
 from etl_api.auth.sessions import COOKIE, Sessions
 from etl_api.auth.throttle import Throttle
 
@@ -36,35 +29,38 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 class AuthService:
     config: AuthConfig
     sessions: Sessions
-    passwords: LdapProvider | FileProvider | ChainProvider | None = None
-    proxy: ProxyProvider | None = None
+    accounts: LocalAccounts
     throttle: Throttle = field(default_factory=Throttle)
 
     @classmethod
     def create(cls, config: AuthConfig, store: Any) -> AuthService:
-        proxy = ProxyProvider(config.proxy, config.trusted_proxies) if "proxy" in config.providers else None
-        bootstrap_admin(config)  # premier démarrage : compte administrateur local (ETL_ADMIN_PASSWORD)
-        return cls(config, Sessions(store, config.session_hours), password_provider(config), proxy)
-
-    @property
-    def accounts(self) -> FileProvider | None:
-        """Comptes locaux gérés par l'administrateur (`file` dans `ETL_AUTH`), ou `None`."""
-        return part(self.passwords, FileProvider)
-
-    @property
-    def ldap(self) -> LdapProvider | None:
-        return part(self.passwords, LdapProvider)
+        bootstrap_admin(config)  # premier démarrage : compte administrateur (ETL_ADMIN_PASSWORD)
+        return cls(config, Sessions(store, config.session_hours), LocalAccounts(config.users_file))
 
     def with_role(self, identity: Identity) -> Identity:
         """Le rôle se recalcule à chaque requête : un changement de `ETL_ADMINS` s'applique sans reconnexion."""
         return replace(identity, admin=self.config.is_admin(identity.name, identity.groups))
 
-    def identify(self, headers: Headers, peer: str | None) -> Identity | None:
-        if self.proxy is not None:
-            found = self.proxy.identify(headers, peer)
-        else:
-            found = self.sessions.resolve(session_token(headers))
+    def identify(self, headers: Headers) -> Identity | None:
+        found = self.sessions.resolve(session_token(headers))
         return self.with_role(found) if found else None
+
+
+def trusted(peer: str | None, networks: tuple[str, ...]) -> bool:
+    """`peer` (adresse de la connexion) fait partie des proxys HTTPS de confiance (adresses ou réseaux CIDR)."""
+    if not peer:
+        return False
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    for item in networks:
+        try:
+            if address in ipaddress.ip_network(item, strict=False):
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def session_token(headers: Headers) -> str:
@@ -131,7 +127,7 @@ class ServerGuard:
         if scope["method"] not in SAFE_METHODS and not _same_origin(headers):
             await deny(send, headers, 403, "origine de la requête refusée")
             return
-        identity = service.identify(headers, peer)
+        identity = service.identify(headers)
         if identity is not None:
             state["identity"] = identity
         protected = (path.startswith("/api/") and path not in PUBLIC_API) or path.startswith("/tiles/")

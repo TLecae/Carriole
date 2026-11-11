@@ -1,6 +1,6 @@
 # ADR 0052 — Mode serveur et authentification
 
-- **Statut** : accepté
+- **Statut** : accepté ; fournisseurs d'identité remplacés par les comptes locaux seuls (ADR 0059)
 - **Date** : 2026-11-10
 - **Complète** : ADR 0020 (« cible future : Linux et cloud »), 0016 (dossiers autorisés)
 

@@ -1,9 +1,8 @@
 """Backend : l'API et ses workers dans un seul programme (`etl serve`), pour le poste de bureau ou un serveur.
 
-Mode serveur (`etl serve --server`, ADR 0052) : écoute sur `ETL_HOST` (0.0.0.0) et `ETL_PORT` (8080), identité exigée
-(LDAP, proxy d'authentification ou fichier de comptes, `ETL_AUTH`), flux dans la base, cache gardé
-`ETL_CACHE_RETENTION_DAYS` jours, fichiers limités aux dossiers `ETL_READ_ROOTS` / `ETL_WRITE_ROOTS`. Sans
-fournisseur d'identité valable, il refuse de démarrer.
+Mode serveur (`etl serve --server`, ADR 0052, 0059) : écoute sur `ETL_HOST` (0.0.0.0) et `ETL_PORT` (8080), connexion
+par comptes locaux, flux dans la base, cache gardé `ETL_CACHE_RETENTION_DAYS` jours, fichiers limités aux dossiers
+`ETL_READ_ROOTS` / `ETL_WRITE_ROOTS`. Sans aucun compte ni `ETL_ADMIN_PASSWORD`, il refuse de démarrer.
 
 Poste de bureau :
 
@@ -206,7 +205,7 @@ def run_server(
     if server:
         os.environ["ETL_MODE"] = "server"  # hérité par les workers
         from etl_api.auth import AuthConfig
-        from etl_api.auth.providers import bootstrap_admin
+        from etl_api.auth.accounts import bootstrap_admin
 
         config = AuthConfig.load()
         bootstrap_admin(config)  # premier démarrage : compte administrateur local (ETL_ADMIN_PASSWORD)

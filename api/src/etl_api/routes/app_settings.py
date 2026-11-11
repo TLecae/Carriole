@@ -150,17 +150,16 @@ def _state() -> dict[str, Any]:
 
 def _server(identity: Identity) -> dict[str, Any] | None:
     """Mode serveur : comment le serveur est réglé (variables `ETL_…` de son administrateur), pour *Paramètres*.
-    Le détail (annuaire, proxys, dossiers) n'est montré qu'aux administrateurs."""
+    Le détail (administrateurs, proxys, dossiers) n'est montré qu'aux administrateurs."""
     if not server_mode():
         return None
     config = AuthConfig.load()
-    out: dict[str, Any] = {"provider": config.provider, "admin": identity.admin}
+    out: dict[str, Any] = {"admin": identity.admin}
     if identity.admin:
         out.update(
             admins=list(config.admins),
             session_hours=config.session_hours,
             trusted_proxies=list(config.trusted_proxies),
-            ldap=config.ldap.public() if "ldap" in config.providers else None,
             read_roots=[r["label"] for r in _roots("read")],
             write_roots=[r["label"] for r in _roots("write")],
         )

@@ -66,10 +66,12 @@ jobs:
       - run: docker build -t carriole:ci .
       - name: Smoke test
         run: |
-          docker run -d --name carriole -p 8080:8080 -e ETL_AUTH=proxy -e ETL_TRUSTED_PROXIES=0.0.0.0/0 carriole:ci
+          docker run -d --name carriole -p 8080:8080 -e ETL_ADMIN_PASSWORD=essai-ci-0 carriole:ci
           for i in $(seq 60); do curl -fs http://127.0.0.1:8080/api/health && break; sleep 2; done
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/flows)" = 401
-          curl -fs -H 'X-Forwarded-User: essai' http://127.0.0.1:8080/api/auth/me | grep -q '"name":"essai"'
+          curl -fs -c jar -H 'Content-Type: application/json' -d '{"username":"admin","password":"essai-ci-0"}' \
+            http://127.0.0.1:8080/api/auth/login | grep -q '"admin":true'
+          curl -fs -b jar http://127.0.0.1:8080/api/flows
           curl -fs http://127.0.0.1:8080/ | grep -qi '<html'
       - name: Python code of flows in bubblewrap, inside the container
         run: |

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from etl_api.auth.providers import hash_password, write_users
+from etl_api.auth.accounts import hash_password, write_users
 from etl_api.main import create_app
 from etl_engine.sdk import ConfigError
 from etl_store import ConnectionStore, Settings, access
@@ -33,7 +33,6 @@ def server(tmp_path, monkeypatch):
     }
     write_users(users, {n: {"password": hash_password(f"mdp-{n}"), "groups": g} for n, g in accounts.items()})
     monkeypatch.setenv("ETL_MODE", "server")
-    monkeypatch.setenv("ETL_AUTH", "file")
     monkeypatch.setenv("ETL_USERS_FILE", str(users))
     monkeypatch.delenv("ETL_ADMINS", raising=False)
     settings = Settings(meta_dir=tmp_path / "meta", cache_dir=tmp_path / "cache", plugins_dir=tmp_path / "plugins")

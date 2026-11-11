@@ -1,7 +1,4 @@
-"""Comptes locaux gérés par l'administrateur depuis Carriole (mode serveur, `file` dans `ETL_AUTH`, ADR 0058).
-
-Les comptes d'un annuaire LDAP ou d'un proxy ne se gèrent pas ici : ils restent dans le système de l'organisation.
-"""
+"""Comptes du mode serveur, gérés par l'administrateur depuis Carriole (ADR 0058, 0059)."""
 
 from __future__ import annotations
 
@@ -12,7 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from etl_api.auth import AuthError, Identity
-from etl_api.auth.providers import AccountError, FileProvider
+from etl_api.auth.accounts import AccountError, LocalAccounts
 from etl_api.deps import Admin, current_identity
 
 router = APIRouter(tags=["comptes"])
@@ -36,12 +33,11 @@ class PasswordIn(BaseModel):
     new: str = Field(max_length=1000)
 
 
-def _accounts(request: Request) -> FileProvider:
+def _accounts(request: Request) -> LocalAccounts:
     service = getattr(request.app.state, "auth", None)
-    accounts = service.accounts if service is not None else None
-    if accounts is None:
-        raise HTTPException(404, "pas de comptes locaux sur ce serveur (ETL_AUTH sans « file »)")
-    return accounts
+    if service is None:
+        raise HTTPException(404, "pas de comptes sur le poste de bureau")
+    return service.accounts
 
 
 @router.get("/accounts")
@@ -94,7 +90,7 @@ async def change_password(
     accounts = _accounts(request)
     name = accounts.find(identity.name)
     if name is None:
-        raise HTTPException(404, "ce compte n'est pas un compte local : son mot de passe se change dans l'annuaire")
+        raise HTTPException(404, "compte introuvable")
     try:
         await run_in_threadpool(accounts.authenticate, name, body.current)
     except AuthError:

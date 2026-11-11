@@ -20,16 +20,10 @@ résultat inspecté.
 
 Sur un poste, Carriole lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits, sans serveur à
 installer. Sur une machine partagée, l'image Docker accueille plusieurs utilisateurs dans leur navigateur : dans le
-dossier `docker`, copier en `carriole.env` (non versionné, il contient les mots de passe) l'exemple qui correspond à
-la connexion des utilisateurs, l'adapter, puis `docker compose up -d --build` :
-
-| Exemple | Connexion |
-| --- | --- |
-| [`ldap.env`](docker/examples/ldap.env) | annuaire LDAP (ou Active Directory), et comptes locaux créés par l'administrateur |
-| [`proxy.env`](docker/examples/proxy.env) | proxy d'authentification (SSO, OpenID Connect…) |
-| [`local-accounts.env`](docker/examples/local-accounts.env) | comptes locaux seuls : un premier compte `admin`, puis *Outils → Comptes* |
-
-Le reste des réglages est dans le [guide du serveur](docs/serveur.md).
+dossier `docker`, copier [`carriole.env.example`](docker/carriole.env.example) en `carriole.env` (non versionné, il
+contient un mot de passe), y choisir le mot de passe du premier administrateur (`ETL_ADMIN_PASSWORD`), puis
+`docker compose up -d --build`. Les utilisateurs se connectent avec des comptes locaux que les administrateurs créent
+dans *Outils → Comptes*. Le reste des réglages est dans le [guide du serveur](docs/serveur.md).
 
 > Plan et avancement : [docs/plan_jalons.md](docs/plan_jalons.md) et [docs/journal_jalons.md](docs/journal_jalons.md).
 
@@ -56,7 +50,7 @@ Le reste des réglages est dans le [guide du serveur](docs/serveur.md).
   l'on applique d'un clic ; ce qu'il peut lire se règle : [ADR 0027](docs/decisions/0027-assistant-ia.md).
 - **Français et anglais**, au choix dans les paramètres ([ADR 0023](docs/decisions/0023-internationalisation.md)).
 - **Poste ou serveur** : en mode serveur (image Docker, exemple complet dans `docker/compose.yaml`), connexion
-  par un annuaire LDAP, un proxy d'authentification ou un fichier de comptes ; flux et connexions privés tant qu'ils
+  par comptes locaux gérés par les administrateurs ; flux et connexions privés tant qu'ils
   ne sont pas partagés avec un utilisateur ou un groupe ; fichiers limités aux dossiers autorisés ; code Python des
   flux isolé (bubblewrap) ; file équitable et quotas par utilisateur ; journal d'activité ; métadonnées dans SQLite
   ou PostgreSQL ([guide du serveur](docs/serveur.md)).
@@ -73,7 +67,7 @@ Le reste des réglages est dans le [guide du serveur](docs/serveur.md).
 | Utiliser Carriole | [guide de l'utilisateur](docs/guide_utilisateur.md) · [English user guide](docs/en/user_guide.md) |
 | Installer, régler (bouton Paramètres), utiliser `etl` en ligne de commande | [installation.md](docs/installation.md) |
 | Écrire un modificateur en Python (un fichier) | [ecrire_un_modificateur.md](docs/ecrire_un_modificateur.md) |
-| Installer sur un serveur partagé (plusieurs utilisateurs, LDAP, dossiers autorisés) | [serveur.md](docs/serveur.md) |
+| Installer sur un serveur partagé (plusieurs utilisateurs, comptes, dossiers autorisés) | [serveur.md](docs/serveur.md) |
 | Sécurité | [securite.md](docs/securite.md) |
 | Comprendre les choix | [décisions (ADR)](docs/decisions/) |
 

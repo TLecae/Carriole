@@ -9,16 +9,9 @@ L'image (fichier `Dockerfile` à la racine du dépôt) contient Carriole, son in
 grilles PROJ et bubblewrap. Elle démarre `etl serve --server` sur le port 8080, sous un utilisateur sans droits
 (uid 10001), avec ses données dans le volume `/var/lib/carriole`.
 
-Les réglages (variables `ETL_…` décrites plus bas) vont dans `docker/carriole.env`, non versionné : il contient
-les mots de passe. Le copier depuis l'exemple qui correspond à l'identité choisie, dans `docker/examples/` :
-
-| Exemple | Identité |
-| --- | --- |
-| `ldap.env` | annuaire LDAP (ou Active Directory), et comptes locaux créés par l'administrateur |
-| `proxy.env` | proxy d'authentification (SSO de l'organisation, OpenID Connect…) |
-| `local-accounts.env` | comptes locaux seuls : un premier compte `admin`, puis *Outils → Comptes* |
-
-Puis, dans le dossier `docker` :
+Les réglages (variables `ETL_…` décrites plus bas) vont dans `docker/carriole.env`, non versionné : il contient un
+mot de passe. Le copier depuis `docker/carriole.env.example`, y choisir le mot de passe du premier administrateur
+(`ETL_ADMIN_PASSWORD`). Puis, dans le dossier `docker` :
 
 ```
 docker compose up -d --build
@@ -43,8 +36,8 @@ Depuis une installation des sources (voir le README) :
 etl serve --server
 ```
 
-Le serveur écoute sur `ETL_HOST` (0.0.0.0) et `ETL_PORT` (8080). Il refuse de démarrer sans fournisseur d'identité
-valable et dit quoi régler. Placer un proxy HTTPS (nginx, Caddy, Traefik…) devant lui : les mots de passe ne doivent
+Le serveur écoute sur `ETL_HOST` (0.0.0.0) et `ETL_PORT` (8080). Il refuse de démarrer sans aucun compte ni
+`ETL_ADMIN_PASSWORD`, et dit quoi régler. Placer un proxy HTTPS (nginx, Caddy, Traefik…) devant lui : les mots de passe ne doivent
 pas circuler en clair.
 
 Chaque réglage se lit dans la variable `ETL_<CLÉ>`, sinon dans `settings.json` (clé en minuscules, sans `ETL_`).
@@ -62,58 +55,23 @@ petite équipe. Pour une base PostgreSQL ([ADR 0057](decisions/0057-metadonnees-
 
 Les tables se créent au premier démarrage. Les résultats des runs restent sur le disque du serveur (`ETL_CACHE_DIR`).
 
-## Identité
+## Comptes et connexion
+
+Chaque utilisateur se connecte avec un identifiant et un mot de passe : des comptes locaux, gérés par les
+administrateurs dans *Outils → Comptes* (création, nom affiché, groupes, nouveau mot de passe, suppression,
+[ADR 0058](decisions/0058-comptes-locaux.md), [ADR 0059](decisions/0059-comptes-locaux-seulement.md)). Chacun change son
+mot de passe depuis son menu. Mots de passe de 8 caractères au moins, hachés (scrypt) dans `ETL_USERS_FILE`
+(`users.json` du dossier des métadonnées).
 
 | Variable | Rôle |
 | --- | --- |
-| `ETL_AUTH` | fournisseur d'identité : `ldap`, `proxy` ou `file` ; `ldap,file` : l'annuaire, puis les comptes locaux |
+| `ETL_ADMIN_PASSWORD` ou `ETL_ADMIN_PASSWORD_FILE` | premier démarrage sans compte : crée le compte administrateur ; ensuite sans effet |
+| `ETL_ADMIN_USER` | son identifiant (`admin`) ; il est mis dans le premier groupe de `ETL_ADMINS` (`carriole-admins`) |
 | `ETL_ADMINS` | administrateurs : noms et groupes séparés par des virgules (`dupont,group:sig-admins`) ; par défaut `group:carriole-admins` |
 | `ETL_SESSION_HOURS` | durée d'une session sans activité (12) |
-| `ETL_TRUSTED_PROXIES` | adresses ou réseaux des proxys de confiance (`127.0.0.1,::1`) : seuls eux peuvent transmettre l'adresse du client, le schéma HTTPS et, avec `proxy`, l'identité |
+| `ETL_TRUSTED_PROXIES` | adresses ou réseaux du proxy HTTPS placé devant le serveur (`127.0.0.1,::1`) : seul lui transmet l'adresse du client et le schéma HTTPS |
 | `ETL_SECURE_COOKIE` | `1` : cookie de session `Secure` même si le proxy ne transmet pas `X-Forwarded-Proto` |
 | `ETL_ALLOWED_HOSTS` | noms d'hôte acceptés (`carriole.exemple.org:443`), facultatif |
-
-### Annuaire LDAP (`ETL_AUTH=ldap`)
-
-| Variable | Rôle | Défaut |
-| --- | --- | --- |
-| `ETL_LDAP_URL` | `ldaps://annuaire.exemple.org:636` ou `ldap://…:389` | |
-| `ETL_LDAP_STARTTLS` | `1` : chiffre une connexion `ldap://` (StartTLS) | `0` |
-| `ETL_LDAP_CA_FILE` | autorité de certification de l'annuaire (PEM) | celles du système |
-| `ETL_LDAP_BIND_DN` | compte de service qui cherche les comptes ; vide : recherche anonyme | |
-| `ETL_LDAP_BIND_PASSWORD` ou `ETL_LDAP_BIND_PASSWORD_FILE` | son mot de passe | |
-| `ETL_LDAP_USER_BASE` | base de recherche des comptes (`ou=People,dc=exemple,dc=org`) | |
-| `ETL_LDAP_USER_FILTER` | filtre du compte ; `{username}` est remplacé par l'identifiant saisi, échappé | `(uid={username})` |
-| `ETL_LDAP_USERNAME_ATTRIBUTE` | attribut qui donne le nom de l'utilisateur dans Carriole | `uid` |
-| `ETL_LDAP_DISPLAY_ATTRIBUTES` | attributs du nom affiché, joints par un espace (`givenName,sn`) | `cn` |
-| `ETL_LDAP_GROUP_BASE` | base de recherche des groupes ; vide : pas de groupes | |
-| `ETL_LDAP_GROUP_FILTER` | filtre des groupes d'un compte (`{dn}`, `{username}`) | `(\|(member={dn})(uniqueMember={dn})(memberUid={username}))` |
-| `ETL_LDAP_GROUP_NAME_ATTRIBUTE` | nom d'un groupe | `cn` |
-| `ETL_LDAP_REQUIRED_GROUP` | groupe obligatoire pour se connecter : son nom, ou son DN (lu directement) | aucun |
-| `ETL_LDAP_TIMEOUT` | délai de réponse de l'annuaire, en secondes | `10` |
-
-Avec `ldap://` sans StartTLS, les mots de passe circulent en clair entre le serveur et l'annuaire : à réserver à un
-réseau de confiance.
-
-### Proxy d'authentification (`ETL_AUTH=proxy`)
-
-Le proxy (SSO de l'organisation, OpenID Connect…) identifie l'utilisateur et transmet son nom dans `ETL_AUTH_HEADER`
-(`X-Forwarded-User`), ses groupes dans `ETL_AUTH_GROUPS_HEADER` (séparés par des virgules) et son nom affiché dans
-`ETL_AUTH_DISPLAY_HEADER` (facultatifs). Carriole ne croit ces en-têtes que s'ils viennent d'une adresse de
-`ETL_TRUSTED_PROXIES` : le serveur ne doit être joignable que par le proxy.
-
-### Comptes locaux (`ETL_AUTH=file`, ou `ldap,file`)
-
-Pour une équipe sans annuaire, ou pour quelques personnes absentes de l'annuaire (`ldap,file` : l'annuaire est essayé
-d'abord ; s'il est arrêté, les comptes locaux fonctionnent encore). Les administrateurs les gèrent dans *Outils →
-Comptes* : création, nom affiché, groupes, nouveau mot de passe, suppression ([ADR 0058](decisions/0058-comptes-locaux.md)).
-Chaque utilisateur change son mot de passe depuis son menu. Mots de passe de 8 caractères au moins, hachés (scrypt)
-dans `ETL_USERS_FILE` (`users.json` du dossier des métadonnées).
-
-| Variable | Rôle |
-| --- | --- |
-| `ETL_ADMIN_PASSWORD` ou `ETL_ADMIN_PASSWORD_FILE` | premier démarrage sans compte local : crée le compte administrateur ; ensuite sans effet |
-| `ETL_ADMIN_USER` | son identifiant (`admin`) ; il est mis dans le premier groupe de `ETL_ADMINS` (`carriole-admins`) |
 
 En ligne de commande (facultatif) : `etl users add dupont --display "Jean Dupont" --group carriole-admins`,
 `etl users list`, `etl users remove dupont`.
@@ -123,7 +81,7 @@ En ligne de commande (facultatif) : `etl users add dupont --display "Jean Dupont
 Seuls les administrateurs (`ETL_ADMINS`) modifient les réglages de la machine dans *Paramètres* (calcul, réseau,
 composants, variables globales, fournisseurs de l'assistant), installent un modificateur écrit par l'assistant et
 arrêtent le serveur. Les autres utilisateurs consultent ces réglages. Chacun garde sa langue d'interface.
-L'onglet *Paramètres → Serveur* montre comment le serveur est réglé et teste l'annuaire LDAP.
+L'onglet *Paramètres → Serveur* montre comment le serveur est réglé.
 
 ## Journal d'activité
 

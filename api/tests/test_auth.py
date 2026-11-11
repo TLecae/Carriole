@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from etl_api.auth.providers import hash_password, write_users
+from etl_api.auth.accounts import hash_password, write_users
 from etl_api.main import create_app
 from etl_store import Settings
 from fastapi.testclient import TestClient
@@ -24,7 +24,6 @@ def server_env(tmp_path, monkeypatch):
         },
     )
     monkeypatch.setenv("ETL_MODE", "server")
-    monkeypatch.setenv("ETL_AUTH", "file")
     monkeypatch.setenv("ETL_USERS_FILE", str(users))
     monkeypatch.delenv("ETL_ADMINS", raising=False)
     return tmp_path
@@ -42,7 +41,7 @@ def login(client: TestClient, name: str, password: str):
 def test_server_mode_requires_a_session(server_env):
     with make_client(server_env) as client:
         assert client.get("/api/health").status_code == 200
-        assert client.get("/api/auth/info").json() == {"mode": "server", "provider": "file", "password": True}
+        assert client.get("/api/auth/info").json() == {"mode": "server", "password": True}
         assert client.get("/api/flows").status_code == 401
         assert client.get("/tiles/r/n/p/0/0/0.pbf").status_code == 401
         # un en-tête d'identité posé par le navigateur ne vaut rien en mode serveur
@@ -110,31 +109,27 @@ def test_writes_from_another_origin_are_refused(server_env):
         assert client.post("/api/flows", json=flow, headers={"Origin": f"http://{HOST}"}).status_code == 201
 
 
-def test_proxy_header_is_trusted_only_from_a_trusted_proxy(server_env, monkeypatch):
-    monkeypatch.setenv("ETL_AUTH", "proxy")
+def test_forwarded_headers_count_only_from_a_trusted_proxy(server_env, monkeypatch):
+    """Derrière un proxy HTTPS de confiance : cookie `Secure` d'après X-Forwarded-Proto ; un en-tête d'identité ne
+    vaut jamais rien (seule une session ouvre l'accès)."""
     monkeypatch.setenv("ETL_TRUSTED_PROXIES", "10.0.0.0/24")
-    monkeypatch.setenv("ETL_AUTH_GROUPS_HEADER", "X-Forwarded-Groups")
-    headers = {"X-Forwarded-User": "carol", "X-Forwarded-Groups": "equipe, carriole-admins"}
+    headers = {"X-Forwarded-Proto": "https", "X-Forwarded-For": "203.0.113.9", "X-Forwarded-User": "bob"}
+    body = {"username": "alice", "password": "motdepasse-a"}
     with make_client(server_env, client=("10.0.0.7", 50000)) as client:
-        me = client.get("/api/auth/me", headers=headers).json()
-        assert (me["name"], me["groups"], me["admin"], me["logout"]) == (
-            "carol",
-            ["carriole-admins", "equipe"],
-            True,
-            False,
-        )
-        assert client.post("/api/auth/login", json={"username": "carol", "password": "x"}).status_code == 400
-    with make_client(server_env, client=("192.168.1.9", 50000)) as client:
         assert client.get("/api/auth/me", headers=headers).status_code == 401
+        assert "secure" in client.post("/api/auth/login", json=body, headers=headers).headers["set-cookie"].lower()
+    with make_client(server_env, client=("192.168.1.9", 50000)) as client:
+        assert "secure" not in client.post("/api/auth/login", json=body, headers=headers).headers["set-cookie"].lower()
 
 
-def test_server_refuses_to_start_without_an_identity_provider(monkeypatch, capsys):
+def test_server_refuses_to_start_without_any_account(tmp_path, monkeypatch, capsys):
     from etl_api.serve import run_server
 
-    monkeypatch.delenv("ETL_AUTH", raising=False)
+    monkeypatch.setenv("ETL_USERS_FILE", str(tmp_path / "aucun.json"))
+    monkeypatch.delenv("ETL_ADMIN_PASSWORD", raising=False)
     monkeypatch.setenv("ETL_MODE", "desktop")
     assert run_server(server=True) == 2
-    assert "ETL_AUTH" in capsys.readouterr().err
+    assert "ETL_ADMIN_PASSWORD" in capsys.readouterr().err
 
 
 def test_desktop_mode_is_unchanged(tmp_path, monkeypatch):
@@ -149,16 +144,14 @@ def test_desktop_mode_is_unchanged(tmp_path, monkeypatch):
 def test_machine_settings_are_reserved_to_administrators(server_env):
     with make_client(server_env) as client:
         login(client, "alice", "motdepasse-a")
-        assert client.get("/api/settings").json()["server"] == {"provider": "file", "admin": False}
+        assert client.get("/api/settings").json()["server"] == {"admin": False}
         assert client.patch("/api/settings", json={"workers": 2}).status_code == 403
         assert client.put("/api/assistant/default/fake").status_code == 403
-        assert client.post("/api/auth/check").status_code == 403
     with make_client(server_env) as client:
         login(client, "bob", "motdepasse-b")
         server = client.get("/api/settings").json()["server"]
         assert server["admins"] == ["group:carriole-admins"] and server["read_roots"] == []
         assert client.patch("/api/settings", json={"workers": 2}).status_code == 200
-        assert client.post("/api/auth/check").status_code == 400  # pas un annuaire LDAP
 
 
 def test_each_user_keeps_their_own_language(server_env):

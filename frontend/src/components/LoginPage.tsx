@@ -3,9 +3,8 @@ import { ApiError } from "../api/client";
 import { useSession } from "../store/session";
 import { t } from "../i18n";
 
-/** Page de connexion du mode serveur (ADR 0052) : identifiant et mot de passe vérifiés par le serveur (LDAP, fichier). */
+/** Page de connexion du mode serveur (ADR 0052, 0059) : identifiant et mot de passe d'un compte du serveur. */
 export function LoginPage() {
-  const info = useSession((s) => s.info);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,18 +23,6 @@ export function LoginPage() {
       setBusy(false);
     }
   };
-
-  if (info && !info.password)
-    return (
-      <main className="login-page">
-        <div className="login-card">
-          <h1>Carriole</h1>
-          <p className="error-text" role="alert">
-            {t("Identité non reçue : ce serveur attend un proxy d'authentification. Passer par l'adresse fournie par votre administrateur.")}
-          </p>
-        </div>
-      </main>
-    );
 
   return (
     <main className="login-page">

@@ -44,9 +44,9 @@ map.</p>
 - **AI assistant**, optional (Claude, OpenAI, OpenRouter, Ollama): it reads the flow and proposes changes, applied in
   one click; what it may read is configurable. [ADR 0027](docs/decisions/0027-assistant-ia.md)
 - **Desktop or server**: on a computer, Carriole runs with the user's own permissions on local drives and network
-  shares, with no server to install. On a shared machine, `etl serve --server` serves several users in their
-  browser: sign-in through an LDAP directory, an authentication proxy or a file of accounts; flows and connections
-  private until shared with a user or a group; files limited to the folders the administrator allows; Python code
+  shares, with no server to install. On a shared machine, the server (Docker image) serves several users in their
+  browser: local accounts managed by administrators; flows and connections private until shared with a user or a
+  group; files limited to the folders the administrator allows; Python code
   of flows isolated (bubblewrap); fair queue and quotas per user; activity log; metadata in SQLite or PostgreSQL.
   [Server guide](docs/serveur.md) (French)
 - Interface in English and French.
@@ -69,14 +69,10 @@ More in the [installation guide](docs/installation.md) (French).
 
 ### Server
 
-On a shared server, Carriole runs as a Docker image. In the `docker` folder, copy the example that matches how users
-sign in to `carriole.env` (not versioned: it holds passwords), edit it, then run `docker compose up -d --build`:
-
-| Example | Sign-in |
-| --- | --- |
-| [`ldap.env`](docker/examples/ldap.env) | LDAP directory (or Active Directory), plus local accounts created by an administrator |
-| [`proxy.env`](docker/examples/proxy.env) | authentication proxy (single sign-on, OpenID Connect…) |
-| [`local-accounts.env`](docker/examples/local-accounts.env) | local accounts only: a first `admin` account, then *Tools → Accounts* |
+On a shared server, Carriole runs as a Docker image. In the `docker` folder, copy
+[`carriole.env.example`](docker/carriole.env.example) to `carriole.env` (not versioned: it holds a password), choose
+the first administrator's password (`ETL_ADMIN_PASSWORD`), then run `docker compose up -d --build`. Users sign in with
+local accounts that administrators create in *Tools → Accounts*.
 
 Allowed folders, administrators, quotas and the other `ETL_*` settings are described in the
 [server guide](docs/serveur.md) (French). Without Docker: `etl serve --server` from a source install.

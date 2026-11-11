@@ -171,7 +171,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     web = frontend_dir(settings)
     if web:  # monté en dernier : les routes /api et /tiles passent avant
         app.mount("/", Frontend(directory=web, html=True), name="frontend")
-    if settings.mode == "server":  # identité exigée : session (LDAP, fichier) ou proxy de confiance (ADR 0052)
+    if settings.mode == "server":  # identité exigée : session d'un compte local (ADR 0052, 0059)
         app.add_middleware(audit.AuditMiddleware)  # sous le garde : l'identité est connue (ADR 0056)
         app.add_middleware(ServerGuard, hosts=settings.allowed_hosts)
     else:

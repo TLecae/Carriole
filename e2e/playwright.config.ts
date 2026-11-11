@@ -108,7 +108,7 @@ if (mode === "server" && !fs.existsSync(usersFile)) {
 }
 const serverEnv: Record<string, string> =
   mode === "server"
-    ? { ETL_AUTH: "file", ETL_USERS_FILE: usersFile, ETL_READ_ROOTS: [data.in, data.out].join(path.delimiter), ETL_WRITE_ROOTS: data.out }
+    ? { ETL_USERS_FILE: usersFile, ETL_READ_ROOTS: [data.in, data.out].join(path.delimiter), ETL_WRITE_ROOTS: data.out }
     : { ETL_SERVE_TOKEN: token, ETL_FLOW_STORAGE: mode };
 
 const python =

@@ -1,6 +1,6 @@
 # ADR 0058 — Comptes locaux gérés par l'administrateur
 
-- **Statut** : accepté
+- **Statut** : accepté ; la combinaison avec un annuaire (point 3) est retirée par l'ADR 0059
 - **Date** : 2026-11-11
 - **Complète** : ADR 0052 (mode serveur et authentification)
 

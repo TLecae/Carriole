@@ -7,8 +7,8 @@ page web ouverte dans un navigateur pourrait l'appeler sur 127.0.0.1. Trois barr
 - le contrôle de l'en-tête `Host` (un site malveillant qui détourne son nom DNS vers 127.0.0.1 envoie un autre nom) ;
 - aucune ouverture CORS.
 
-Sans jeton configuré (serveur derrière un proxy d'authentification, tests), le contrôle est inactif ; les en-têtes de
-sécurité s'appliquent toujours.
+Sans jeton configuré (tests ; le mode serveur a son propre garde, `etl_api.auth`), le contrôle est inactif ; les
+en-têtes de sécurité s'appliquent toujours.
 """
 
 from __future__ import annotations

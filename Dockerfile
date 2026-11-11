@@ -1,6 +1,6 @@
 # Carriole en mode serveur (docs/serveur.md, ADR 0052) : plusieurs utilisateurs dans leur navigateur.
 #   docker build -t carriole .
-#   docker run -p 8080:8080 -e ETL_AUTH=… carriole      (exemple complet : docker/compose.yaml)
+#   docker run -p 8080:8080 -e ETL_ADMIN_PASSWORD=… carriole      (exemple complet : docker/compose.yaml)
 
 # ---------------------------------------------------------------------------------------------- interface
 FROM node:22-bookworm-slim AS interface

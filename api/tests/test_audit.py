@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from etl_api.auth.providers import hash_password, write_users
+from etl_api.auth.accounts import hash_password, write_users
 from etl_api.main import create_app
 from etl_store import Settings
 from fastapi.testclient import TestClient
@@ -25,7 +25,6 @@ def app(tmp_path, monkeypatch):
         },
     )
     monkeypatch.setenv("ETL_MODE", "server")
-    monkeypatch.setenv("ETL_AUTH", "file")
     monkeypatch.setenv("ETL_USERS_FILE", str(users))
     monkeypatch.delenv("ETL_ADMINS", raising=False)
     return create_app(Settings(meta_dir=tmp_path / "m", cache_dir=tmp_path / "c", plugins_dir=tmp_path / "p"))
