@@ -19,11 +19,8 @@ nœud se vérifie sur une table et une carte.</p>
 résultat inspecté.
 
 Sur un poste, Carriole lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits, sans serveur à
-installer. Sur une machine partagée, l'image Docker accueille plusieurs utilisateurs dans leur navigateur : dans le
-dossier `docker`, copier [`carriole.env.example`](docker/carriole.env.example) en `carriole.env` (non versionné, il
-contient un mot de passe), y choisir le mot de passe du premier administrateur (`ETL_ADMIN_PASSWORD`), puis
-`docker compose up -d --build`. Les utilisateurs se connectent avec des comptes locaux que les administrateurs créent
-dans *Outils → Comptes*. Le reste des réglages est dans le [guide du serveur](docs/serveur.md).
+installer. Sur une machine partagée, plusieurs utilisateurs travaillent dans leur navigateur : voir
+[Installer sur un serveur](#installer-sur-un-serveur).
 
 > Plan et avancement : [docs/plan_jalons.md](docs/plan_jalons.md) et [docs/journal_jalons.md](docs/journal_jalons.md).
 
@@ -59,6 +56,25 @@ dans *Outils → Comptes*. Le reste des réglages est dans le [guide du serveur]
 ![Inspecteur en pleine page : communes colorées selon la densité de population, table triée par densité, commune sélectionnée sur les deux](site/img/inspecteur-fr.webp)
 
 ![Requête de lecture d'un lecteur GeoParquet : attributs lus, filtre, nombre d'entités gardées](site/img/requete-fr.webp)
+
+## Installer sur un serveur
+
+Chaque version publie une image Docker, `ghcr.io/tlecae/carriole`. Sur un serveur Linux avec Docker et son extension
+Compose, rien d'autre n'est nécessaire (ni clone, ni construction) :
+
+```bash
+mkdir carriole && cd carriole
+curl -fsSLO https://raw.githubusercontent.com/TLecae/Carriole/main/docker/compose.yaml
+curl -fsSL -o carriole.env https://raw.githubusercontent.com/TLecae/Carriole/main/docker/carriole.env.example
+nano carriole.env                      # ETL_ADMIN_PASSWORD : mot de passe du premier administrateur, « admin »
+mkdir donnees && sudo chown 10001:10001 donnees   # dossier lu et écrit par les utilisateurs (ou CARRIOLE_DONNEES=/mnt/partage)
+docker compose pull && docker compose up -d
+```
+
+Carriole répond alors sur `http://127.0.0.1:8080` : se connecter avec `admin`, puis créer les comptes des
+utilisateurs dans *Outils → Comptes*. Placer un proxy HTTPS (nginx, Caddy…) devant le port 8080 pour l'ouvrir au
+réseau. `CARRIOLE_VERSION=0.2.1` fixe une version ; `docker compose pull && docker compose up -d` met à jour.
+Dossiers autorisés, administrateurs, quotas, PostgreSQL : [guide du serveur](docs/serveur.md).
 
 ## Documentation
 

@@ -12,6 +12,10 @@ RUN npx vite build
 
 # ------------------------------------------------------------------------------------------------ serveur
 FROM python:3.12-slim-bookworm
+LABEL org.opencontainers.image.title="Carriole" \
+      org.opencontainers.image.description="ETL for geographic data, server mode (several users in their browser)" \
+      org.opencontainers.image.source="https://github.com/TLecae/Carriole" \
+      org.opencontainers.image.licenses="MIT"
 # bubblewrap : bac à sable du code Python des flux (ADR 0053) ; tini : transmet l'arrêt au serveur et à ses workers ;
 # libexpat1 : demandée par GDAL (rasterio, pyogrio), absente de l'image « slim »
 RUN apt-get update \

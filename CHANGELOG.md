@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Server mode: each release publishes the server image to `ghcr.io/tlecae/carriole` (version and `latest`); on any
+  Linux server, `compose.yaml` and `carriole.env` are enough: `docker compose pull && docker compose up -d`. The
+  README describes the installation; `CARRIOLE_VERSION` pins a version, `CARRIOLE_PORT` changes the port.
 - Server mode: administrators create, edit and delete accounts in *Tools → Accounts* (name, groups, new password);
   each user changes their own password from their menu. `ETL_ADMIN_PASSWORD` creates the first administrator account
   on a server without any ([ADR 0058](docs/decisions/0058-comptes-locaux.md),

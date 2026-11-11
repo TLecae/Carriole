@@ -1,20 +1,23 @@
-# Carriole en mode serveur (docs/serveur.md). Dans ce dossier :
+# Carriole en mode serveur (docs/serveur.md). Dans le dossier de ce fichier :
 #   1. copier carriole.env.example en carriole.env (non versionné) et y choisir le mot de passe du premier administrateur ;
-#   2. docker compose up -d --build        (avec PostgreSQL : docker compose --profile postgres up -d --build)
+#   2. sur un serveur : docker compose pull && docker compose up -d   (image publiée, version : CARRIOLE_VERSION)
+#      depuis le dépôt : docker compose up -d --build                  (image construite depuis les sources)
+#      avec PostgreSQL : ajouter --profile postgres
 # Placer un proxy HTTPS (nginx, Caddy, Traefik…) devant le port 8080 : les mots de passe ne doivent pas circuler en clair.
 
 services:
   carriole:
-    build: ..
-    image: carriole:latest
+    image: ghcr.io/tlecae/carriole:${CARRIOLE_VERSION:-latest}
+    build: .. # depuis le dépôt seulement (docker compose up --build)
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080" # joignable depuis cette machine (et son proxy HTTPS) seulement
+      - "127.0.0.1:${CARRIOLE_PORT:-8080}:8080" # joignable depuis cette machine (et son proxy HTTPS) seulement
     env_file: carriole.env
     volumes:
       - carriole:/var/lib/carriole # réglages, cache des runs, journaux
       # données de l'organisation : un dossier de la machine, par exemple le partage de fichiers déjà monté
-      # (/mnt/partage sous Linux, D:/donnees sous Windows) ; défaut : ./donnees
+      # (/mnt/partage sous Linux, D:/donnees sous Windows) ; défaut : ./donnees. Sous Linux, l'utilisateur de l'image
+      # (uid 10001) doit pouvoir y écrire : sudo chown -R 10001:10001 donnees
       - ${CARRIOLE_DONNEES:-./donnees}:/mnt/donnees
     # Code Python des flux (PythonScript) : isolé par bubblewrap, qui a besoin des espaces de noms utilisateur.
     # Le profil seccomp par défaut de Docker les refuse : soit autoriser `unshare` et `clone` avec un profil seccomp

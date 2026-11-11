@@ -69,13 +69,26 @@ More in the [installation guide](docs/installation.md) (French).
 
 ### Server
 
-On a shared server, Carriole runs as a Docker image. In the `docker` folder, copy
-[`carriole.env.example`](docker/carriole.env.example) to `carriole.env` (not versioned: it holds a password), choose
-the first administrator's password (`ETL_ADMIN_PASSWORD`), then run `docker compose up -d --build`. Users sign in with
-local accounts that administrators create in *Tools → Accounts*.
+On a shared server, several users work with Carriole in their browser. Each release publishes a Docker image,
+`ghcr.io/tlecae/carriole`. On a Linux server with Docker and its Compose plugin, nothing else is needed (no clone,
+no build):
 
-Allowed folders, administrators, quotas and the other `ETL_*` settings are described in the
-[server guide](docs/serveur.md) (French). Without Docker: `etl serve --server` from a source install.
+```bash
+mkdir carriole && cd carriole
+curl -fsSLO https://raw.githubusercontent.com/TLecae/Carriole/main/docker/compose.yaml
+curl -fsSL -o carriole.env https://raw.githubusercontent.com/TLecae/Carriole/main/docker/carriole.env.example
+nano carriole.env                      # ETL_ADMIN_PASSWORD: password of the first administrator, "admin"
+mkdir donnees && sudo chown 10001:10001 donnees   # folder the users read and write (or CARRIOLE_DONNEES=/mnt/share)
+docker compose pull && docker compose up -d
+```
+
+Carriole then answers on `http://127.0.0.1:8080`: sign in as `admin`, then create the users' accounts in
+*Tools → Accounts*. Put an HTTPS proxy (nginx, Caddy…) in front of port 8080 to open it to the network.
+`CARRIOLE_VERSION=0.2.1` pins a version; `docker compose pull && docker compose up -d` updates.
+
+Allowed folders, administrators, quotas, PostgreSQL and the other `ETL_*` settings are described in the
+[server guide](docs/serveur.md) (French). From a clone of the repository: `docker compose up -d --build` in the
+`docker` folder; without Docker: `etl serve --server`.
 
 ## Write a modifier
 
