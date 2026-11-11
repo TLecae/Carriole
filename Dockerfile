@@ -12,9 +12,10 @@ RUN npx vite build
 
 # ------------------------------------------------------------------------------------------------ serveur
 FROM python:3.12-slim-bookworm
-# bubblewrap : bac à sable du code Python des flux (ADR 0053) ; tini : transmet l'arrêt au serveur et à ses workers
+# bubblewrap : bac à sable du code Python des flux (ADR 0053) ; tini : transmet l'arrêt au serveur et à ses workers ;
+# libexpat1 : demandée par GDAL (rasterio, pyogrio), absente de l'image « slim »
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends bubblewrap ca-certificates tini \
+    && apt-get install -y --no-install-recommends bubblewrap ca-certificates libexpat1 tini \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.10.4 /uv /usr/local/bin/uv
 
@@ -33,6 +34,10 @@ RUN uv sync --frozen --no-dev --no-editable && rm -rf /root/.cache
 COPY desktop/build/prepare_runtime.py /tmp/prepare_runtime.py
 RUN /opt/carriole/venv/bin/python /tmp/prepare_runtime.py /opt/carriole && rm /tmp/prepare_runtime.py
 COPY --from=interface /src/frontend/dist /opt/carriole/frontend
+# contrôle : toutes les bibliothèques natives se chargent (une dépendance système manquante échoue ici, pas au démarrage)
+RUN /opt/carriole/venv/bin/python -c "import duckdb, pyarrow, pyogrio, pyproj, rasterio, shapely; \
+import etl_api.main, etl_worker.main; from etl_engine.registry import Registry; Registry.discover(None)" \
+    && test -f /opt/carriole/frontend/index.html
 
 ENV PATH=/opt/carriole/venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
