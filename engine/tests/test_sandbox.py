@@ -139,7 +139,7 @@ def test_an_unusable_bubblewrap_is_reported_with_its_reason(monkeypatch):
         returncode = 1
         stderr = b"bwrap: No permissions to create new namespace\n"
 
-    sandbox._bwrap_problem.cache_clear()
+    sandbox._bwrap_mode.cache_clear()
     monkeypatch.setattr(sandbox.sys, "platform", "linux")
     monkeypatch.setattr(sandbox.shutil, "which", lambda _name: "/usr/bin/bwrap")
     monkeypatch.setattr(sandbox.subprocess, "run", lambda *a, **k: Done())
@@ -148,4 +148,47 @@ def test_an_unusable_bubblewrap_is_reported_with_its_reason(monkeypatch):
         with pytest.raises(ConfigError, match="No permissions to create new namespace"):
             sandbox.command("python")
     finally:
-        sandbox._bwrap_problem.cache_clear()
+        sandbox._bwrap_mode.cache_clear()
+
+
+def test_bubblewrap_falls_back_without_proc_in_a_container(monkeypatch):
+    """Docker interdit de monter un /proc neuf : le bac à sable démarre alors sans /proc (Python s'en passe)."""
+    calls = []
+
+    class Done:
+        def __init__(self, ok, err=b""):
+            self.returncode, self.stderr = (0 if ok else 1), err
+
+    def run(cmd, **_kwargs):
+        with_proc = "--proc" in cmd
+        calls.append(with_proc)
+        return Done(not with_proc, b"bwrap: Can't mount proc on /newroot/proc: Operation not permitted\n")
+
+    sandbox._bwrap_mode.cache_clear()
+    monkeypatch.setattr(sandbox.sys, "platform", "linux")
+    monkeypatch.setattr(sandbox.shutil, "which", lambda _name: "/usr/bin/bwrap")
+    monkeypatch.setattr(sandbox.subprocess, "run", run)
+    monkeypatch.setenv("ETL_SANDBOX", "bwrap")
+    try:
+        cmd = sandbox.command("python")
+    finally:
+        sandbox._bwrap_mode.cache_clear()
+    assert calls == [True, False] and "--proc" not in cmd and cmd[cmd.index("--dir") + 1] == "/proc"
+
+
+def test_python_link_chain_is_mounted(tmp_path, monkeypatch):
+    """Un venv dont python est un lien vers un Python installé ailleurs : chaque étape du lien est montée."""
+    import os
+
+    if not hasattr(os, "symlink") or os.name == "nt":
+        pytest.skip("liens symboliques POSIX")
+    real = tmp_path / "pythons" / "cpython-3.12.9" / "bin"
+    real.mkdir(parents=True)
+    (real / "python3.12").write_text("")
+    (tmp_path / "pythons" / "cpython-3.12").symlink_to(tmp_path / "pythons" / "cpython-3.12.9")
+    venv = tmp_path / "venv" / "bin"
+    venv.mkdir(parents=True)
+    (venv / "python").symlink_to(tmp_path / "pythons" / "cpython-3.12" / "bin" / "python3.12")
+    monkeypatch.setattr(sandbox.sys, "executable", str(venv / "python"))
+    dirs = sandbox._python_dirs()
+    assert str(tmp_path / "pythons" / "cpython-3.12") in dirs and str(tmp_path / "pythons" / "cpython-3.12.9") in dirs

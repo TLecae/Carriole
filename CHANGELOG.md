@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Server mode: the bubblewrap sandbox of the Python code of flows works when the venv's Python is a link to a Python
+  installed elsewhere (uv), and inside a container, which forbids mounting a new `/proc` (it starts without one).
+  The server guide gives the two container options that allow it.
+
 ## 0.2.1
 
 - Server mode: each release publishes the server image to `ghcr.io/tlecae/carriole` (version and `latest`); on any

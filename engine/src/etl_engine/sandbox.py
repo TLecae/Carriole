@@ -75,8 +75,27 @@ def from_ipc(data: bytes) -> pa.Table:
 # -------------------------------------------------------------------------------------------- bac à sable
 
 
-def _bwrap_args() -> list[str]:
-    """Système en lecture seule (Python, ses bibliothèques), rien d'autre : ni données, ni base, ni réseau."""
+def _python_dirs() -> list[str]:
+    """Préfixes du Python du worker, sous leurs deux formes (chemin donné et chemin résolu) : un venv dont `python` est
+    un lien vers un Python installé ailleurs (uv, pyenv) ne s'exécute que si chaque étape du lien existe aussi dans le
+    bac à sable."""
+    import site
+
+    out = [sys.prefix, sys.base_prefix, sys.exec_prefix, *site.getsitepackages()]
+    path = os.path.abspath(sys.executable)
+    for _ in range(16):  # chaîne de liens : venv/bin/python -> …/cpython-3.12/bin/python3.12 -> …
+        out.append(os.path.dirname(os.path.dirname(path)))
+        if not os.path.islink(path):
+            break
+        target = os.readlink(path)
+        path = os.path.normpath(target if os.path.isabs(target) else os.path.join(os.path.dirname(path), target))
+    out.append(str(Path(__file__).resolve().parents[1]))  # dossier d'etl_engine (installation éditable)
+    return [*out, *(str(Path(p).resolve()) for p in out)]
+
+
+def _bwrap_args(proc: bool = True) -> list[str]:
+    """Système en lecture seule (Python, ses bibliothèques), rien d'autre : ni données, ni base, ni réseau.
+    `proc` faux : pas de `/proc` (un conteneur Docker interdit d'en monter un neuf ; Python s'en passe)."""
     args = ["--die-with-parent", "--new-session", "--unshare-all", "--clearenv"]
     args += ["--setenv", "PATH", "/usr/local/bin:/usr/bin:/bin", "--setenv", "HOME", "/tmp"]
     args += ["--setenv", "PYTHONDONTWRITEBYTECODE", "1", "--setenv", "PYTHONUTF8", "1"]
@@ -88,38 +107,41 @@ def _bwrap_args() -> list[str]:
             args += ["--ro-bind", top, top]
     for path in ("/etc/ld.so.cache", "/etc/localtime"):
         args += ["--ro-bind-try", path, path]
-    # Python, ses paquets et le dossier d'etl_engine (installation éditable) ; jamais `sys.path` en entier : il
-    # contient le dossier courant du worker
-    import site
-
-    package_root = Path(__file__).resolve().parents[1]
+    # Python et ses paquets ; jamais `sys.path` en entier : il contient le dossier courant du worker
     seen: set[str] = set()
-    for entry in [sys.prefix, sys.base_prefix, sys.exec_prefix, *site.getsitepackages(), str(package_root)]:
-        path = str(Path(entry).resolve())
+    for path in _python_dirs():
+        path = os.path.normpath(path)
         if path != "/" and os.path.isdir(path) and path not in seen and not path.startswith("/usr/"):
             seen.add(path)
             args += ["--ro-bind", path, path]
-    args += ["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--chdir", "/tmp"]
+    args += ["--proc", "/proc"] if proc else ["--dir", "/proc"]
+    args += ["--dev", "/dev", "--tmpfs", "/tmp", "--chdir", "/tmp"]
     return args
 
 
-@functools.cache
-def _bwrap_problem(exe: str) -> str:
-    """Vide si bubblewrap fonctionne ici ; sinon sa réponse (un conteneur qui refuse les espaces de noms…). Essayé une
-    fois par processus."""
+def _try_bwrap(exe: str, proc: bool) -> str:
+    """Vide si le bac à sable démarre Python ; sinon la dernière ligne de la réponse de bubblewrap."""
     try:
         done = subprocess.run(  # noqa: S603 - commande construite ici, sans shell
-            [exe, *_bwrap_args(), "--", sys.executable, "-I", "-c", "pass"], capture_output=True, timeout=60
+            [exe, *_bwrap_args(proc), "--", sys.executable, "-I", "-c", "pass"], capture_output=True, timeout=60
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return str(exc)
     if done.returncode == 0:
         return ""
-    return (
-        done.stderr.decode(errors="replace").strip().splitlines()[-1:][0]
-        if done.stderr.strip()
-        else f"code {done.returncode}"
-    )
+    lines = done.stderr.decode(errors="replace").strip().splitlines()
+    return lines[-1] if lines else f"code {done.returncode}"
+
+
+@functools.cache
+def _bwrap_mode(exe: str) -> tuple[bool | None, str]:
+    """(avec `/proc` ?, problème) : essayé une fois par processus ; `None` : bubblewrap inutilisable ici."""
+    problem = _try_bwrap(exe, proc=True)
+    if not problem:
+        return True, ""
+    if "proc" in problem.lower() and not _try_bwrap(exe, proc=False):
+        return False, ""
+    return None, problem
 
 
 def command(python: str) -> list[str]:
@@ -135,13 +157,13 @@ def command(python: str) -> list[str]:
                 "aucun bac à sable pour le code Python des flux : installer bubblewrap (bwrap) sur le serveur, "
                 "ou régler ETL_USER_CODE (allow ou deny)"
             )
-        problem = _bwrap_problem(exe)
-        if problem:
+        proc, problem = _bwrap_mode(exe)
+        if proc is None:
             raise ConfigError(
                 f"bac à sable bubblewrap inutilisable sur ce serveur ({problem}) : il lui faut les espaces de noms "
                 "utilisateur (voir le guide du serveur), ou régler ETL_USER_CODE"
             )
-        return [exe, *_bwrap_args(), "--", *child]
+        return [exe, *_bwrap_args(proc), "--", *child]
     return [*shlex.split(kind), *child]
 
 

@@ -19,9 +19,10 @@ services:
       # (/mnt/partage sous Linux, D:/donnees sous Windows) ; défaut : ./donnees. Sous Linux, l'utilisateur de l'image
       # (uid 10001) doit pouvoir y écrire : sudo chown -R 10001:10001 donnees
       - ${CARRIOLE_DONNEES:-./donnees}:/mnt/donnees
-    # Code Python des flux (PythonScript) : isolé par bubblewrap, qui a besoin des espaces de noms utilisateur.
-    # Le profil seccomp par défaut de Docker les refuse : soit autoriser `unshare` et `clone` avec un profil seccomp
-    # adapté (security_opt: ["seccomp=chemin/profil.json"]), soit ETL_USER_CODE=deny dans carriole.env.
+    # Code Python des flux (PythonScript) : isolé par bubblewrap, qui a besoin des espaces de noms utilisateur, que
+    # Docker refuse par défaut. Pour l'autoriser : ETL_USER_CODE=sandbox dans carriole.env, et ces deux lignes
+    # (elles relâchent les protections du conteneur, voir docs/serveur.md) ; sinon garder ETL_USER_CODE=deny.
+    # security_opt: ["seccomp=unconfined", "apparmor=unconfined"]
 
   db:
     profiles: ["postgres"] # métadonnées dans PostgreSQL (sinon SQLite dans le volume carriole)

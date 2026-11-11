@@ -33,10 +33,13 @@ métadonnées dans PostgreSQL : renseigner `POSTGRES_PASSWORD` et `ETL_DB_URL` d
 `docker compose --profile postgres up -d --build`. Placer un proxy HTTPS devant le port 8080 et déclarer son adresse
 dans `ETL_TRUSTED_PROXIES`.
 
-Le code Python des flux s'exécute dans bubblewrap, qui a besoin des espaces de noms utilisateur : le profil seccomp par
-défaut de Docker les refuse, et certaines distributions les restreignent (Ubuntu 24.04 :
-`kernel.apparmor_restrict_unprivileged_userns`). Sans eux, *PythonScript* le dit dès l'analyse du flux ;
-`ETL_USER_CODE=deny` le désactive simplement.
+Le code Python des flux s'exécute dans bubblewrap, qui a besoin des espaces de noms utilisateur : Docker les refuse
+par défaut, et certaines distributions les restreignent (Ubuntu 24.04 : `kernel.apparmor_restrict_unprivileged_userns`).
+Sans eux, *PythonScript* le dit dès l'analyse du flux ; `ETL_USER_CODE=deny` (valeur de l'exemple) le désactive
+simplement. Pour l'autoriser : `ETL_USER_CODE=sandbox` et, dans `compose.yaml`,
+`security_opt: ["seccomp=unconfined", "apparmor=unconfined"]`. Ces options relâchent les protections du conteneur pour
+tout Carriole : à réserver à un serveur qui ne sert qu'à lui. Dans un conteneur, le bac à sable démarre sans `/proc`
+(Docker interdit d'en monter un neuf).
 
 ## Démarrer sans Docker
 
@@ -135,8 +138,7 @@ bubblewrap ([ADR 0053](decisions/0053-code-python-isole.md)) : il ne voit ni les
 | `ETL_USER_CODE` | `sandbox` (défaut du serveur) : processus isolé ; `deny` : *PythonScript* refusé ; `allow` : dans le worker, avec les droits du serveur (à réserver à des utilisateurs de confiance) |
 | `ETL_SANDBOX` | `bwrap` (défaut, paquet `bubblewrap`) ; `process` : sans isolation (essais) ; ou la commande d'un autre outil d'isolation |
 
-bubblewrap a besoin des espaces de noms utilisateur (*user namespaces*). Dans un conteneur Docker, le profil seccomp
-par défaut les refuse : lancer le conteneur avec un profil qui les permet, ou garder `ETL_USER_CODE=deny`.
+bubblewrap a besoin des espaces de noms utilisateur (*user namespaces*) : voir plus haut, « Installer avec Docker ».
 
 ## Fichiers
 
