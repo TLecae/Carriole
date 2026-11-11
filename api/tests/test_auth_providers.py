@@ -138,3 +138,23 @@ def test_server_mode_without_roots_gives_no_file_access(monkeypatch, tmp_path):
         paths.check(tmp_path / "a.csv", "read")
     monkeypatch.setenv("ETL_READ_ROOTS", str(tmp_path))
     assert paths.check(tmp_path / "a.csv", "read")
+
+
+def test_ldap_socket_timeouts_are_whole_seconds(monkeypatch):
+    """Sous Linux, ldap3 passe les délais à setsockopt : un nombre décimal y fait planter la connexion."""
+    import ldap3
+
+    seen = {}
+    real = ldap3.Connection
+
+    def spy(server, **kwargs):
+        seen["connect"], seen["receive"] = server.connect_timeout, kwargs["receive_timeout"]
+        return real(server, client_strategy=ldap3.MOCK_SYNC, **{k: v for k, v in kwargs.items() if k != "read_only"})
+
+    monkeypatch.setattr(ldap3, "Connection", spy)
+    config = LdapConfig.load()
+    provider = LdapProvider(
+        LdapConfig(**{**config.__dict__, "url": "ldap://annuaire.exemple.org", "timeout": 7.5, "user_base": "o=x"})
+    )
+    provider._real_connection(None, None)
+    assert (seen["connect"], seen["receive"]) == (8, 8) and all(isinstance(v, int) for v in seen.values())

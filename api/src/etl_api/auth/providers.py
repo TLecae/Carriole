@@ -66,8 +66,10 @@ class LdapProvider:
         tls = None
         if secure or cfg.starttls:
             tls = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cfg.ca_file or None)
-        server = Server(cfg.url, use_ssl=secure, tls=tls, connect_timeout=cfg.timeout, get_info=NONE)
-        return Connection(server, user=user, password=password, receive_timeout=cfg.timeout, read_only=True)
+        # délais en secondes entières : sous Linux, ldap3 les passe à setsockopt (struct) et refuse un nombre décimal
+        seconds = max(1, round(cfg.timeout))
+        server = Server(cfg.url, use_ssl=secure, tls=tls, connect_timeout=seconds, get_info=NONE)
+        return Connection(server, user=user, password=password, receive_timeout=seconds, read_only=True)
 
     def _bind(self, user: str | None, password: str | None) -> Any | None:
         from ldap3.core.exceptions import LDAPException
@@ -82,6 +84,9 @@ class LdapProvider:
                 return conn
         except LDAPException as exc:
             log.warning("annuaire LDAP injoignable : %s", exc)
+            raise AuthUnavailable("annuaire LDAP injoignable") from None
+        except Exception:  # noqa: BLE001 - erreur imprévue du client LDAP : jamais une erreur 500 à la connexion
+            log.exception("annuaire LDAP : erreur inattendue")
             raise AuthUnavailable("annuaire LDAP injoignable") from None
         result = getattr(conn, "result", None) or {}
         log.info("connexion LDAP refusée pour %s : %s", user or "(anonyme)", result.get("description", "?"))
