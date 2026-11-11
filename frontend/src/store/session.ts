@@ -34,9 +34,11 @@ export const useSession = create<SessionState>((set) => ({
   },
 
   login: async (username, password) => {
-    const me = await api.login(username, password);
-    setSessionUser(me.name);
-    set({ me: { ...me, mode: "server", logout: true }, state: "ready" });
+    const signed = await api.login(username, password);
+    setSessionUser(signed.name);
+    // tout ce que dit /auth/me (comptes locaux, compte de l'utilisateur), pas seulement l'identité de la connexion
+    const me = await api.me().catch(() => ({ ...signed, mode: "server" as const, logout: true }));
+    set({ me, state: "ready" });
   },
 
   logout: async () => {

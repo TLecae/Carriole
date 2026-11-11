@@ -13,7 +13,16 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from etl_api.auth.config import AuthConfig
 from etl_api.auth.identity import Identity
-from etl_api.auth.providers import FileProvider, LdapProvider, ProxyProvider, password_provider, trusted
+from etl_api.auth.providers import (
+    ChainProvider,
+    FileProvider,
+    LdapProvider,
+    ProxyProvider,
+    bootstrap_admin,
+    part,
+    password_provider,
+    trusted,
+)
 from etl_api.auth.sessions import COOKIE, Sessions
 from etl_api.auth.throttle import Throttle
 
@@ -27,14 +36,24 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 class AuthService:
     config: AuthConfig
     sessions: Sessions
-    passwords: LdapProvider | FileProvider | None = None
+    passwords: LdapProvider | FileProvider | ChainProvider | None = None
     proxy: ProxyProvider | None = None
     throttle: Throttle = field(default_factory=Throttle)
 
     @classmethod
     def create(cls, config: AuthConfig, store: Any) -> AuthService:
-        proxy = ProxyProvider(config.proxy, config.trusted_proxies) if config.provider == "proxy" else None
+        proxy = ProxyProvider(config.proxy, config.trusted_proxies) if "proxy" in config.providers else None
+        bootstrap_admin(config)  # premier démarrage : compte administrateur local (ETL_ADMIN_PASSWORD)
         return cls(config, Sessions(store, config.session_hours), password_provider(config), proxy)
+
+    @property
+    def accounts(self) -> FileProvider | None:
+        """Comptes locaux gérés par l'administrateur (`file` dans `ETL_AUTH`), ou `None`."""
+        return part(self.passwords, FileProvider)
+
+    @property
+    def ldap(self) -> LdapProvider | None:
+        return part(self.passwords, LdapProvider)
 
     def with_role(self, identity: Identity) -> Identity:
         """Le rôle se recalcule à chaque requête : un changement de `ETL_ADMINS` s'applique sans reconnexion."""

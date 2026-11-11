@@ -46,6 +46,10 @@ ACTIONS = {
     "install_modifier": "assistant.modifier",
     "publish_version": "component.publish",
     "shutdown": "server.stop",
+    "create_account": "account.create",
+    "update_account": "account.update",
+    "delete_account": "account.delete",
+    "change_password": "account.password",
 }
 TARGET_PARAMS = ("flow_id", "run_id", "schedule_id", "name", "provider_id")
 
@@ -78,6 +82,9 @@ def entry(scope: Scope, action: str, status: int, sent: bytes, received: bytes) 
         detail["shares"] = body.get("shares", [])
     elif action in ("flow.create", "flow.update"):
         detail["name"] = (body.get("flow") or {}).get("name", "")
+    elif action.startswith("account."):  # jamais un mot de passe : les champs modifiés seulement
+        target = target or str(body.get("name") or "")
+        detail["fields"] = sorted(k for k, v in body.items() if v is not None and k not in ("current", "new", "name"))
     elif action == "run.create" and answer.get("flow_name"):
         detail["flow"] = answer["flow_name"]
     return user, action, target, detail, str(state.get("client_ip") or "")

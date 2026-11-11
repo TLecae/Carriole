@@ -160,7 +160,7 @@ def _server(identity: Identity) -> dict[str, Any] | None:
             admins=list(config.admins),
             session_hours=config.session_hours,
             trusted_proxies=list(config.trusted_proxies),
-            ldap=config.ldap.public() if config.provider == "ldap" else None,
+            ldap=config.ldap.public() if "ldap" in config.providers else None,
             read_roots=[r["label"] for r in _roots("read")],
             write_roots=[r["label"] for r in _roots("write")],
         )

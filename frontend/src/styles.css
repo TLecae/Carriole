@@ -716,3 +716,11 @@ button.icon-only { padding: 4px 6px; }
 .audit-table th, .audit-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .audit-table th { position: sticky; top: 0; background: var(--panel); }
 .audit-table .audit-failed td { color: var(--danger, #b42318); }
+
+/* Comptes locaux (mode serveur) */
+.modal.accounts-dialog { width: min(760px, 94vw); }
+.accounts-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.accounts-table th, .accounts-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.accounts-table td.actions { text-align: right; white-space: nowrap; }
+.account-form { display: grid; gap: 8px; margin-top: 10px; }
+.account-form label { display: grid; gap: 3px; font-size: 13px; }

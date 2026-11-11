@@ -25,6 +25,7 @@ from etl_api.cache_hold import Holds, sweep_loop
 from etl_api.data_service import DataError, Duck
 from etl_api.deps import Admin, request_lang
 from etl_api.routes import (
+    accounts,
     analysis,
     app_settings,
     assistant,
@@ -138,6 +139,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     for module in (
         auth,
+        accounts,
         modifiers,
         flows,
         analysis,

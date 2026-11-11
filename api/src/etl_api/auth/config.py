@@ -54,6 +54,15 @@ def _secret(key: str) -> str:
     return os.environ.get(f"ETL_{key.upper()}", "")
 
 
+def _has_accounts(path: Path) -> bool:
+    import json
+
+    try:
+        return bool(json.loads(path.read_text(encoding="utf-8") or "{}").get("users"))
+    except (OSError, ValueError):
+        return False
+
+
 @dataclass(frozen=True)
 class LdapConfig:
     url: str
@@ -134,7 +143,7 @@ class ProxyConfig:
 
 @dataclass(frozen=True)
 class AuthConfig:
-    provider: str
+    providers: tuple[str, ...]  # ldap, proxy, file ; « ldap,file » : l'annuaire, puis les comptes locaux
     admins: tuple[str, ...]
     session_hours: float
     trusted_proxies: tuple[str, ...]
@@ -142,12 +151,18 @@ class AuthConfig:
     ldap: LdapConfig
     proxy: ProxyConfig
     secure_cookie: bool
+    admin_user: str  # premier compte local, créé au démarrage s'il n'y en a aucun (ETL_ADMIN_PASSWORD)
+    admin_password: str
+
+    @property
+    def provider(self) -> str:
+        return ",".join(self.providers)
 
     @classmethod
     def load(cls, meta_dir: Path | None = None) -> AuthConfig:
         meta = meta_dir or user_settings.app_dirs().meta
         return cls(
-            provider=str(_get("auth")).lower(),
+            providers=tuple(p.lower() for p in _list("auth")),
             admins=_list("admins", DEFAULT_ADMINS),
             session_hours=float(_get("session_hours", 12)),
             trusted_proxies=_list("trusted_proxies", ("127.0.0.1", "::1")),
@@ -156,19 +171,24 @@ class AuthConfig:
             proxy=ProxyConfig.load(),
             # cookie « Secure » : posé d'office derrière HTTPS ; à forcer quand le proxy ne transmet pas le schéma
             secure_cookie=_bool("secure_cookie"),
+            admin_user=str(_get("admin_user", "admin")),
+            admin_password=_secret("admin_password"),
         )
 
     def problems(self) -> list[str]:
         """Ce qui empêche de démarrer en mode serveur (le message dit quoi régler)."""
-        if self.provider not in PROVIDERS:
+        unknown = [p for p in self.providers if p not in PROVIDERS]
+        if not self.providers or unknown:
             return [f"ETL_AUTH : fournisseur d'identité attendu ({', '.join(PROVIDERS)}), reçu « {self.provider} »"]
-        if self.provider == "ldap":
-            return self.ldap.problems()
-        if self.provider == "file" and not self.users_file.is_file():
-            return [
-                f"ETL_USERS_FILE : fichier des comptes introuvable ({self.users_file}) ; le créer par `etl users add`"
-            ]
-        return []
+        if "proxy" in self.providers and len(self.providers) > 1:
+            return ["ETL_AUTH : « proxy » ne se combine pas avec un autre fournisseur (ldap,file oui)"]
+        out = self.ldap.problems() if "ldap" in self.providers else []
+        if self.providers == ("file",) and not self.admin_password and not _has_accounts(self.users_file):
+            out.append(
+                f"aucun compte local ({self.users_file}) : créer le premier administrateur par ETL_ADMIN_PASSWORD "
+                "(ou ETL_ADMIN_PASSWORD_FILE), ou par `etl users add`"
+            )
+        return out
 
     def is_admin(self, name: str, groups: tuple[str, ...] | list[str]) -> bool:
         from etl_store import access

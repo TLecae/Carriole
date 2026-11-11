@@ -16,8 +16,10 @@ import ipaddress
 import json
 import logging
 import os
+import re
 import secrets
 import ssl
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -267,9 +269,84 @@ def write_users(path: Path, users: dict[str, dict[str, Any]]) -> None:
     os.replace(tmp, path)
 
 
+ACCOUNT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,99}$")
+MIN_PASSWORD = 8
+_ACCOUNTS_LOCK = threading.Lock()
+
+
+class AccountError(ValueError):
+    """Compte local refusé (nom, mot de passe, doublon) ; le message s'affiche tel quel."""
+
+
 class FileProvider:
+    """Comptes locaux : un fichier JSON, mots de passe hachés par scrypt. L'administrateur les gère depuis Carriole
+    (`/api/accounts`) ou par `etl users`."""
+
     def __init__(self, path: Path) -> None:
         self.path = path
+
+    # ------------------------------------------------------------------------------------ gestion des comptes
+    def accounts(self) -> list[dict[str, Any]]:
+        return [
+            {"name": n, "display": str(e.get("display") or n), "groups": list(e.get("groups", []))}
+            for n, e in sorted(read_users(self.path).items(), key=lambda kv: kv[0].lower())
+        ]
+
+    def find(self, name: str) -> str | None:
+        """Nom exact d'un compte (identifiants sans casse), ou `None`."""
+        return next((n for n in read_users(self.path) if n.lower() == name.strip().lower()), None)
+
+    @staticmethod
+    def _check_password(password: str) -> None:
+        if len(password) < MIN_PASSWORD:
+            raise AccountError(f"mot de passe trop court : {MIN_PASSWORD} caractères au moins")
+
+    def create(self, name: str, password: str, display: str = "", groups: list[str] | None = None) -> dict[str, Any]:
+        name = name.strip()
+        if not ACCOUNT_NAME.match(name):
+            raise AccountError("identifiant invalide : lettres, chiffres, « . », « _ », « - », « @ » (100 au plus)")
+        self._check_password(password)
+        with _ACCOUNTS_LOCK:
+            users = read_users(self.path)
+            if any(n.lower() == name.lower() for n in users):
+                raise AccountError(f"le compte « {name} » existe déjà")
+            users[name] = {
+                "password": hash_password(password),
+                "display": display.strip() or name,
+                "groups": _groups(groups),
+            }
+            write_users(self.path, users)
+        return {"name": name, "display": users[name]["display"], "groups": users[name]["groups"]}
+
+    def update(
+        self, name: str, display: str | None = None, groups: list[str] | None = None, password: str | None = None
+    ) -> dict[str, Any]:
+        if password is not None:
+            self._check_password(password)
+        with _ACCOUNTS_LOCK:
+            users = read_users(self.path)
+            exact = next((n for n in users if n.lower() == name.lower()), None)
+            if exact is None:
+                raise KeyError(name)
+            entry = users[exact]
+            if display is not None:
+                entry["display"] = display.strip() or exact
+            if groups is not None:
+                entry["groups"] = _groups(groups)
+            if password is not None:
+                entry["password"] = hash_password(password)
+            write_users(self.path, users)
+        return {"name": exact, "display": entry.get("display") or exact, "groups": list(entry.get("groups", []))}
+
+    def delete(self, name: str) -> str:
+        with _ACCOUNTS_LOCK:
+            users = read_users(self.path)
+            exact = next((n for n in users if n.lower() == name.lower()), None)
+            if exact is None:
+                raise KeyError(name)
+            del users[exact]
+            write_users(self.path, users)
+        return exact
 
     def authenticate(self, username: str, password: str) -> Identity:
         username = username.strip()
@@ -281,9 +358,60 @@ class FileProvider:
         return Identity(name=name, display=str(entry.get("display") or name), groups=groups)
 
 
-def password_provider(config: AuthConfig) -> LdapProvider | FileProvider | None:
-    if config.provider == "ldap":
-        return LdapProvider(config.ldap)
-    if config.provider == "file":
-        return FileProvider(config.users_file)
-    return None
+def _groups(groups: list[str] | None) -> list[str]:
+    return sorted({g.strip() for g in groups or [] if g and g.strip()})
+
+
+class ChainProvider:
+    """Plusieurs fournisseurs dans l'ordre de `ETL_AUTH` (ex. « ldap,file ») : le premier qui reconnaît le compte
+    l'emporte. Un annuaire injoignable n'empêche pas les comptes locaux (l'administrateur garde la main)."""
+
+    def __init__(self, providers: list[LdapProvider | FileProvider]) -> None:
+        self.providers = providers
+
+    def authenticate(self, username: str, password: str) -> Identity:
+        refused: AuthError | None = None
+        unavailable: AuthUnavailable | None = None
+        for provider in self.providers:
+            try:
+                return provider.authenticate(username, password)
+            except AuthError as exc:
+                if refused is None or "groupe requis" in str(exc):  # la raison la plus précise
+                    refused = exc
+            except AuthUnavailable as exc:
+                unavailable = exc
+        if unavailable is not None and (refused is None or "groupe requis" not in str(refused)):
+            raise unavailable
+        raise refused or bad_credentials()
+
+
+def password_provider(config: AuthConfig) -> LdapProvider | FileProvider | ChainProvider | None:
+    found: list[LdapProvider | FileProvider] = []
+    for name in config.providers:
+        if name == "ldap":
+            found.append(LdapProvider(config.ldap))
+        elif name == "file":
+            found.append(FileProvider(config.users_file))
+    if not found:
+        return None
+    return found[0] if len(found) == 1 else ChainProvider(found)
+
+
+def part(passwords: Any, kind: type) -> Any:
+    """Le fournisseur de ce type, seul ou dans une chaîne (comptes locaux, annuaire)."""
+    if isinstance(passwords, kind):
+        return passwords
+    return next((p for p in getattr(passwords, "providers", []) if isinstance(p, kind)), None)
+
+
+def bootstrap_admin(config: AuthConfig) -> str | None:
+    """Premier démarrage : aucun compte local et `ETL_ADMIN_PASSWORD` défini : crée le compte `ETL_ADMIN_USER`
+    (« admin ») dans le groupe des administrateurs. Ensuite, la variable ne change plus rien."""
+    if "file" not in config.providers or not config.admin_password or read_users(config.users_file):
+        return None
+    group = next((a.removeprefix("group:") for a in config.admins if a.startswith("group:")), None)
+    FileProvider(config.users_file).create(
+        config.admin_user, config.admin_password, groups=[group] if group else [], display=config.admin_user
+    )
+    log.warning("compte local « %s » créé (ETL_ADMIN_PASSWORD) : changer son mot de passe", config.admin_user)
+    return config.admin_user

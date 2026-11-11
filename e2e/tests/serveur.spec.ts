@@ -111,3 +111,32 @@ test("journal d'activité : l'administrateur voit les connexions et les écritur
   await expect(table).toContainText("Déconnexion");
   await expect(table).not.toContainText("admin");
 });
+
+test("comptes : l'administrateur crée un compte, son utilisateur se connecte et change son mot de passe", async ({ page }) => {
+  const name = `invite${Date.now() % 100000}`;
+  await signIn(page, "admin", "admin-e2e-mdp");
+  await page.getByRole("button", { name: "Outils" }).click();
+  await page.getByRole("menuitem", { name: "Comptes" }).click();
+  await page.getByRole("button", { name: "+ Nouveau compte" }).click();
+  const form = page.getByTestId("account-form");
+  await form.getByLabel("Identifiant").fill(name);
+  await form.getByLabel("Nom affiché").fill("Invité Externe");
+  await form.getByLabel("Groupes (séparés par des virgules)").fill("equipe");
+  await form.getByLabel("Mot de passe").fill("premier-mdp-e2e");
+  await page.getByRole("button", { name: "Créer le compte" }).click();
+  await expect(page.getByTestId("accounts-table")).toContainText(name);
+  await page.getByRole("button", { name: "Fermer" }).click();
+  await signOut(page, "Admin");
+
+  await signIn(page, name, "premier-mdp-e2e");
+  await page.getByRole("button", { name: "Invité Externe" }).click();
+  await page.getByRole("menuitem", { name: "Changer mon mot de passe…" }).click();
+  await page.getByLabel("Mot de passe actuel").fill("premier-mdp-e2e");
+  await page.getByLabel("Nouveau mot de passe", { exact: true }).fill("second-mdp-e2e");
+  await page.getByLabel("Nouveau mot de passe (encore)").fill("second-mdp-e2e");
+  await page.getByRole("button", { name: "Changer", exact: true }).click();
+  await expect(page.getByText("Mot de passe changé.")).toBeVisible();
+  await page.getByRole("button", { name: "Fermer" }).click();
+  await signOut(page, "Invité Externe");
+  await signIn(page, name, "second-mdp-e2e");
+});

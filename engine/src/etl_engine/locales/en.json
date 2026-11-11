@@ -1962,6 +1962,14 @@
   "rôle inconnu : {level} (read ou write)": "unknown role: {level} (read or write)",
   "seul le propriétaire de la connexion peut la supprimer ou la partager": "only the owner of the connection can delete or share it",
   "seul le propriétaire du flux peut le supprimer ou le partager": "only the owner of the flow can delete or share it",
-  "bac à sable bubblewrap inutilisable sur ce serveur ({problem}) : il lui faut les espaces de noms utilisateur (voir le guide du serveur), ou régler ETL_USER_CODE": "bubblewrap sandbox unusable on this server ({problem}): it needs user namespaces (see the server guide), or set ETL_USER_CODE"
+  "bac à sable bubblewrap inutilisable sur ce serveur ({problem}) : il lui faut les espaces de noms utilisateur (voir le guide du serveur), ou régler ETL_USER_CODE": "bubblewrap sandbox unusable on this server ({problem}): it needs user namespaces (see the server guide), or set ETL_USER_CODE",
+  "ce compte n'est pas un compte local : son mot de passe se change dans l'annuaire": "this account is not a local account: its password is changed in the directory",
+  "compte introuvable": "account not found",
+  "identifiant invalide : lettres, chiffres, « . », « _ », « - », « @ » (100 au plus)": "invalid username: letters, digits, \".\", \"_\", \"-\", \"@\" (100 at most)",
+  "impossible de supprimer son propre compte": "you cannot delete your own account",
+  "le compte « {name} » existe déjà": "the account \"{name}\" already exists",
+  "mot de passe actuel incorrect": "current password incorrect",
+  "mot de passe trop court : {MIN_PASSWORD} caractères au moins": "password too short: at least {MIN_PASSWORD} characters",
+  "pas de comptes locaux sur ce serveur (ETL_AUTH sans « file »)": "no local accounts on this server (ETL_AUTH without \"file\")"
  }
 }

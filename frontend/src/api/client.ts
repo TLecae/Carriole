@@ -45,6 +45,7 @@ import type {
   Share,
   Shares,
   AuditEntry,
+  Account,
 } from "./types";
 import { language, t } from "../i18n";
 import { reportOffline, reportOnline } from "./connection";
@@ -137,6 +138,13 @@ export const api = {
   me: () => call<Me>("/auth/me"),
   login: (username: string, password: string) => call<Me>("/auth/login", { method: "POST", ...json({ username, password }) }),
   logout: () => call<void>("/auth/logout", { method: "POST" }),
+  accounts: () => call<Account[]>("/accounts"),
+  createAccount: (body: { name: string; display: string; groups: string[]; password: string }) =>
+    call<Account>("/accounts", { method: "POST", ...json(body) }),
+  updateAccount: (name: string, body: { display?: string; groups?: string[]; password?: string }) =>
+    call<Account>(`/accounts/${encodeURIComponent(name)}`, { method: "PATCH", ...json(body) }),
+  deleteAccount: (name: string) => call<void>(`/accounts/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  changePassword: (current: string, next: string) => call<void>("/auth/password", { method: "PUT", ...json({ current, new: next }) }),
   users: () => call<{ users: { name: string; display: string }[]; groups: string[] }>("/users"),
   flowShares: (id: string) => call<Shares>(`/flows/${id}/shares`),
   setFlowShares: (id: string, shares: Share[]) => call<{ shares: Share[] }>(`/flows/${id}/shares`, { method: "PUT", ...json({ shares }) }),

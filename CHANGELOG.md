@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Server mode: administrators create, edit and delete local accounts in *Tools → Accounts* (name, groups, new
+  password); each user changes their own password from their menu. Local accounts combine with a directory
+  (`ETL_AUTH=ldap,file`: the directory first, local accounts still work when it is down). `ETL_ADMIN_PASSWORD` creates
+  the first administrator account on a server without any ([ADR 0058](docs/decisions/0058-comptes-locaux.md)).
 - Server mode: Docker image (`Dockerfile`: Carriole, its interface, DuckDB extensions, PROJ grids and bubblewrap,
   unprivileged user, `/var/lib/carriole` volume) and an example in `docker/compose.yaml`, its settings in a local
   `docker/carriole.env` (template `carriole.env.example`), PostgreSQL as an optional profile. A CI job builds the

@@ -11,7 +11,6 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from etl_api.auth import AuthError, AuthService, AuthUnavailable, Identity, server_mode
-from etl_api.auth.providers import LdapProvider
 from etl_api.auth.service import session_token
 from etl_api.auth.sessions import COOKIE
 from etl_api.deps import Admin, current_identity, request_lang
@@ -44,10 +43,14 @@ def info(request: Request) -> dict[str, Any]:
 @router.get("/auth/me")
 def me(request: Request, identity: Annotated[Identity, Depends(current_identity)]) -> dict[str, Any]:
     service = getattr(request.app.state, "auth", None)
+    accounts = service.accounts if service is not None else None
     return {
         **identity.as_json(),
         "mode": "server" if server_mode() else "desktop",
         "logout": service is not None and service.passwords is not None,
+        # comptes locaux : l'administrateur les gère, chacun change son mot de passe
+        "accounts": accounts is not None,
+        "local": accounts is not None and accounts.find(identity.name) is not None,
     }
 
 
@@ -89,10 +92,10 @@ async def login(body: LoginIn, request: Request, response: Response) -> dict[str
 def check(request: Request, _: Admin) -> dict[str, Any]:
     """*Paramètres* (administrateur) : l'annuaire LDAP répond-il avec les réglages du serveur ?"""
     service = _service(request)
-    if not isinstance(service.passwords, LdapProvider):
+    if service.ldap is None:
         raise HTTPException(400, "le fournisseur d'identité n'est pas un annuaire LDAP")
     try:
-        result = service.passwords.check()
+        result = service.ldap.check()
     except AuthUnavailable as exc:
         result = {"ok": False, "message": str(exc)}
     return {**result, "message": i18n.tr(result["message"], request_lang(request))}

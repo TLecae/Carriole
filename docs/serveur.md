@@ -58,7 +58,7 @@ Les tables se créent au premier démarrage. Les résultats des runs restent sur
 
 | Variable | Rôle |
 | --- | --- |
-| `ETL_AUTH` | fournisseur d'identité : `ldap`, `proxy` ou `file` |
+| `ETL_AUTH` | fournisseur d'identité : `ldap`, `proxy` ou `file` ; `ldap,file` : l'annuaire, puis les comptes locaux |
 | `ETL_ADMINS` | administrateurs : noms et groupes séparés par des virgules (`dupont,group:sig-admins`) ; par défaut `group:carriole-admins` |
 | `ETL_SESSION_HOURS` | durée d'une session sans activité (12) |
 | `ETL_TRUSTED_PROXIES` | adresses ou réseaux des proxys de confiance (`127.0.0.1,::1`) : seuls eux peuvent transmettre l'adresse du client, le schéma HTTPS et, avec `proxy`, l'identité |
@@ -94,16 +94,21 @@ Le proxy (SSO de l'organisation, OpenID Connect…) identifie l'utilisateur et t
 `ETL_AUTH_DISPLAY_HEADER` (facultatifs). Carriole ne croit ces en-têtes que s'ils viennent d'une adresse de
 `ETL_TRUSTED_PROXIES` : le serveur ne doit être joignable que par le proxy.
 
-### Fichier de comptes (`ETL_AUTH=file`)
+### Comptes locaux (`ETL_AUTH=file`, ou `ldap,file`)
 
-Pour une petite équipe sans annuaire. `ETL_USERS_FILE` (par défaut `users.json` dans le dossier des métadonnées) garde
-les mots de passe hachés (scrypt).
+Pour une équipe sans annuaire, ou pour quelques personnes absentes de l'annuaire (`ldap,file` : l'annuaire est essayé
+d'abord ; s'il est arrêté, les comptes locaux fonctionnent encore). Les administrateurs les gèrent dans *Outils →
+Comptes* : création, nom affiché, groupes, nouveau mot de passe, suppression ([ADR 0058](decisions/0058-comptes-locaux.md)).
+Chaque utilisateur change son mot de passe depuis son menu. Mots de passe de 8 caractères au moins, hachés (scrypt)
+dans `ETL_USERS_FILE` (`users.json` du dossier des métadonnées).
 
-```
-etl users add dupont --display "Jean Dupont" --group carriole-admins
-etl users list
-etl users remove dupont
-```
+| Variable | Rôle |
+| --- | --- |
+| `ETL_ADMIN_PASSWORD` ou `ETL_ADMIN_PASSWORD_FILE` | premier démarrage sans compte local : crée le compte administrateur ; ensuite sans effet |
+| `ETL_ADMIN_USER` | son identifiant (`admin`) ; il est mis dans le premier groupe de `ETL_ADMINS` (`carriole-admins`) |
+
+En ligne de commande (facultatif) : `etl users add dupont --display "Jean Dupont" --group carriole-admins`,
+`etl users list`, `etl users remove dupont`.
 
 ## Administrateurs
 

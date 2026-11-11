@@ -4,6 +4,7 @@ import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
+import { AccountsDialog, PasswordDialog } from "./AccountsDialog";
 import { AuditDialog } from "./AuditDialog";
 import { Menu, MenuItem } from "./Menu";
 
@@ -29,15 +30,19 @@ export function HomeButton({ onClick }: { onClick: () => void }) {
 export function ToolsMenu() {
   const ui = useUi.getState();
   const auditable = useSession((s) => s.me?.mode === "server" && s.me.admin);
+  const manageAccounts = useSession((s) => s.me?.mode === "server" && s.me.admin && !!s.me.accounts);
   const [audit, setAudit] = useState(false);
+  const [accounts, setAccounts] = useState(false);
   return (
     <>
       <Menu label={t("Outils")}>
         <MenuItem onSelect={() => ui.setSchedulesOpen(true)}>{t("Planification")}</MenuItem>
         <MenuItem onSelect={() => ui.setConnectionsOpen(true)}>{t("Connexions")}</MenuItem>
+        {manageAccounts && <MenuItem onSelect={() => setAccounts(true)}>{t("Comptes")}</MenuItem>}
         {auditable && <MenuItem onSelect={() => setAudit(true)}>{t("Journal d'activité")}</MenuItem>}
       </Menu>
       {audit && <AuditDialog onClose={() => setAudit(false)} />}
+      {accounts && <AccountsDialog onClose={() => setAccounts(false)} />}
     </>
   );
 }
@@ -62,17 +67,22 @@ export function AssistantToggle() {
 /** Mode serveur : qui est connecté, et la déconnexion. Rien sur le poste de bureau. */
 export function UserMenu() {
   const me = useSession((s) => s.me);
+  const [password, setPassword] = useState(false);
   if (me?.mode !== "server") return null;
   return (
-    <Menu label={me.display || me.name} className="user-menu">
-      <p className="menu-empty" data-testid="user-identity">
-        {me.name}
-        {me.admin ? ` · ${t("administrateur")}` : ""}
-        {me.groups.length ? <br /> : null}
-        {me.groups.length ? t("Groupes : {{groups}}", { groups: me.groups.join(", ") }) : null}
-      </p>
-      {me.logout && <MenuItem onSelect={() => void useSession.getState().logout()}>{t("Se déconnecter")}</MenuItem>}
-    </Menu>
+    <>
+      <Menu label={me.display || me.name} className="user-menu">
+        <p className="menu-empty" data-testid="user-identity">
+          {me.name}
+          {me.admin ? ` · ${t("administrateur")}` : ""}
+          {me.groups.length ? <br /> : null}
+          {me.groups.length ? t("Groupes : {{groups}}", { groups: me.groups.join(", ") }) : null}
+        </p>
+        {me.local && <MenuItem onSelect={() => setPassword(true)}>{t("Changer mon mot de passe…")}</MenuItem>}
+        {me.logout && <MenuItem onSelect={() => void useSession.getState().logout()}>{t("Se déconnecter")}</MenuItem>}
+      </Menu>
+      {password && <PasswordDialog onClose={() => setPassword(false)} />}
+    </>
   );
 }
 

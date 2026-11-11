@@ -206,7 +206,10 @@ def run_server(
     if server:
         os.environ["ETL_MODE"] = "server"  # hérité par les workers
         from etl_api.auth import AuthConfig
+        from etl_api.auth.providers import bootstrap_admin
 
+        config = AuthConfig.load()
+        bootstrap_admin(config)  # premier démarrage : compte administrateur local (ETL_ADMIN_PASSWORD)
         problems = AuthConfig.load().problems()
         if problems:
             print("Mode serveur : réglages à corriger :", *(f"- {p}" for p in problems), sep="\n", file=sys.stderr)

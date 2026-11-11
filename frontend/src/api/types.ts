@@ -651,6 +651,15 @@ export interface Me {
   admin: boolean;
   mode?: "desktop" | "server";
   logout?: boolean; // une session à fermer (pas avec un proxy d'authentification)
+  accounts?: boolean; // le serveur a des comptes locaux (administrateur : Outils → Comptes)
+  local?: boolean; // l'utilisateur a un compte local : il peut changer son mot de passe
+}
+
+/** Compte local du serveur (ADR 0058). */
+export interface Account {
+  name: string;
+  display: string;
+  groups: string[];
 }
 
 /** Ligne du journal d'activité (mode serveur, ADR 0056). */
