@@ -9,8 +9,16 @@ L'image (fichier `Dockerfile` à la racine du dépôt) contient Carriole, son in
 grilles PROJ et bubblewrap. Elle démarre `etl serve --server` sur le port 8080, sous un utilisateur sans droits
 (uid 10001), avec ses données dans le volume `/var/lib/carriole`.
 
-Les réglages (variables `ETL_…` décrites plus bas) vont dans `docker/carriole.env`, copie non versionnée de
-`docker/carriole.env.example` : elle contient les mots de passe. Puis, dans le dossier `docker` :
+Les réglages (variables `ETL_…` décrites plus bas) vont dans `docker/carriole.env`, non versionné : il contient
+les mots de passe. Le copier depuis l'exemple qui correspond à l'identité choisie, dans `docker/examples/` :
+
+| Exemple | Identité |
+| --- | --- |
+| `ldap.env` | annuaire LDAP (ou Active Directory), et comptes locaux créés par l'administrateur |
+| `proxy.env` | proxy d'authentification (SSO de l'organisation, OpenID Connect…) |
+| `local-accounts.env` | comptes locaux seuls : un premier compte `admin`, puis *Outils → Comptes* |
+
+Puis, dans le dossier `docker` :
 
 ```
 docker compose up -d --build

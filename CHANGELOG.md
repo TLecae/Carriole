@@ -8,7 +8,8 @@
   the first administrator account on a server without any ([ADR 0058](docs/decisions/0058-comptes-locaux.md)).
 - Server mode: Docker image (`Dockerfile`: Carriole, its interface, DuckDB extensions, PROJ grids and bubblewrap,
   unprivileged user, `/var/lib/carriole` volume) and an example in `docker/compose.yaml`, its settings in a local
-  `docker/carriole.env` (template `carriole.env.example`), PostgreSQL as an optional profile. A CI job builds the
+  `docker/carriole.env`, copied from one example per sign-in method in `docker/examples/` (LDAP, proxy, local
+  accounts), PostgreSQL as an optional profile. A CI job builds the
   image, checks that an identity is required and that the Python code of flows is isolated inside the container. An
   unusable bubblewrap is reported with its reason at analysis.
 - Server mode: the metadata (flows, runs, sessions, shares, activity log) can live in PostgreSQL (`ETL_DB_URL` or

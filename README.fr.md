@@ -19,8 +19,17 @@ nœud se vérifie sur une table et une carte.</p>
 résultat inspecté.
 
 Sur un poste, Carriole lit et écrit vos fichiers (`Z:`, `\\serveur\partage`) avec vos droits, sans serveur à
-installer. Sur une machine partagée, `etl serve --server` accueille plusieurs utilisateurs dans leur navigateur
-([Carriole sur un serveur](docs/serveur.md)).
+installer. Sur une machine partagée, l'image Docker accueille plusieurs utilisateurs dans leur navigateur : dans le
+dossier `docker`, copier en `carriole.env` (non versionné, il contient les mots de passe) l'exemple qui correspond à
+la connexion des utilisateurs, l'adapter, puis `docker compose up -d --build` :
+
+| Exemple | Connexion |
+| --- | --- |
+| [`ldap.env`](docker/examples/ldap.env) | annuaire LDAP (ou Active Directory), et comptes locaux créés par l'administrateur |
+| [`proxy.env`](docker/examples/proxy.env) | proxy d'authentification (SSO, OpenID Connect…) |
+| [`local-accounts.env`](docker/examples/local-accounts.env) | comptes locaux seuls : un premier compte `admin`, puis *Outils → Comptes* |
+
+Le reste des réglages est dans le [guide du serveur](docs/serveur.md).
 
 > Plan et avancement : [docs/plan_jalons.md](docs/plan_jalons.md) et [docs/journal_jalons.md](docs/journal_jalons.md).
 

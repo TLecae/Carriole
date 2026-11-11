@@ -67,10 +67,19 @@ Download from the [latest release](https://github.com/TLecae/Carriole/releases/l
 Everything is bundled (Python, GDAL, DuckDB Spatial, PROJ grids): no Internet access is needed to work.
 More in the [installation guide](docs/installation.md) (French).
 
-On a shared server, Carriole runs as a Docker image (`Dockerfile`; `docker/compose.yaml` with its settings in
-`docker/carriole.env`) or from a source install with `etl serve --server`. Identity provider,
-allowed folders, administrators and quotas are set by `ETL_*` variables, described in the
-[server guide](docs/serveur.md) (French).
+### Server
+
+On a shared server, Carriole runs as a Docker image. In the `docker` folder, copy the example that matches how users
+sign in to `carriole.env` (not versioned: it holds passwords), edit it, then run `docker compose up -d --build`:
+
+| Example | Sign-in |
+| --- | --- |
+| [`ldap.env`](docker/examples/ldap.env) | LDAP directory (or Active Directory), plus local accounts created by an administrator |
+| [`proxy.env`](docker/examples/proxy.env) | authentication proxy (single sign-on, OpenID Connect…) |
+| [`local-accounts.env`](docker/examples/local-accounts.env) | local accounts only: a first `admin` account, then *Tools → Accounts* |
+
+Allowed folders, administrators, quotas and the other `ETL_*` settings are described in the
+[server guide](docs/serveur.md) (French). Without Docker: `etl serve --server` from a source install.
 
 ## Write a modifier
 

@@ -1,5 +1,6 @@
 # Carriole en mode serveur (docs/serveur.md). Dans ce dossier :
-#   1. copier carriole.env.example en carriole.env (non versionné) et l'adapter ;
+#   1. copier l'un des exemples de examples/ en carriole.env (non versionné) et l'adapter :
+#      ldap.env (annuaire, et comptes locaux), proxy.env (proxy d'authentification), local-accounts.env (comptes locaux) ;
 #   2. docker compose up -d --build        (avec PostgreSQL : docker compose --profile postgres up -d --build)
 # Placer un proxy HTTPS (nginx, Caddy, Traefik…) devant le port 8080 : les mots de passe ne doivent pas circuler en clair.
 
