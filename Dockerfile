@@ -52,7 +52,9 @@ ENV PATH=/opt/carriole/venv/bin:$PATH \
     ETL_HOST=0.0.0.0 \
     ETL_PORT=8080
 
-RUN useradd --system --uid 10001 --user-group --create-home --home-dir /var/lib/carriole carriole
+# uid et gid fixes (10001) : la doc donne `chown 10001:10001` pour le dossier de données monté
+RUN groupadd --system --gid 10001 carriole \
+    && useradd --system --uid 10001 --gid carriole --create-home --home-dir /var/lib/carriole carriole
 USER carriole
 WORKDIR /var/lib/carriole
 VOLUME ["/var/lib/carriole"]

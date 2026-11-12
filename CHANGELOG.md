@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Docker: the image's user has a fixed group, 10001 like its uid (it was a system group); volumes of
+  earlier versions keep working.
 - Server mode: the first start refuses `ETL_ADMIN_PASSWORD` when it still holds the value of `carriole.env.example`,
   which is public; no account is created with it.
 - Server mode, Docker: `CARRIOLE_BIND` chooses the listened address (default `127.0.0.1`; `0.0.0.0` opens the port to
