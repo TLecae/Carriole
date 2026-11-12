@@ -3,9 +3,11 @@ compte."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
-from etl_api.auth.accounts import hash_password, write_users
-from etl_api.auth.config import AuthConfig
+from etl_api.auth.accounts import bootstrap_admin, hash_password, write_users
+from etl_api.auth.config import EXAMPLE_PASSWORD, AuthConfig
 from etl_api.main import create_app
 from etl_store import Settings
 from fastapi.testclient import TestClient
@@ -87,6 +89,12 @@ def test_first_administrator_comes_from_the_environment(tmp_path, monkeypatch):
     monkeypatch.delenv("ETL_ADMINS", raising=False)
     monkeypatch.delenv("ETL_ADMIN_PASSWORD", raising=False)
     assert any("ETL_ADMIN_PASSWORD" in p for p in AuthConfig.load().problems())
+    # la valeur du fichier d'exemple est publique : aucun compte, démarrage refusé
+    example = (Path(__file__).parents[2] / "docker" / "carriole.env.example").read_text(encoding="utf-8")
+    assert f"ETL_ADMIN_PASSWORD={EXAMPLE_PASSWORD}\n" in example
+    monkeypatch.setenv("ETL_ADMIN_PASSWORD", EXAMPLE_PASSWORD)
+    assert bootstrap_admin(AuthConfig.load()) is None and not (tmp_path / "users.json").exists()
+    assert any("fichier d'exemple" in p for p in AuthConfig.load().problems())
     monkeypatch.setenv("ETL_ADMIN_PASSWORD", "mot-de-passe-initial")
     assert AuthConfig.load().problems() == []
     with client(tmp_path) as c:

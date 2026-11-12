@@ -114,7 +114,7 @@ mot de passe depuis son menu. Mots de passe de 8 caractères au moins, hachés (
 
 | Variable | Rôle |
 | --- | --- |
-| `ETL_ADMIN_PASSWORD` ou `ETL_ADMIN_PASSWORD_FILE` | premier démarrage sans compte : crée le compte administrateur ; ensuite sans effet |
+| `ETL_ADMIN_PASSWORD` ou `ETL_ADMIN_PASSWORD_FILE` | premier démarrage sans compte : crée le compte administrateur (la valeur du fichier d'exemple est refusée) ; ensuite sans effet |
 | `ETL_ADMIN_USER` | son identifiant (`admin`) ; il est mis dans le premier groupe de `ETL_ADMINS` (`carriole-admins`) |
 | `ETL_ADMINS` | administrateurs : noms et groupes séparés par des virgules (`dupont,group:sig-admins`) ; par défaut `group:carriole-admins` |
 | `ETL_SESSION_HOURS` | durée d'une session sans activité (12) |

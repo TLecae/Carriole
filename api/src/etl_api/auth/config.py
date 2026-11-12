@@ -54,6 +54,10 @@ def _secret(key: str) -> str:
     return os.environ.get(f"ETL_{key.upper()}", "")
 
 
+# Valeur de ETL_ADMIN_PASSWORD dans docker/carriole.env.example : publiée avec le dépôt, elle ne crée aucun compte.
+EXAMPLE_PASSWORD = "mot-de-passe-initial-a-changer"
+
+
 def _has_accounts(path: Path) -> bool:
     try:
         return bool(json.loads(path.read_text(encoding="utf-8") or "{}").get("users"))
@@ -88,10 +92,17 @@ class AuthConfig:
 
     def problems(self) -> list[str]:
         """Ce qui empêche de démarrer en mode serveur (le message dit quoi régler)."""
-        if not self.admin_password and not _has_accounts(self.users_file):
+        if _has_accounts(self.users_file):
+            return []
+        if not self.admin_password:
             return [
                 f"aucun compte ({self.users_file}) : créer le premier administrateur par ETL_ADMIN_PASSWORD "
                 "(ou ETL_ADMIN_PASSWORD_FILE), ou par `etl users add`"
+            ]
+        if self.admin_password == EXAMPLE_PASSWORD:
+            return [
+                "ETL_ADMIN_PASSWORD a encore la valeur du fichier d'exemple, publique : en choisir une autre dans "
+                "carriole.env avant le premier démarrage"
             ]
         return []
 

@@ -18,7 +18,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from etl_api.auth.config import AuthConfig
+from etl_api.auth.config import EXAMPLE_PASSWORD, AuthConfig
 from etl_api.auth.identity import Identity
 
 log = logging.getLogger("etl.auth")
@@ -173,8 +173,8 @@ def _groups(groups: list[str] | None) -> list[str]:
 def bootstrap_admin(config: AuthConfig) -> str | None:
     """Premier démarrage : aucun compte et `ETL_ADMIN_PASSWORD` défini : crée le compte `ETL_ADMIN_USER` (« admin »)
     dans le groupe des administrateurs. Ensuite, la variable ne change plus rien."""
-    if not config.admin_password or read_users(config.users_file):
-        return None
+    if not config.admin_password or config.admin_password == EXAMPLE_PASSWORD or read_users(config.users_file):
+        return None  # valeur du fichier d'exemple : `problems()` arrête le démarrage
     group = next((a.removeprefix("group:") for a in config.admins if a.startswith("group:")), None)
     LocalAccounts(config.users_file).create(
         config.admin_user, config.admin_password, groups=[group] if group else [], display=config.admin_user

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Server mode: the first start refuses `ETL_ADMIN_PASSWORD` when it still holds the value of `carriole.env.example`,
+  which is public; no account is created with it.
 - Server mode, Docker: `CARRIOLE_BIND` chooses the listened address (default `127.0.0.1`; `0.0.0.0` opens the port to
   the network without editing `compose.yaml`); the data folder is mounted `rslave`, so a share mounted on demand
   (autofs, `x-systemd.automount`) stays visible. The server guide explains the `.env` file of Compose and how to give
