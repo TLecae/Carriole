@@ -204,12 +204,14 @@ cours ([ADR 0055](decisions/0055-file-equitable-et-quotas.md)). Réglages dans *
 
 Chacun ne voit que ses flux, ses connexions et ses runs, plus ce qu'on lui partage
 ([ADR 0054](decisions/0054-droits-et-partage.md)). *Partager…* (carte de l'accueil, menu *Fichier*, fenêtre
-*Connexions*) donne à un utilisateur, à un groupe ou à tout le monde :
+*Connexions*) donne un droit à tout le monde ou à des groupes, cochés dans une liste (tous les groupes des comptes), et
+à des utilisateurs ajoutés par leur identifiant. Pour réserver une connexion à une base à certains groupes : *Outils →
+Connexions*, choisir la connexion, *Partager…*, cocher ces groupes ; un groupe non coché ne la voit pas.
 
 | Droit | Flux | Connexion |
 | --- | --- | --- |
-| Lecture | ouvrir, lancer, inspecter ses runs ; *Enregistrer* en fait une copie à son nom | l'utiliser dans un flux, voir ses tables |
-| Modification | en plus : enregistrer, arrêter ou mettre en pause ses runs | en plus : changer ses réglages |
+| Lecture (connexion : *Utiliser*) | ouvrir, lancer, inspecter ses runs ; *Enregistrer* en fait une copie à son nom | l'utiliser dans un flux, voir ses tables |
+| Modification (connexion : *Utiliser et modifier*) | en plus : enregistrer, arrêter ou mettre en pause ses runs | en plus : changer ses réglages |
 
 Supprimer et partager restent au propriétaire et aux administrateurs, qui voient tout. Les composants sont
 utilisables par tous. Une planification tourne avec les droits de son créateur, revérifiés à chaque échéance.

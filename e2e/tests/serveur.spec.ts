@@ -77,10 +77,8 @@ test("partage : un flux partagé en lecture s'ouvre sans être modifié, Ctrl+S 
   expect(created.ok()).toBeTruthy();
   await page.reload();
   await page.getByRole("button", { name: `Partager ${name}` }).click();
-  await page.getByLabel("Partager avec").selectOption("group");
-  await page.getByLabel("Nom", { exact: true }).fill("equipe");
-  await page.getByRole("button", { name: "Ajouter" }).click();
-  await expect(page.getByTestId("share-list")).toContainText("Groupe equipe");
+  await page.getByTestId("share-groups").getByRole("checkbox", { name: "equipe" }).check();
+  await expect(page.getByLabel("Droit de equipe")).toHaveValue("read");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await signOut(page, "Alice Martin");
 
@@ -110,6 +108,41 @@ test("journal d'activité : l'administrateur voit les connexions et les écritur
   await page.getByLabel("Utilisateur", { exact: true }).fill("alice");
   await expect(table).toContainText("Déconnexion");
   await expect(table).not.toContainText("admin");
+});
+
+test("connexions : l'accès se coche par groupe, un groupe non coché ne la voit pas", async ({ page }) => {
+  const name = `base_sig_${Date.now() % 100000}`;
+  const openConnections = async () => {
+    await page.getByRole("button", { name: "Outils" }).click();
+    await page.getByRole("menuitem", { name: "Connexions" }).click();
+  };
+  await signIn(page, "alice", "alice-e2e-mdp");
+  const body = { kind: "postgres", host: "serveur", port: 5432, dbname: "ma_base", user: "lecteur", sslmode: "prefer", options: {}, password: "x" };
+  expect((await page.request.put(`/api/connections/${name}`, { data: body })).ok()).toBeTruthy();
+  await openConnections();
+  await page.getByRole("listitem").filter({ hasText: name }).click();
+  await page.getByRole("button", { name: "Partager…" }).click();
+  const groups = page.getByTestId("share-groups");
+  await expect(groups.getByRole("checkbox", { name: "equipe" })).not.toBeChecked();
+  await groups.getByRole("checkbox", { name: "sig" }).check();
+  await expect(page.getByLabel("Droit de sig")).toHaveValue("read"); // « Utiliser » : la choisir dans un flux
+  await page.locator(".share-dialog").getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.locator(".share-dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "Fermer" }).click();
+  await signOut(page, "Alice Martin");
+
+  await signIn(page, "bruno", "bruno-e2e-mdp"); // groupe sig : coché
+  await openConnections();
+  await page.getByRole("listitem").filter({ hasText: name }).click();
+  await expect(page.getByTestId("connection-readonly")).toBeVisible();
+  await page.getByRole("button", { name: "Fermer" }).click();
+  await signOut(page, "Bruno Roux");
+
+  await signIn(page, "carol", "carol-e2e-mdp"); // groupe equipe : pas coché
+  await openConnections();
+  await expect(page.getByRole("button", { name: "+ Nouvelle connexion" })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: name })).toHaveCount(0);
+  expect((await page.request.get(`/api/connections/${name}/shares`)).status()).toBe(404);
 });
 
 test("comptes : l'administrateur crée un compte, son utilisateur se connecte et change son mot de passe", async ({ page }) => {

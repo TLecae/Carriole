@@ -707,6 +707,9 @@ button.icon-only { padding: 4px 6px; }
 .share-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .share-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
 .share-add { display: flex; gap: 6px; margin-top: 10px; }
+.share-head { margin: 14px 0 6px; font-size: 13px; }
+.share-check { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.share-check input { width: auto; }
 .share-add input { flex: 1; }
 .run-chip.shared { background: var(--panel-2, transparent); border: 1px solid var(--line); }
 .flow-card footer .share { font-size: 12px; }

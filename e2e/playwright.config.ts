@@ -103,6 +103,7 @@ if (mode === "server" && !fs.existsSync(usersFile)) {
     alice: { password: scrypt("alice-e2e-mdp"), display: "Alice Martin", groups: ["equipe"] },
     admin: { password: scrypt("admin-e2e-mdp"), display: "Admin", groups: ["carriole-admins"] },
     carol: { password: scrypt("carol-e2e-mdp"), display: "Carol Petit", groups: ["equipe"] },
+    bruno: { password: scrypt("bruno-e2e-mdp"), display: "Bruno Roux", groups: ["sig"] },
   };
   fs.writeFileSync(usersFile, JSON.stringify({ users }));
 }

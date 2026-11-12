@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Server mode, sharing: everyone and each group are ticked in a list (every group of the accounts), with
+  their right next to them; users are still added by name. For a connection the rights read *Use* and *Use and
+  modify*.
 - Accounts window: the leftover sentence about directory accounts is replaced by how groups work; the server
   guide says the same.
 - Server guide: *Mettre à jour* gives the update procedure that keeps flows, accounts and settings (backup of the
