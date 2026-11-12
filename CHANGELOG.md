@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Server mode, Docker: `CARRIOLE_BIND` chooses the listened address (default `127.0.0.1`; `0.0.0.0` opens the port to
+  the network without editing `compose.yaml`); the data folder is mounted `rslave`, so a share mounted on demand
+  (autofs, `x-systemd.automount`) stays visible. The server guide explains the `.env` file of Compose and how to give
+  a Windows (SMB) share to the image's user.
 - A flow file (`.json`) dragged into the window opens, like *Open…*: by its path in the desktop application, as a new
   flow to save in the browser (the API reads it without storing it, old modifier names included).
 - Server mode: the bubblewrap sandbox of the Python code of flows works when the venv's Python is a link to a Python

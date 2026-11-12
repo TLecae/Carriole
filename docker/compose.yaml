@@ -3,6 +3,11 @@
 #   2. sur un serveur : docker compose pull && docker compose up -d   (image publiée, version : CARRIOLE_VERSION)
 #      depuis le dépôt : docker compose up -d --build                  (image construite depuis les sources)
 #      avec PostgreSQL : ajouter --profile postgres
+# Les variables CARRIOLE_… se règlent dans un fichier .env à côté de ce fichier (lu par docker compose), par exemple :
+#   CARRIOLE_VERSION=0.2.1          version de l'image (défaut : latest)
+#   CARRIOLE_PORT=8080              port de la machine
+#   CARRIOLE_BIND=127.0.0.1         adresse écoutée : 0.0.0.0 ouvre le port au réseau (défaut : cette machine seulement)
+#   CARRIOLE_DONNEES=/mnt/partage   dossier de la machine monté sur /mnt/donnees (défaut : ./donnees)
 # Placer un proxy HTTPS (nginx, Caddy, Traefik…) devant le port 8080 : les mots de passe ne doivent pas circuler en clair.
 
 services:
@@ -11,14 +16,16 @@ services:
     build: .. # depuis le dépôt seulement (docker compose up --build)
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${CARRIOLE_PORT:-8080}:8080" # joignable depuis cette machine (et son proxy HTTPS) seulement
+      # défaut : joignable depuis cette machine (et son proxy HTTPS) seulement ; CARRIOLE_BIND=0.0.0.0 : depuis le réseau
+      - "${CARRIOLE_BIND:-127.0.0.1}:${CARRIOLE_PORT:-8080}:8080"
     env_file: carriole.env
     volumes:
       - carriole:/var/lib/carriole # réglages, cache des runs, journaux
       # données de l'organisation : un dossier de la machine, par exemple le partage de fichiers déjà monté
       # (/mnt/partage sous Linux, D:/donnees sous Windows) ; défaut : ./donnees. Sous Linux, l'utilisateur de l'image
-      # (uid 10001) doit pouvoir y écrire : sudo chown -R 10001:10001 donnees
-      - ${CARRIOLE_DONNEES:-./donnees}:/mnt/donnees
+      # (uid 10001) doit pouvoir y écrire : chown -R 10001:10001 donnees (partage Windows : voir docs/serveur.md).
+      # rslave : un partage monté à la demande (autofs, x-systemd.automount) ou remonté plus tard reste visible.
+      - ${CARRIOLE_DONNEES:-./donnees}:/mnt/donnees:rslave
     # Code Python des flux (PythonScript) : isolé par bubblewrap, qui a besoin des espaces de noms utilisateur, que
     # Docker refuse par défaut. Pour l'autoriser : ETL_USER_CODE=sandbox dans carriole.env, et ces deux lignes
     # (elles relâchent les protections du conteneur, voir docs/serveur.md) ; sinon garder ETL_USER_CODE=deny.

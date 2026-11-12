@@ -78,13 +78,15 @@ mkdir carriole && cd carriole
 curl -fsSLO https://raw.githubusercontent.com/TLecae/Carriole/main/docker/compose.yaml
 curl -fsSL -o carriole.env https://raw.githubusercontent.com/TLecae/Carriole/main/docker/carriole.env.example
 nano carriole.env                      # ETL_ADMIN_PASSWORD: password of the first administrator, "admin"
-mkdir donnees && sudo chown 10001:10001 donnees   # folder the users read and write (or CARRIOLE_DONNEES=/mnt/share)
+mkdir donnees && sudo chown 10001:10001 donnees   # folder the users read and write; as root, without sudo
 docker compose pull && docker compose up -d
 ```
 
 Carriole then answers on `http://127.0.0.1:8080`: sign in as `admin`, then create the users' accounts in
 *Tools → Accounts*. Put an HTTPS proxy (nginx, Caddy…) in front of port 8080 to open it to the network.
-`CARRIOLE_VERSION=0.2.1` pins a version; `docker compose pull && docker compose up -d` updates.
+`docker compose pull && docker compose up -d` updates. A `.env` file next to `compose.yaml` holds the Compose
+variables: `CARRIOLE_VERSION=0.2.1` pins a version, `CARRIOLE_DONNEES=/mnt/share` mounts another folder,
+`CARRIOLE_BIND=0.0.0.0` opens the port to the network without a proxy (for a trial: passwords then travel in clear).
 
 Allowed folders, administrators, quotas, PostgreSQL and the other `ETL_*` settings are described in the
 [server guide](docs/serveur.md) (French). From a clone of the repository: `docker compose up -d --build` in the

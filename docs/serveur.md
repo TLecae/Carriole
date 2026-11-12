@@ -16,7 +16,7 @@ mkdir carriole && cd carriole
 curl -fsSLO https://raw.githubusercontent.com/TLecae/Carriole/main/docker/compose.yaml
 curl -fsSL -o carriole.env https://raw.githubusercontent.com/TLecae/Carriole/main/docker/carriole.env.example
 nano carriole.env                      # ETL_ADMIN_PASSWORD : mot de passe du premier administrateur, « admin »
-mkdir donnees && sudo chown 10001:10001 donnees
+mkdir donnees && sudo chown 10001:10001 donnees     # en root : sans sudo
 docker compose pull && docker compose up -d
 ```
 
@@ -26,9 +26,22 @@ diffuser. Carriole répond sur `http://127.0.0.1:8080` (`CARRIOLE_PORT` pour un 
 `CARRIOLE_VERSION=0.2.1` fixe une version. Depuis un clone du dépôt, dans le dossier `docker` :
 `docker compose up -d --build` construit l'image depuis les sources.
 
+Les variables `CARRIOLE_…` de `compose.yaml` se règlent dans un fichier `.env` à côté de lui (lu par Docker Compose,
+distinct de `carriole.env`) :
+
+| Variable | Rôle |
+| --- | --- |
+| `CARRIOLE_VERSION` | version de l'image (défaut : `latest`) |
+| `CARRIOLE_PORT` | port de la machine (défaut : 8080) |
+| `CARRIOLE_BIND` | adresse écoutée : `127.0.0.1` (défaut, cette machine et son proxy HTTPS) ; `0.0.0.0` ouvre le port au réseau |
+| `CARRIOLE_DONNEES` | dossier de la machine monté sur `/mnt/donnees` (défaut : `./donnees`) |
+
+Pour un essai sur le réseau local, sans proxy : `echo CARRIOLE_BIND=0.0.0.0 >> .env`, puis `docker compose up -d` ;
+les mots de passe circulent alors en clair.
+
 Le dossier de la machine monté sur `/mnt/donnees` (le dossier autorisé) se choisit par `CARRIOLE_DONNEES` (défaut :
 `./donnees`), par exemple le partage de fichiers de l'organisation déjà monté sur la machine ; l'utilisateur de
-l'image (uid 10001) doit pouvoir y lire et y écrire. Pour garder les
+l'image (uid 10001) doit pouvoir y lire et y écrire (partage Windows : voir plus bas). Pour garder les
 métadonnées dans PostgreSQL : renseigner `POSTGRES_PASSWORD` et `ETL_DB_URL` dans `carriole.env`, puis
 `docker compose --profile postgres up -d --build`. Placer un proxy HTTPS devant le port 8080 et déclarer son adresse
 dans `ETL_TRUSTED_PROXIES`.
@@ -40,6 +53,29 @@ simplement. Pour l'autoriser : `ETL_USER_CODE=sandbox` et, dans `compose.yaml`,
 `security_opt: ["seccomp=unconfined", "apparmor=unconfined"]`. Ces options relâchent les protections du conteneur pour
 tout Carriole : à réserver à un serveur qui ne sert qu'à lui. Dans un conteneur, le bac à sable démarre sans `/proc`
 (Docker interdit d'en monter un neuf).
+
+### Partage de fichiers Windows (SMB)
+
+Sur un partage monté en `cifs`, `chown` et `setfacl` sont sans effet : le propriétaire des fichiers est fixé au
+montage. Le donner à l'utilisateur de l'image par `uid=10001`, par exemple dans `/etc/fstab` :
+
+```
+//serveur/partage  /mnt/partage  cifs  credentials=/root/.smb-carriole,uid=10001,file_mode=0664,dir_mode=0775,iocharset=utf8,_netdev,nofail,x-systemd.automount  0  0
+```
+
+puis `systemctl daemon-reload && systemctl stop mnt-partage.mount` : le partage se remonte au prochain accès, avec
+ces options (`findmnt -no OPTIONS -t cifs -T /mnt/partage` les montre). Un partage monté à la demande
+(`x-systemd.automount`, autofs) reste visible dans le conteneur grâce à l'option `rslave` du volume, dans
+`compose.yaml`.
+
+Carriole lit et écrit sur le serveur de fichiers avec le compte du montage (`credentials`), pour tous ses
+utilisateurs : prévoir un compte de service. Ses droits sur le serveur de fichiers s'appliquent : s'il n'écrit que
+dans certains dossiers, les déclarer dans `ETL_WRITE_ROOTS` (chemins du conteneur, séparés par `:`, par exemple
+`/mnt/donnees/Echanges`) et garder `ETL_READ_ROOTS=/mnt/donnees`. Pour vérifier :
+
+```bash
+docker compose exec carriole sh -c 'touch /mnt/donnees/Echanges/.essai && rm /mnt/donnees/Echanges/.essai && echo ok'
+```
 
 ## Démarrer sans Docker
 
