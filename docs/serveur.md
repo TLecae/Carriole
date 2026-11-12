@@ -158,7 +158,8 @@ Les tables se créent au premier démarrage. Les résultats des runs restent sur
 Chaque utilisateur se connecte avec un identifiant et un mot de passe : des comptes locaux, gérés par les
 administrateurs dans *Outils → Comptes* (création, nom affiché, groupes, nouveau mot de passe, suppression,
 [ADR 0058](decisions/0058-comptes-locaux.md), [ADR 0059](decisions/0059-comptes-locaux-seulement.md)). Chacun change son
-mot de passe depuis son menu. Mots de passe de 8 caractères au moins, hachés (scrypt) dans `ETL_USERS_FILE`
+mot de passe depuis son menu. Un groupe n'a pas d'écran à lui : il existe dès qu'un compte en fait partie (champ
+*Groupes*), et sert à partager flux et connexions. Mots de passe de 8 caractères au moins, hachés (scrypt) dans `ETL_USERS_FILE`
 (`users.json` du dossier des métadonnées).
 
 | Variable | Rôle |

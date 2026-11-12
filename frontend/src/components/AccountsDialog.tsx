@@ -64,7 +64,7 @@ export function AccountsDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal title={t("Comptes")} onClose={onClose} className="accounts-dialog">
-      <p className="muted">{t("Comptes locaux de ce serveur. Les comptes d'un annuaire se gèrent dans l'annuaire.")}</p>
+      <p className="muted">{t("Comptes de ce serveur. Un groupe existe dès qu'un compte en fait partie ; il sert à partager flux et connexions. Les groupes administrateurs sont listés dans Paramètres → Serveur.")}</p>
       <table className="accounts-table" data-testid="accounts-table">
         <thead>
           <tr>

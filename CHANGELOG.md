@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Accounts window: the leftover sentence about directory accounts is replaced by how groups work; the server
+  guide says the same.
 - Server guide: *Mettre à jour* gives the update procedure that keeps flows, accounts and settings (backup of the
   `carriole` volume, new `compose.yaml`, `docker compose pull && docker compose up -d`) and the way back (restore,
   pinned version); checked from 0.2.1. Local changes go in `compose.override.yaml` and `.env` (`COMPOSE_PROFILES`

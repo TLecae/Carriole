@@ -859,7 +859,7 @@
  "Compte « {{name}} » créé.": "Account \"{{name}}\" created.",
  "Compte « {{name}} » enregistré.": "Account \"{{name}}\" saved.",
  "Supprimer le compte « {{name}} » ? Ses flux restent, à son nom.": "Delete the account \"{{name}}\"? Its flows remain, under its name.",
- "Comptes locaux de ce serveur. Les comptes d'un annuaire se gèrent dans l'annuaire.": "Local accounts of this server. Directory accounts are managed in the directory.",
+ "Comptes de ce serveur. Un groupe existe dès qu'un compte en fait partie ; il sert à partager flux et connexions. Les groupes administrateurs sont listés dans Paramètres → Serveur.": "Accounts of this server. A group exists as soon as an account belongs to it; it is used to share flows and connections. The administrator groups are listed in Settings → Server.",
  "Nom affiché": "Display name",
  "Modifier {{name}}": "Edit {{name}}",
  "Groupes (séparés par des virgules)": "Groups (comma-separated)",
