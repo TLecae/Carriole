@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2
 
 - Server mode, sharing: everyone and each group are ticked in a list (every group of the accounts), with
   their right next to them; users are still added by name. For a connection the rights read *Use* and *Use and
