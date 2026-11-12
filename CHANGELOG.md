@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- GeoParquet reader: a geometry stored in the native encoding of GeoParquet 1.1 (coordinates in nested lists, point
+  to multipolygon, separated or interleaved) is read as WKB, on disk and at a web address; it used to break the map
+  and the modifiers that read the geometry.
+
 ## 0.2.2
 
 - Server mode, sharing: everyone and each group are ticked in a list (every group of the accounts), with

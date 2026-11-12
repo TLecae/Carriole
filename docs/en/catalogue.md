@@ -1578,7 +1578,7 @@ Reads a Parquet file, with or without geometry (GeoParquet), on disk or at a web
 
 - **Inputs** : none — **Outputs** : `output` — **Processing** : streaming
 
-A Parquet file without geometry is read as is. For a GeoParquet file, the geometry and its coordinate system are read from its metadata. A single local file, without an added file name or a row limit, is not copied: the node's result is the file itself (if it changes afterwards, run the flow again). An https:// address is read by ranges: only the useful parts of the file are downloaded (proxy from Settings).
+A Parquet file without geometry is read as is. For a GeoParquet file, the geometry and its coordinate system are read from its metadata; the geometry can be WKB or the native encoding of GeoParquet 1.1 (coordinates in lists, point to multipolygon). A single local file, without an added file name or a row limit, is not copied: the node's result is the file itself (if it changes afterwards, run the flow again). An https:// address is read by ranges: only the useful parts of the file are downloaded (proxy from Settings).
 
 | Parameter | Role | Default |
 | --- | --- | --- |

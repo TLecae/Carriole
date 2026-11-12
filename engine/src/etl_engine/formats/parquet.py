@@ -36,14 +36,67 @@ _TYPE_NAMES = {
 }
 
 
+# Encodages GeoArrow natifs de GeoParquet 1.1 : coordonnées en listes imbriquées au lieu du WKB (type de géométrie,
+# profondeur des listes au-dessus des coordonnées)
+_NATIVE = {
+    "point": (shapely.GeometryType.POINT, 0),
+    "linestring": (shapely.GeometryType.LINESTRING, 1),
+    "multipoint": (shapely.GeometryType.MULTIPOINT, 1),
+    "polygon": (shapely.GeometryType.POLYGON, 2),
+    "multilinestring": (shapely.GeometryType.MULTILINESTRING, 2),
+    "multipolygon": (shapely.GeometryType.MULTIPOLYGON, 3),
+}
+
+
+def _native(metadata: dict[bytes, bytes], column: str | None) -> str | None:
+    """Encodage GeoArrow natif de la colonne géométrie (« multipolygon »…) ; None pour du WKB."""
+    if not column or b"geo" not in metadata:
+        return None
+    encoding = str(json.loads(metadata[b"geo"]).get("columns", {}).get(column, {}).get("encoding", "")).lower()
+    return encoding if encoding in _NATIVE else None
+
+
 def _prepare(schema: pa.Schema, metadata: dict[bytes, bytes]) -> tuple[pa.Schema, str | None, str | None]:
     """(schéma interne, colonne géométrie d'origine, SCR) pour un fichier Parquet."""
     geo = json.loads(metadata[b"geo"]) if b"geo" in metadata else None
     column = geo["primary_column"] if geo else (GEOM if GEOM in schema.names else None)
     crs = get_crs(schema) or crs_from_geo(geo, column) if column else None
     if column:  # nommée `geometry`, sans métadonnées de champ (extension « geoarrow.wkb » : voir `plain_geometry`)
-        schema = schema.set(schema.get_field_index(column), pa.field(GEOM, schema.field(column).type))
+        kind = pa.binary() if _native(metadata, column) else schema.field(column).type  # lue en WKB : `_as_wkb`
+        schema = schema.set(schema.get_field_index(column), pa.field(GEOM, kind))
     return with_crs(schema.remove_metadata(), crs), column, crs
+
+
+def _coords(level: pa.Array) -> np.ndarray:
+    """Coordonnées (n, 2 ou 3) : struct x, y[, z][, m] (« separated ») ou liste fixe (« interleaved ») ; M ignorée."""
+    if pa.types.is_struct(level.type):
+        names = [level.type.field(i).name for i in range(level.type.num_fields)]
+        fields = level.flatten()  # avec le décalage du tableau ; une entité nulle donne NaN
+        dims = [fields[names.index(d)].to_numpy(zero_copy_only=False) for d in ("x", "y", "z") if d in names]
+        return np.column_stack(dims).astype(np.float64, copy=False)
+    size = level.type.list_size
+    dims = 2 if size == 2 or (size == 3 and level.type.value_field.name == "xym") else 3  # champ nommé xy, xyz, xym…
+    values = level.values.slice(level.offset * size, len(level) * size)  # `flatten` sauterait les entités nulles
+    return np.ascontiguousarray(values.to_numpy(zero_copy_only=False).reshape(-1, size)[:, :dims], np.float64)
+
+
+def _as_wkb(table: pa.Table, encoding: str | None) -> pa.Table:
+    """Géométrie GeoArrow native réécrite en WKB, d'un coup par bloc (`shapely.from_ragged_array`)."""
+    if not encoding or GEOM not in table.column_names:
+        return table
+    kind, depth = _NATIVE[encoding]
+    chunks = []
+    for chunk in table.column(GEOM).chunks:
+        level, offsets = chunk, []
+        for _ in range(depth):  # du multipolygone vers les anneaux : décalages ramenés au début du bloc
+            o = level.offsets.to_numpy().astype(np.int64)
+            offsets.append(o - o[0])
+            level = level.values.slice(int(o[0]), int(o[-1] - o[0]))
+        geoms = shapely.from_ragged_array(kind, _coords(level), tuple(reversed(offsets)) or None)
+        geoms[chunk.is_null().to_numpy(zero_copy_only=False)] = None
+        chunks.append(pa.array(shapely.to_wkb(geoms), pa.binary()))
+    column = pa.chunked_array(chunks, pa.binary())
+    return table.set_column(table.schema.get_field_index(GEOM), pa.field(GEOM, pa.binary()), column)
 
 
 def is_remote(path: str) -> bool:
@@ -108,10 +161,12 @@ def read_batches(
         yield from _read_web(path, batch_rows, columns, limit)
         return
     pf = pq.ParquetFile(path)
-    _, column, crs = _prepare(pf.schema_arrow, pf.metadata.metadata or {})
+    metadata = pf.metadata.metadata or {}
+    _, column, crs = _prepare(pf.schema_arrow, metadata)
+    native = _native(metadata, column)
     rows = batch_rows_for([Path(path)], batch_rows)  # lignes larges : des lots plus courts, dans le budget du run
     for rb in pf.iter_batches(batch_size=rows, columns=_wanted(columns, column)):
-        yield _named(pa.Table.from_batches([rb]), column, crs)
+        yield _named(pa.Table.from_batches([rb]), column, crs, native)
 
 
 def _wanted(columns: list[str] | None, column: str | None) -> list[str] | None:
@@ -119,9 +174,10 @@ def _wanted(columns: list[str] | None, column: str | None) -> list[str] | None:
     return None if columns is None else [column if (c == GEOM and column) else c for c in columns]
 
 
-def _named(table: pa.Table, column: str | None, crs: str | None) -> pa.Table:
+def _named(table: pa.Table, column: str | None, crs: str | None, native: str | None = None) -> pa.Table:
     if column and column != GEOM:
         table = table.rename_columns([GEOM if n == column else n for n in table.column_names])
+    table = _as_wkb(table, native)
     return with_crs(plain_geometry(table), crs)  # sans l'extension « geoarrow.wkb » : comme un fichier local
 
 
@@ -129,6 +185,7 @@ def _read_web(url: str, batch_rows: int, columns: list[str] | None, limit: int |
     with _web(url) as con:
         schema, metadata = _web_footer(con, url)
         _, column, crs = _prepare(schema, metadata)
+        native = _native(metadata, column)
         wanted = _wanted(columns, column)
         select = "*" if wanted is None else ", ".join('"' + c.replace('"', '""') + '"' for c in wanted)
         bound = ""
@@ -139,7 +196,7 @@ def _read_web(url: str, batch_rows: int, columns: list[str] | None, limit: int |
             batch_rows
         ) as reader:
             for rb in reader:
-                yield _named(pa.Table.from_batches([rb]), column, crs)
+                yield _named(pa.Table.from_batches([rb]), column, crs, native)
 
 
 def sql_literal(text: str) -> str:
@@ -160,11 +217,16 @@ def _footer(path: str) -> tuple[pa.Schema, dict[bytes, bytes]]:
 
 def sql_query(paths: list[str], add_filename: bool = False, limit: int | None = None, **_: Any) -> str | None:
     """Requête DuckDB qui lit `paths` comme `read_batches` : géométrie (WKB) renommée `geometry`, nom du fichier,
-    `limit` premières lignes. None (lecture par `read_batches`) si les fichiers n'ont pas la même colonne géométrie."""
-    found = {_prepare(*_footer(path))[1] for path in paths}
-    names = _footer(paths[0])[0].names
+    `limit` premières lignes. None (lecture par `read_batches`) si les fichiers n'ont pas la même colonne géométrie,
+    ou une géométrie GeoArrow native (que `read_batches` réécrit en WKB)."""
+    footers = [_footer(path) for path in paths]
+    columns = [_prepare(*footer)[1] for footer in footers]
+    found = set(columns)
+    names = footers[0][0].names
     column = found.pop() if len(found) == 1 else ""
     if column == "" or (column and column != GEOM and GEOM in names):
+        return None
+    if any(_native(metadata, c) for (_, metadata), c in zip(footers, columns, strict=True)):
         return None
     listing = ", ".join(sql_literal(p.replace("\\", "/")) for p in paths)
     filename = add_filename and "filename" not in names
@@ -275,12 +337,14 @@ class ParquetWriter:
     def _copy(self, existing: pq.ParquetFile) -> None:
         """Ajout : les lignes du fichier existant, groupe par groupe, avant les nouvelles."""
         assert self._writer is not None and self._schema is not None
-        _, column, _ = _prepare(existing.schema_arrow, existing.metadata.metadata or {})
+        metadata = existing.metadata.metadata or {}
+        _, column, _ = _prepare(existing.schema_arrow, metadata)
+        native = _native(metadata, column)  # géométrie native : le fichier complété l'aura en WKB
         for i in range(existing.num_row_groups):
             group = existing.read_row_group(i)
             if column and column != GEOM:
                 group = group.rename_columns([GEOM if n == column else n for n in group.column_names])
-            group = pa.Table.from_arrays(group.columns, schema=self._schema)
+            group = pa.Table.from_arrays(_as_wkb(group, native).columns, schema=self._schema)
             if has_geometry(self._schema):
                 self._track(group)
             self._writer.write_table(group)

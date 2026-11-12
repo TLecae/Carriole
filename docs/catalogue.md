@@ -1156,7 +1156,7 @@ Lit un fichier Parquet, avec ou sans géométrie (GeoParquet), sur le disque ou 
 
 - **Entrées** : aucune — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-Un Parquet sans géométrie est lu tel quel. Pour un GeoParquet, la géométrie et son système de coordonnées sont lus dans ses métadonnées. Un fichier seul, local, sans nom du fichier ajouté ni limite de lignes, n'est pas recopié : le résultat du nœud est le fichier lui-même (le modifier ensuite oblige à relancer le flux). Une adresse https:// est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des Paramètres).
+Un Parquet sans géométrie est lu tel quel. Pour un GeoParquet, la géométrie et son système de coordonnées sont lus dans ses métadonnées ; la géométrie peut être en WKB ou dans l'encodage natif de GeoParquet 1.1 (coordonnées en listes, point à multipolygone). Un fichier seul, local, sans nom du fichier ajouté ni limite de lignes, n'est pas recopié : le résultat du nœud est le fichier lui-même (le modifier ensuite oblige à relancer le flux). Une adresse https:// est lue par plages : seules les parties utiles du fichier sont téléchargées (proxy des Paramètres).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
