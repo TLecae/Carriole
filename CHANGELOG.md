@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Server guide: *Mettre à jour* gives the update procedure that keeps flows, accounts and settings (backup of the
+  `carriole` volume, new `compose.yaml`, `docker compose pull && docker compose up -d`) and the way back (restore,
+  pinned version); checked from 0.2.1. Local changes go in `compose.override.yaml` and `.env` (`COMPOSE_PROFILES`
+  for PostgreSQL), so `compose.yaml` can be replaced at each update.
 - Docker: the image's user has a fixed group, 10001 like its uid (it was a system group); volumes of
   earlier versions keep working.
 - Server mode: the first start refuses `ETL_ADMIN_PASSWORD` when it still holds the value of `carriole.env.example`,

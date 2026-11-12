@@ -84,7 +84,8 @@ docker compose pull && docker compose up -d
 
 Carriole then answers on `http://127.0.0.1:8080`: sign in as `admin`, then create the users' accounts in
 *Tools → Accounts*. Put an HTTPS proxy (nginx, Caddy…) in front of port 8080 to open it to the network.
-`docker compose pull && docker compose up -d` updates. A `.env` file next to `compose.yaml` holds the Compose
+To update without losing flows or accounts (backup, then `docker compose pull && docker compose up -d`), follow
+*Mettre à jour* in the [server guide](docs/serveur.md#mettre-à-jour). A `.env` file next to `compose.yaml` holds the Compose
 variables: `CARRIOLE_VERSION=0.2.1` pins a version, `CARRIOLE_DONNEES=/mnt/share` mounts another folder,
 `CARRIOLE_BIND=0.0.0.0` opens the port to the network without a proxy (for a trial: passwords then travel in clear).
 

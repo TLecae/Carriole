@@ -22,12 +22,13 @@ docker compose pull && docker compose up -d
 
 `carriole.env` porte les réglages (variables `ETL_…` décrites plus bas) ; il contient un mot de passe, ne pas le
 diffuser. Carriole répond sur `http://127.0.0.1:8080` (`CARRIOLE_PORT` pour un autre port) : se connecter avec
-`admin`, puis créer les comptes dans *Outils → Comptes*. Mise à jour : `docker compose pull && docker compose up -d` ;
-`CARRIOLE_VERSION=0.2.1` fixe une version. Depuis un clone du dépôt, dans le dossier `docker` :
-`docker compose up -d --build` construit l'image depuis les sources.
+`admin`, puis créer les comptes dans *Outils → Comptes*. Mise à jour : voir
+[Mettre à jour](#mettre-à-jour). Depuis un clone du dépôt, dans le dossier `docker` : `docker compose up -d --build`
+construit l'image depuis les sources.
 
-Les variables `CARRIOLE_…` de `compose.yaml` se règlent dans un fichier `.env` à côté de lui (lu par Docker Compose,
-distinct de `carriole.env`) :
+`compose.yaml` ne se modifie pas : il est remplacé à chaque mise à jour. Les variables `CARRIOLE_…` se règlent dans un
+fichier `.env` à côté de lui (lu par Docker Compose, distinct de `carriole.env`) ; tout autre changement va dans
+`compose.override.yaml`, que Docker Compose lit aussi et qu'une mise à jour ne touche pas.
 
 | Variable | Rôle |
 | --- | --- |
@@ -35,6 +36,7 @@ distinct de `carriole.env`) :
 | `CARRIOLE_PORT` | port de la machine (défaut : 8080) |
 | `CARRIOLE_BIND` | adresse écoutée : `127.0.0.1` (défaut, cette machine et son proxy HTTPS) ; `0.0.0.0` ouvre le port au réseau |
 | `CARRIOLE_DONNEES` | dossier de la machine monté sur `/mnt/donnees` (défaut : `./donnees`) |
+| `COMPOSE_PROFILES` | `postgres` : métadonnées dans PostgreSQL (service `db`) |
 
 Pour un essai sur le réseau local, sans proxy : `echo CARRIOLE_BIND=0.0.0.0 >> .env`, puis `docker compose up -d` ;
 les mots de passe circulent alors en clair.
@@ -42,15 +44,22 @@ les mots de passe circulent alors en clair.
 Le dossier de la machine monté sur `/mnt/donnees` (le dossier autorisé) se choisit par `CARRIOLE_DONNEES` (défaut :
 `./donnees`), par exemple le partage de fichiers de l'organisation déjà monté sur la machine ; l'utilisateur de
 l'image (uid 10001) doit pouvoir y lire et y écrire (partage Windows : voir plus bas). Pour garder les
-métadonnées dans PostgreSQL : renseigner `POSTGRES_PASSWORD` et `ETL_DB_URL` dans `carriole.env`, puis
-`docker compose --profile postgres up -d --build`. Placer un proxy HTTPS devant le port 8080 et déclarer son adresse
+métadonnées dans PostgreSQL : renseigner `POSTGRES_PASSWORD` et `ETL_DB_URL` dans `carriole.env`,
+`COMPOSE_PROFILES=postgres` dans `.env`, puis `docker compose up -d`. Placer un proxy HTTPS devant le port 8080 et déclarer son adresse
 dans `ETL_TRUSTED_PROXIES`.
 
 Le code Python des flux s'exécute dans bubblewrap, qui a besoin des espaces de noms utilisateur : Docker les refuse
 par défaut, et certaines distributions les restreignent (Ubuntu 24.04 : `kernel.apparmor_restrict_unprivileged_userns`).
 Sans eux, *PythonScript* le dit dès l'analyse du flux ; `ETL_USER_CODE=deny` (valeur de l'exemple) le désactive
-simplement. Pour l'autoriser : `ETL_USER_CODE=sandbox` et, dans `compose.yaml`,
-`security_opt: ["seccomp=unconfined", "apparmor=unconfined"]`. Ces options relâchent les protections du conteneur pour
+simplement. Pour l'autoriser : `ETL_USER_CODE=sandbox` et un fichier `compose.override.yaml` :
+
+```yaml
+services:
+  carriole:
+    security_opt: ["seccomp=unconfined", "apparmor=unconfined"]
+```
+
+Ces options relâchent les protections du conteneur pour
 tout Carriole : à réserver à un serveur qui ne sert qu'à lui. Dans un conteneur, le bac à sable démarre sans `/proc`
 (Docker interdit d'en monter un neuf).
 
@@ -75,6 +84,46 @@ dans certains dossiers, les déclarer dans `ETL_WRITE_ROOTS` (chemins du contene
 
 ```bash
 docker compose exec carriole sh -c 'touch /mnt/donnees/Echanges/.essai && rm /mnt/donnees/Echanges/.essai && echo ok'
+```
+
+## Mettre à jour
+
+Flux, comptes, partages, planifications, réglages et historique des runs sont dans le volume Docker `carriole` (et
+dans le volume `db` avec PostgreSQL) ; les données de l'organisation, dans le dossier monté. Une mise à jour remplace
+l'image et recrée le conteneur : les volumes et le dossier monté restent, et la base se met à jour seule au démarrage.
+Les runs en cours sont interrompus : choisir un moment sans planification. Dans le dossier de `compose.yaml` :
+
+```bash
+# 1. sauvegarde (flux, comptes, réglages ; sans le cache des runs, qui se reconstruit)
+docker compose stop carriole
+docker compose run --rm --no-deps --user 0 --entrypoint tar -v "$PWD:/sauvegarde" carriole \
+  czf "/sauvegarde/carriole-$(date +%F).tgz" --exclude=./data/cache -C /var/lib/carriole .
+# avec PostgreSQL, en plus : docker compose exec db pg_dump -U carriole carriole > "carriole-$(date +%F).sql"
+
+# 2. compose.yaml de la nouvelle version (jamais modifié à la main : voir plus haut)
+curl -fsSLO https://raw.githubusercontent.com/TLecae/Carriole/main/docker/compose.yaml
+
+# 3. nouvelle image : le conteneur est recréé, volumes et dossier de données gardés
+docker compose pull && docker compose up -d
+docker compose ps                      # « healthy » au bout d'une minute
+```
+
+`carriole.env` n'est jamais remplacé : les réglages ajoutés par une version sont dans le CHANGELOG et dans le nouvel
+[`carriole.env.example`](https://raw.githubusercontent.com/TLecae/Carriole/main/docker/carriole.env.example). Avec `CARRIOLE_VERSION` fixé, prendre le `compose.yaml` de la
+même version (`…/Carriole/v<version>/docker/compose.yaml`).
+
+À ne jamais faire : `docker compose down -v`, `docker volume rm`, `docker volume prune`. Ces commandes effacent le
+volume `carriole`, donc les flux et les comptes ; `docker compose down` seul (sans `-v`) les garde.
+
+**Revenir à la version précédente.** Une version ne lit pas une base mise à jour par une version plus récente :
+restaurer la sauvegarde faite avant la mise à jour, puis fixer l'ancienne version.
+
+```bash
+docker compose stop carriole
+docker compose run --rm --no-deps --user 0 --entrypoint sh -v "$PWD:/sauvegarde" carriole -c \
+  'find /var/lib/carriole -mindepth 1 -delete && tar xzf /sauvegarde/carriole-AAAA-MM-JJ.tgz --numeric-owner -C /var/lib/carriole'
+# dans .env : CARRIOLE_VERSION=<version d'avant la mise à jour> ; avec PostgreSQL, recharger aussi le fichier .sql
+docker compose up -d
 ```
 
 ## Démarrer sans Docker
