@@ -5,6 +5,8 @@
 - GeoParquet reader: a geometry stored in the native encoding of GeoParquet 1.1 (coordinates in nested lists, point
   to multipolygon, separated or interleaved) is read as WKB, on disk and at a web address; it used to break the map
   and the modifiers that read the geometry.
+- Linux AppImage: built with the static AppImage runtime, so it starts without FUSE 2, which recent distributions
+  no longer install (reported by the AppImage catalog test).
 - Site: a *On a server* section (team work with accounts and groups, scheduled runs on the server, data left in
   place, administration, Docker installation and updates) and a *Linux server* row in the downloads; the texts that
   said "no server" now say desktop or server.

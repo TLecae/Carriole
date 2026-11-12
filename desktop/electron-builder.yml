@@ -9,6 +9,10 @@ files:
   - package.json
 asar: true
 afterPack: build/afterPack.js
+# AppImage : runtime statique (type2-runtime), qui ne demande pas FUSE 2 au système ; les distributions récentes ne
+# l'installent plus, et l'ancien runtime n'ouvrait alors rien.
+toolsets:
+  appimage: "1.0.3"
 # Ressources hors archive : Python embarqué, interface compilée, lanceur « etl », marqueur d'installation.
 extraResources:
   - { from: build/runtime, to: runtime }

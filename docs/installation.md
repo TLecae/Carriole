@@ -38,8 +38,9 @@ chmod +x Carriole-*-x86_64.AppImage
 ./Carriole-*-x86_64.AppImage
 ```
 
-- Si rien ne s'ouvre : installer FUSE 2 (`sudo apt install libfuse2t64`, ou `libfuse2` avant Ubuntu 24.04). Sous
-  Ubuntu 24.04 et plus, si Chromium refuse de démarrer (« sandbox »), lancer avec `--no-sandbox`.
+- FUSE 2 n'est plus nécessaire (runtime AppImage statique, version 0.2.3 et suivantes) ; une version plus ancienne qui
+  n'ouvre rien le demande : `sudo apt install libfuse2t64` (`libfuse2` avant Ubuntu 24.04). Sous Ubuntu 24.04 et
+  plus, si Chromium refuse de démarrer (« sandbox »), lancer avec `--no-sandbox`.
 - Données dans `~/.local/share/carriole`, réglages dans `~/.config/carriole` (variables XDG respectées). La clé de
   chiffrement des secrets est un fichier lisible par vous seul (droits 0600) : pas de coffre système comme sous
   Windows.
