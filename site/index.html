@@ -135,6 +135,7 @@
     <nav>
       <a class="hide-sm" href="#formats" data-i18n="nav.formats">Formats</a>
       <a class="hide-sm" href="#modifiers" data-i18n="nav.modifiers">Modifiers</a>
+      <a class="hide-sm" href="#server" data-i18n="nav.server">Server</a>
       <a class="hide-sm" href="#download" data-i18n="nav.download">Download</a>
       <a class="hide-sm" href="https://github.com/TLecae/Carriole/blob/main/docs/en/user_guide.md" data-doc="guide" data-i18n="nav.guide">User guide</a>
       <a href="https://github.com/TLecae/Carriole">GitHub</a>
@@ -149,7 +150,7 @@
 
 <main class="wrap">
   <h1>Carriole</h1>
-  <p class="lead" data-i18n="hero.sub">Desktop ETL for geographic data: modifiers are assembled on a canvas, the flow is run, and every result can be checked on a table and a map.</p>
+  <p class="lead" data-i18n="hero.sub">ETL for geographic data, on a computer or on a server: modifiers are assembled on a canvas, the flow is run, and every result can be checked on a table and a map.</p>
   <div class="actions">
     <a class="btn primary" id="cta-main" href="#download"><span data-i18n="cta.download">Download</span> <small id="cta-main-detail"></small></a>
     <a class="btn" href="https://github.com/TLecae/Carriole/blob/main/docs/en/user_guide.md" data-doc="guide" data-i18n="cta.guide">User guide</a>
@@ -175,7 +176,7 @@
     <a class="stat" href="#download">
       <span class="n os">Windows · Linux</span>
       <span class="label" data-i18n="stat.os">free, MIT license</span>
-      <span class="detail" data-i18n="stat.os.detail">no server, nothing to set up</span>
+      <span class="detail" data-i18n="stat.os.detail">desktop application, or server with Docker</span>
     </a>
   </div>
 
@@ -265,11 +266,37 @@
     <h2 data-i18n="local.title">On your computer</h2>
     <ul>
       <li data-i18n="local.1">Installed with an .exe (Windows) or run as an AppImage (Linux); Python, GDAL, DuckDB and the projection grids are included.</li>
-      <li data-i18n="local.2">No server: Carriole reads and writes your files, network shares and databases with your own permissions.</li>
+      <li data-i18n="local.2">Carriole reads and writes your files, network shares and databases with your own permissions; no server is needed.</li>
       <li data-i18n="local.3">Internet is only used for the basemap and for the web sources your flows call.</li>
       <li data-i18n="local.4">Interface in English and French.</li>
       <li data-i18n="local.5">Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama): it proposes changes to the flow; what it may read is configurable.</li>
     </ul>
+  </section>
+
+  <section id="server">
+    <h2 data-i18n="srv.title">On a server</h2>
+    <p class="sub" data-i18n="srv.sub">Since version 0.2.1, Carriole also runs on a Linux server: a team uses it in the browser, with nothing installed on the workstations.</p>
+    <div class="cards">
+      <div class="card">
+        <h3 data-i18n="srv.team.t">Work as a team</h3>
+        <p data-i18n="srv.team.d">Each person signs in with an account. Flows and database connections are shared with everyone or with groups ticked in a list, read-only or editable; a group that is not ticked does not see them.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="srv.sched.t">Run on a schedule</h3>
+        <p data-i18n="srv.sched.d">Scheduled flows run on the server, with the rights of the person who scheduled them, whether the workstations are on or not. Runs wait their turn in a fair queue; memory and simultaneous runs per user are set in Settings.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="srv.data.t">Leave the data where it is</h3>
+        <p data-i18n="srv.data.d">The server reads the data folder it is given, such as a network share, and the databases of the connections. The administrator chooses which folders can be read and which can be written; database passwords are stored encrypted.</p>
+      </div>
+    </div>
+    <ul>
+      <li data-i18n="srv.1">Administration in the browser: accounts and groups, settings, activity log (sign-ins, saves, shares, runs).</li>
+      <li data-i18n="srv.2">Python code in flows runs isolated from the server, or is turned off.</li>
+      <li data-i18n-html="srv.3">Installation with Docker: the image <code>ghcr.io/tlecae/carriole</code>, two files (<code>compose.yaml</code>, <code>carriole.env</code>), then <code>docker compose pull &amp;&amp; docker compose up -d</code>. An update keeps flows, accounts and settings.</li>
+      <li data-i18n="srv.4">Metadata in SQLite, or in PostgreSQL for a larger team.</li>
+    </ul>
+    <p class="more"><a href="https://github.com/TLecae/Carriole/blob/main/docs/serveur.md" data-i18n="srv.more">Server guide (in French)</a></p>
   </section>
 
   <section id="download">
@@ -287,6 +314,13 @@
         <td>
           <a id="dl-linux" href="https://github.com/TLecae/Carriole/releases/latest">Carriole.AppImage</a> <span class="muted" id="dl-linux-detail"></span><br>
           <span data-i18n-html="dl.linux">Make the file executable (<code>chmod +x</code>) and run it. No installation or admin rights needed.</span>
+        </td>
+      </tr>
+      <tr>
+        <th data-i18n="dl.server.t">Linux server</th>
+        <td>
+          <code>ghcr.io/tlecae/carriole</code><br>
+          <span data-i18n-html="dl.server">Docker image, used in the browser. Installation, accounts and updates: <a href="https://github.com/TLecae/Carriole/blob/main/docs/serveur.md">server guide</a> (in French).</span>
         </td>
       </tr>
     </table>
@@ -326,13 +360,13 @@
   const BLOB = `https://github.com/${REPO}/blob/main/`;
   const T = {
     en: {
-      "nav.formats": "Formats", "nav.modifiers": "Modifiers", "nav.download": "Download", "nav.guide": "User guide",
-      "hero.sub": "Desktop ETL for geographic data: modifiers are assembled on a canvas, the flow is run, and every result can be checked on a table and a map.",
+      "nav.server": "Server", "nav.formats": "Formats", "nav.modifiers": "Modifiers", "nav.download": "Download", "nav.guide": "User guide",
+      "hero.sub": "ETL for geographic data, on a computer or on a server: modifiers are assembled on a canvas, the flow is run, and every result can be checked on a table and a map.",
       "cta.download": "Download", "cta.guide": "User guide", "cta.source": "Source code",
       "stat.mod": "modifiers", "stat.mod.detail": "geometry, attributes, joins, filters, statistics",
       "stat.fmt": "vector formats and databases", "stat.fmt.detail": "read and written: PostGIS, GeoPackage, Shapefile…",
       "stat.raster": "raster modifiers", "stat.raster.detail": "GeoTIFF, COG, JPEG 2000, NetCDF, STAC",
-      "stat.os": "free, MIT license", "stat.os.detail": "no server, nothing to set up",
+      "stat.os": "free, MIT license", "stat.os.detail": "desktop application, or server with Docker",
       "shot.editor": "A flow in the editor; below, the output of its last node on the table and the map.",
       "how.title": "Build, check, automate", "how.sub": "Everything is done with the mouse and forms.",
       "how.build.t": "Build",
@@ -363,13 +397,28 @@
       "shot.query": "Read query of a file: attributes to read, filter, and number of features kept, without running the flow.",
       "local.title": "On your computer",
       "local.1": "Installed with an .exe (Windows) or run as an AppImage (Linux); Python, GDAL, DuckDB and the projection grids are included.",
-      "local.2": "No server: Carriole reads and writes your files, network shares and databases with your own permissions.",
+      "local.2": "Carriole reads and writes your files, network shares and databases with your own permissions; no server is needed.",
       "local.3": "Internet is only used for the basemap and for the web sources your flows call.",
       "local.4": "Interface in English and French.",
       "local.5": "Optional AI assistant (Claude, OpenAI, OpenRouter, Ollama): it proposes changes to the flow; what it may read is configurable.",
+      "srv.title": "On a server",
+      "srv.sub": "Since version 0.2.1, Carriole also runs on a Linux server: a team uses it in the browser, with nothing installed on the workstations.",
+      "srv.team.t": "Work as a team",
+      "srv.team.d": "Each person signs in with an account. Flows and database connections are shared with everyone or with groups ticked in a list, read-only or editable; a group that is not ticked does not see them.",
+      "srv.sched.t": "Run on a schedule",
+      "srv.sched.d": "Scheduled flows run on the server, with the rights of the person who scheduled them, whether the workstations are on or not. Runs wait their turn in a fair queue; memory and simultaneous runs per user are set in Settings.",
+      "srv.data.t": "Leave the data where it is",
+      "srv.data.d": "The server reads the data folder it is given, such as a network share, and the databases of the connections. The administrator chooses which folders can be read and which can be written; database passwords are stored encrypted.",
+      "srv.1": "Administration in the browser: accounts and groups, settings, activity log (sign-ins, saves, shares, runs).",
+      "srv.2": "Python code in flows runs isolated from the server, or is turned off.",
+      "srv.3": "Installation with Docker: the image <code>ghcr.io/tlecae/carriole</code>, two files (<code>compose.yaml</code>, <code>carriole.env</code>), then <code>docker compose pull &amp;&amp; docker compose up -d</code>. An update keeps flows, accounts and settings.",
+      "srv.4": "Metadata in SQLite, or in PostgreSQL for a larger team.",
+      "srv.more": "Server guide (in French)",
       "dl.title": "Download",
       "dl.win": "Installer for all users of the computer. It is not code-signed: on the SmartScreen warning, choose “More info”, then “Run anyway”.",
       "dl.linux": "Make the file executable (<code>chmod +x</code>) and run it. No installation or admin rights needed.",
+      "dl.server.t": "Linux server",
+      "dl.server": "Docker image, used in the browser. Installation, accounts and updates: <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/serveur.md\">server guide</a> (in French).",
       "dl.all": "All versions and checksums",
       "more.dev": "For developers: an extra modifier is one Python file, added without rebuilding Carriole (<a href=\"https://github.com/TLecae/Carriole/blob/main/docs/ecrire_un_modificateur.md\">guide</a>). The <code>etl</code> command line is optional.",
       "built.title": "Libraries used",
@@ -379,13 +428,13 @@
       "foot.license": "MIT license", "foot.issues": "Report a problem",
     },
     fr: {
-      "nav.formats": "Formats", "nav.modifiers": "Modificateurs", "nav.download": "Télécharger", "nav.guide": "Guide",
-      "hero.sub": "ETL de bureau pour les données géographiques : on assemble des modificateurs sur un canevas, on lance le flux, et chaque résultat se vérifie sur une table et une carte.",
+      "nav.server": "Serveur", "nav.formats": "Formats", "nav.modifiers": "Modificateurs", "nav.download": "Télécharger", "nav.guide": "Guide",
+      "hero.sub": "ETL pour les données géographiques, sur un poste ou sur un serveur : on assemble des modificateurs sur un canevas, on lance le flux, et chaque résultat se vérifie sur une table et une carte.",
       "cta.download": "Télécharger", "cta.guide": "Guide de l'utilisateur", "cta.source": "Code source",
       "stat.mod": "modificateurs", "stat.mod.detail": "géométrie, attributs, jointures, filtres, statistiques",
       "stat.fmt": "formats vecteur et bases de données", "stat.fmt.detail": "en lecture et en écriture : PostGIS, GeoPackage, Shapefile…",
       "stat.raster": "modificateurs raster", "stat.raster.detail": "GeoTIFF, COG, JPEG 2000, NetCDF, STAC",
-      "stat.os": "gratuit, licence MIT", "stat.os.detail": "sans serveur, rien à configurer",
+      "stat.os": "gratuit, licence MIT", "stat.os.detail": "application de bureau, ou serveur avec Docker",
       "shot.editor": "Un flux dans l'éditeur ; en bas, la sortie de son dernier nœud sur la table et la carte.",
       "how.title": "Construire, vérifier, automatiser", "how.sub": "Tout se fait à la souris et dans des formulaires.",
       "how.build.t": "Construire",
@@ -416,13 +465,28 @@
       "shot.query": "Requête de lecture d'un fichier : attributs lus, filtre et nombre d'entités gardées, sans lancer le flux.",
       "local.title": "Sur votre poste",
       "local.1": "Installation par un .exe (Windows) ou une AppImage (Linux) ; Python, GDAL, DuckDB et les grilles de projection sont inclus.",
-      "local.2": "Sans serveur : Carriole lit et écrit vos fichiers, partages réseau et bases de données avec vos propres droits.",
+      "local.2": "Carriole lit et écrit vos fichiers, partages réseau et bases de données avec vos propres droits ; aucun serveur n'est nécessaire.",
       "local.3": "Internet ne sert qu'au fond de carte et aux sources web que vos flux appellent.",
       "local.4": "Interface en français et en anglais.",
       "local.5": "Assistant IA facultatif (Claude, OpenAI, OpenRouter, Ollama) : il propose des modifications du flux ; ce qu'il peut lire se règle.",
+      "srv.title": "Sur un serveur",
+      "srv.sub": "Depuis la version 0.2.1, Carriole tourne aussi sur un serveur Linux : une équipe l'utilise dans son navigateur, sans rien installer sur les postes.",
+      "srv.team.t": "Travailler en équipe",
+      "srv.team.d": "Chacun se connecte avec son compte. Flux et connexions aux bases se partagent avec tout le monde ou avec des groupes cochés dans une liste, en lecture ou en modification ; un groupe non coché ne les voit pas.",
+      "srv.sched.t": "Lancer à heure fixe",
+      "srv.sched.d": "Les flux planifiés tournent sur le serveur, avec les droits de la personne qui les a planifiés, que les postes soient allumés ou non. Les runs attendent leur tour dans une file équitable ; mémoire et runs simultanés par utilisateur se règlent dans les Paramètres.",
+      "srv.data.t": "Laisser les données en place",
+      "srv.data.d": "Le serveur lit le dossier de données qu'on lui donne, un partage réseau par exemple, et les bases des connexions. L'administrateur choisit les dossiers lisibles et ceux où l'on peut écrire ; les mots de passe des bases sont chiffrés.",
+      "srv.1": "Administration dans le navigateur : comptes et groupes, réglages, journal d'activité (connexions, enregistrements, partages, runs).",
+      "srv.2": "Le code Python des flux s'exécute isolé du serveur, ou se désactive.",
+      "srv.3": "Installation avec Docker : l'image <code>ghcr.io/tlecae/carriole</code>, deux fichiers (<code>compose.yaml</code>, <code>carriole.env</code>), puis <code>docker compose pull &amp;&amp; docker compose up -d</code>. Une mise à jour garde flux, comptes et réglages.",
+      "srv.4": "Métadonnées dans SQLite, ou dans PostgreSQL pour une équipe plus grande.",
+      "srv.more": "Guide du serveur",
       "dl.title": "Télécharger",
       "dl.win": "Installeur pour tous les utilisateurs du poste. Il n'est pas signé : à l'avertissement SmartScreen, choisir « Informations complémentaires » puis « Exécuter quand même ».",
       "dl.linux": "Rendre le fichier exécutable (<code>chmod +x</code>) puis le lancer. Ni installation ni droits d'administrateur.",
+      "dl.server.t": "Serveur Linux",
+      "dl.server": "Image Docker, utilisée dans le navigateur. Installation, comptes et mises à jour : <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/serveur.md\">guide du serveur</a>.",
       "dl.all": "Toutes les versions et sommes de contrôle",
       "more.dev": "Pour les développeurs : un modificateur supplémentaire est un fichier Python, ajouté sans recompiler Carriole (<a href=\"https://github.com/TLecae/Carriole/blob/main/docs/ecrire_un_modificateur.md\">guide</a>). La ligne de commande <code>etl</code> est facultative.",
       "built.title": "Bibliothèques utilisées",
@@ -432,13 +496,13 @@
       "foot.license": "Licence MIT", "foot.issues": "Signaler un problème",
     },
     es: {
-      "nav.formats": "Formatos", "nav.modifiers": "Modificadores", "nav.download": "Descargar", "nav.guide": "Guía",
-      "hero.sub": "ETL de escritorio para datos geográficos: se ensamblan modificadores en un lienzo, se ejecuta el flujo y cada resultado se comprueba en una tabla y un mapa.",
+      "nav.server": "Servidor", "nav.formats": "Formatos", "nav.modifiers": "Modificadores", "nav.download": "Descargar", "nav.guide": "Guía",
+      "hero.sub": "ETL para datos geográficos, en un equipo o en un servidor: se ensamblan modificadores en un lienzo, se ejecuta el flujo y cada resultado se comprueba en una tabla y un mapa.",
       "cta.download": "Descargar", "cta.guide": "Guía del usuario", "cta.source": "Código fuente",
       "stat.mod": "modificadores", "stat.mod.detail": "geometría, atributos, uniones, filtros, estadísticas",
       "stat.fmt": "formatos vectoriales y bases de datos", "stat.fmt.detail": "lectura y escritura: PostGIS, GeoPackage, Shapefile…",
       "stat.raster": "modificadores ráster", "stat.raster.detail": "GeoTIFF, COG, JPEG 2000, NetCDF, STAC",
-      "stat.os": "gratuito, licencia MIT", "stat.os.detail": "sin servidor, nada que configurar",
+      "stat.os": "gratuito, licencia MIT", "stat.os.detail": "aplicación de escritorio, o servidor con Docker",
       "shot.editor": "Un flujo en el editor; abajo, la salida de su último nodo en la tabla y el mapa.",
       "how.title": "Construir, comprobar, automatizar", "how.sub": "Todo se hace con el ratón y en formularios.",
       "how.build.t": "Construir",
@@ -469,13 +533,28 @@
       "shot.query": "Consulta de lectura de un archivo: atributos leídos, filtro y número de entidades conservadas, sin ejecutar el flujo.",
       "local.title": "En su equipo",
       "local.1": "Se instala con un .exe (Windows) o se ejecuta como AppImage (Linux); incluye Python, GDAL, DuckDB y las mallas de proyección.",
-      "local.2": "Sin servidor: Carriole lee y escribe sus archivos, recursos de red y bases de datos con sus propios permisos.",
+      "local.2": "Carriole lee y escribe sus archivos, recursos de red y bases de datos con sus propios permisos; no hace falta ningún servidor.",
       "local.3": "Internet solo se usa para el mapa de fondo y las fuentes web que llaman sus flujos.",
       "local.4": "Interfaz en inglés y francés.",
       "local.5": "Asistente de IA opcional (Claude, OpenAI, OpenRouter, Ollama): propone cambios en el flujo; lo que puede leer es configurable.",
+      "srv.title": "En un servidor",
+      "srv.sub": "Desde la versión 0.2.1, Carriole también funciona en un servidor Linux: un equipo lo usa en el navegador, sin instalar nada en los puestos.",
+      "srv.team.t": "Trabajar en equipo",
+      "srv.team.d": "Cada persona inicia sesión con su cuenta. Los flujos y las conexiones a bases de datos se comparten con todos o con grupos marcados en una lista, en lectura o en modificación; un grupo no marcado no los ve.",
+      "srv.sched.t": "Ejecutar según una programación",
+      "srv.sched.d": "Los flujos programados se ejecutan en el servidor, con los permisos de quien los programó, estén encendidos o no los puestos. Las ejecuciones esperan su turno en una cola equitativa; la memoria y las ejecuciones simultáneas por usuario se ajustan en la configuración.",
+      "srv.data.t": "Dejar los datos en su sitio",
+      "srv.data.d": "El servidor lee la carpeta de datos que se le asigna, por ejemplo un recurso de red, y las bases de datos de las conexiones. El administrador elige qué carpetas se pueden leer y en cuáles se puede escribir; las contraseñas de las bases se guardan cifradas.",
+      "srv.1": "Administración en el navegador: cuentas y grupos, configuración, registro de actividad (inicios de sesión, guardados, comparticiones, ejecuciones).",
+      "srv.2": "El código Python de los flujos se ejecuta aislado del servidor, o se desactiva.",
+      "srv.3": "Instalación con Docker: la imagen <code>ghcr.io/tlecae/carriole</code>, dos archivos (<code>compose.yaml</code>, <code>carriole.env</code>) y luego <code>docker compose pull &amp;&amp; docker compose up -d</code>. Una actualización conserva flujos, cuentas y configuración.",
+      "srv.4": "Metadatos en SQLite, o en PostgreSQL para un equipo más grande.",
+      "srv.more": "Guía del servidor (en francés)",
       "dl.title": "Descargar",
       "dl.win": "Instalador para todos los usuarios del equipo. No está firmado: ante el aviso de SmartScreen, elegir «Más información» y luego «Ejecutar de todas formas».",
       "dl.linux": "Hacer el archivo ejecutable (<code>chmod +x</code>) y abrirlo. Sin instalación ni permisos de administrador.",
+      "dl.server.t": "Servidor Linux",
+      "dl.server": "Imagen Docker, usada en el navegador. Instalación, cuentas y actualizaciones: <a href=\"https://github.com/TLecae/Carriole/blob/main/docs/serveur.md\">guía del servidor</a> (en francés).",
       "dl.all": "Todas las versiones y sumas de verificación",
       "more.dev": "Para desarrolladores: un modificador adicional es un archivo Python, añadido sin recompilar Carriole (<a href=\"https://github.com/TLecae/Carriole/blob/main/docs/ecrire_un_modificateur.md\">guía</a>, en francés). La línea de comandos <code>etl</code> es opcional.",
       "built.title": "Bibliotecas utilizadas",
