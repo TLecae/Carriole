@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A flow file (`.json`) dragged into the window opens, like *Open…*: by its path in the desktop application, as a new
+  flow to save in the browser (the API reads it without storing it, old modifier names included).
 - Server mode: the bubblewrap sandbox of the Python code of flows works when the venv's Python is a link to a Python
   installed elsewhere (uv), and inside a container, which forbids mounting a new `/proc` (it starts without one).
   The server guide gives the two container options that allow it.

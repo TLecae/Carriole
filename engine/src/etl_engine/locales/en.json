@@ -1846,6 +1846,7 @@
   "{len} raster(s) multibande(s) à partir de {len2}": "{len} multiband raster(s) from {len2}",
   "{len} raster(s) référencé(s)": "{len} raster(s) referenced",
   "{len} scène(s) trouvée(s)": "{len} scene(s) found",
+  "{name} n'est pas un flux lisible : {exc}": "{name} is not a readable flow: {exc}",
   "{n_bad} entité(s) que la découpe n'a pas pu traiter, sur « Rejected »": "{n_bad} feature(s) the clipping could not process, sent to \"Rejected\"",
   "{n_broken} polygone(s) de découpe invalide(s) réparé(s)": "{n_broken} invalid overlay polygon(s) repaired",
   "{n_in} partie(s) dedans, {n_out} dehors": "{n_in} part(s) inside, {n_out} outside",

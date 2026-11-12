@@ -154,3 +154,36 @@ test("panneau du bas : redimensionner à la souris et ouvrir en pleine page", as
   expect((await panel.boundingBox())!.height).toBeLessThan(full.height);
   await expect(await inPalette(page, "CsvReader")).toBeVisible();
 });
+
+test("accueil : un fichier de flux glissé dans la page s'ouvre comme un flux neuf", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Mes flux" })).toBeVisible();
+  const files = (name: string, text: string) =>
+    page.evaluateHandle(
+      ([n, s]) => {
+        const dt = new DataTransfer();
+        dt.items.add(new File([s], n, { type: "application/json" }));
+        return dt;
+      },
+      [name, text],
+    );
+  const body = page.locator("body");
+
+  // pendant le survol, la page montre où déposer ; un autre fichier ou un JSON illisible : un message, rien d'ouvert
+  const notes = await files("notes.txt", "x");
+  await body.dispatchEvent("dragenter", { dataTransfer: notes });
+  await expect(page.getByTestId("drop-overlay")).toBeVisible();
+  await body.dispatchEvent("dragover", { dataTransfer: notes });
+  await body.dispatchEvent("drop", { dataTransfer: notes });
+  await expect(page.getByTestId("drop-overlay")).toHaveCount(0);
+  await expect(page.locator(".toast")).toContainText("Seul un fichier de flux (.json)");
+  await body.dispatchEvent("drop", { dataTransfer: await files("casse.json", "{") });
+  await expect(page.locator(".toast")).toContainText("casse.json n'est pas un flux lisible");
+  await expect(page.getByRole("heading", { name: "Mes flux" })).toBeVisible();
+
+  const flow = { name: "Flux déposé", nodes: [{ id: "r", type: "Reader", params: { path: `${IN}/communes.csv`, delimiter: ";" } }], links: [] };
+  await body.dispatchEvent("drop", { dataTransfer: await files("depose.json", JSON.stringify(flow)) });
+  await expect(page).toHaveURL(/#new/);
+  await expect(page.getByLabel("Nom du flux")).toHaveValue("Flux déposé");
+  await expect(page.getByTestId("node-r")).toBeVisible();
+});

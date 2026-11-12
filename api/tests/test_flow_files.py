@@ -70,6 +70,20 @@ def test_open_by_path_recents_and_error_messages(client):
     assert client.get("/api/flows").json() == [] and path.is_file()  # retiré des récents, fichier intact
 
 
+def test_a_dropped_flow_is_read_without_being_saved(client):
+    """Fichier glissé dans la page : le navigateur n'en a que le texte ; l'API le valide comme un fichier ouvert."""
+    old = {**FLOW, "name": "", "nodes": [{"id": "b", "type": "Bufferer", "params": {}}]}
+    got = client.post("/api/flows/read", json={"content": "\ufeff" + json.dumps(old), "name": "Mon flux.JSON"})
+    assert got.status_code == 200, got.text
+    assert got.json()["name"] == "Mon flux" and got.json()["nodes"][0]["type"] == "Buffer"  # ancien nom repris
+    assert client.get("/api/flows").json() == []  # rien d'enregistré, rien dans les récents
+    named = client.post("/api/flows/read", json={"content": json.dumps(FLOW), "name": "copie.json"})
+    assert named.json()["name"] == "Flux d'équipe"
+    for content in ("{", "[1]"):
+        bad = client.post("/api/flows/read", json={"content": content, "name": "liste.json"})
+        assert bad.status_code == 422 and "liste.json n'est pas un flux lisible" in bad.text
+
+
 def test_runs_and_schedules_follow_the_file_id(client):
     path = client.tmp / "flux.json"
     flow = client.post("/api/flows", json={"flow": FLOW, "path": str(path)}).json()

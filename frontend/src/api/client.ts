@@ -169,6 +169,7 @@ export const api = {
   setLanguage: (language: string) => call<Preferences>("/preferences/language", { method: "PUT", ...json({ language }) }),
   createFlow: (flow: FlowDoc, path?: string) => call<FlowRecord>("/flows", { method: "POST", ...json({ flow, path }) }),
   openFlowFile: (path: string) => call<FlowRecord>("/flows/open", { method: "POST", ...json({ path }) }),
+  readFlow: (name: string, content: string) => call<FlowDoc>("/flows/read", { method: "POST", ...json({ name, content }) }),
   saveFlow: (id: string, flow: FlowDoc, revision: number | string | null) =>
     call<FlowRecord>(`/flows/${id}`, { method: "PUT", ...json({ flow, revision }) }),
   deleteFlow: (id: string) => call<void>(`/flows/${id}`, { method: "DELETE" }),

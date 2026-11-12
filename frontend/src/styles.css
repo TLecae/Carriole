@@ -300,6 +300,9 @@ button.add { border-style: dashed; color: var(--primary); width: 100%; }
 .flow-open small { color: var(--muted); }
 .toast { position: fixed; bottom: calc(var(--bottom, 0px) + 16px); left: 50%; transform: translateX(-50%); background: #111827; color: #fff; border-radius: 8px; padding: 8px 14px; z-index: 120; max-width: 70vw; }
 .toast.error { background: var(--danger); }
+/* fichier de flux glissé dans la page : le dépôt traverse la zone (pointer-events) jusqu'à la fenêtre */
+.drop-overlay { position: fixed; inset: 8px; z-index: 300; pointer-events: none; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--primary); border-radius: 10px; background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.drop-overlay span { background: var(--panel); color: var(--text); padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / 20%); font-weight: 600; }
 .connection-banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; max-width: min(90vw, 760px); padding: 8px 14px; border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / 20%); }
 .connection-banner.offline { background: #7a271a; color: #fff; }
 .connection-banner.back { background: #05603a; color: #fff; }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Annotated, Any
 
 from etl_engine.flow import Flow
@@ -26,6 +27,11 @@ class FlowIn(BaseModel):
 
 class OpenIn(BaseModel):
     path: str
+
+
+class ReadIn(BaseModel):
+    content: str  # texte du fichier déposé dans la page
+    name: str = ""  # nom du fichier : messages d'erreur, nom du flux s'il n'en a pas
 
 
 def _dump(flow: Flow) -> dict[str, Any]:
@@ -82,6 +88,23 @@ def open_flow(body: OpenIn, store: Annotated[Store, Depends(get_store)]):
         raise HTTPException(422, str(exc)) from None
     except FileAccessError as exc:
         raise HTTPException(503, f"fichier inaccessible : {exc}") from None
+
+
+@router.post("/flows/read")
+def read_flow(body: ReadIn) -> dict[str, Any]:
+    """Lit un flux reçu en texte (fichier glissé dans la page), sans l'enregistrer : l'éditeur l'ouvre comme un flux
+    neuf. Mêmes règles qu'un fichier ouvert : anciens noms de modificateurs, clés absentes complétées."""
+    name = body.name.strip() or "flux.json"
+    try:
+        content = json.loads(body.content.removeprefix("\ufeff"))
+        if not isinstance(content, dict):
+            raise ValueError("un objet JSON est attendu")
+        doc = _dump(Flow.model_validate(content))
+    except ValueError as exc:
+        raise HTTPException(422, f"{name} n'est pas un flux lisible : {exc}") from None
+    if not doc.get("name"):
+        doc["name"] = name[:-5] if name.lower().endswith(".json") else name
+    return doc
 
 
 @router.post("/flows", status_code=201)

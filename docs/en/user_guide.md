@@ -24,7 +24,8 @@ A **flow is a `.json` file**, stored wherever you like (usually on the team shar
 opens, the **home page** lists your **recent** flows (description, location, node count, state of the last run): a click
 opens a flow, **Open a flow…** picks another file, **+ New flow** starts one, the search box filters the list. The cross
 **removes** a flow from the list and never deletes its file. In the editor, **⌂ Home** goes back without losing
-anything: **Resume** brings the editor back as you left it.
+anything: **Resume** brings the editor back as you left it. A flow file **dragged** into the window (home page or
+editor) opens too. In the browser (server version), it opens as a new flow, to be saved.
 
 1. **Add a node**: double-click in the palette (on the left: categories are folded, a click unfolds one; the search
    at the top unfolds them all), or, on the canvas, **type a few letters**: a quick-add field opens; Enter adds the first result and **links it to the selected node**.

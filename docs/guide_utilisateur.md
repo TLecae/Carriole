@@ -21,7 +21,9 @@ Un **flux est un fichier** `.json`, rangé où vous voulez (le plus souvent sur 
 À l'ouverture, la **page d'accueil** liste vos flux **récents** (description, emplacement, nombre de nœuds, état du
 dernier run) : un clic ouvre un flux, **Ouvrir un flux…** en choisit un autre fichier, **+ Nouveau flux** en commence un,
 la recherche filtre la liste. La croix **retire** un flux de la liste sans jamais supprimer son fichier. Dans l'éditeur,
-**⌂ Accueil** y ramène sans rien perdre : **Reprendre** retrouve l'éditeur tel qu'on l'a laissé.
+**⌂ Accueil** y ramène sans rien perdre : **Reprendre** retrouve l'éditeur tel qu'on l'a laissé. Un fichier de flux
+**glissé** dans la fenêtre (accueil ou éditeur) s'ouvre aussi. Dans le navigateur (version serveur), il s'ouvre comme
+un flux neuf, à enregistrer.
 
 1. **Ajouter un nœud** : double-clic dans la palette (à gauche : catégories repliées, un clic en déplie une ; la
    recherche en haut les déplie toutes), ou, sur le canvas, **taper quelques lettres** : un champ d'ajout rapide s'ouvre ; Entrée ajoute le premier résultat et le **relie au nœud

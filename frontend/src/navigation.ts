@@ -47,6 +47,25 @@ export async function openFlowFileFromHome(path: string): Promise<void> {
   }
 }
 
+/**
+ * Fichier de flux glissé dans la page. Application de bureau en flux fichiers : ouvert par son chemin, comme
+ * « Ouvrir… » (on l'enregistre à sa place). Sinon (navigateur, serveur) la page n'en connaît que le texte : l'API le
+ * valide et l'éditeur l'ouvre comme un flux neuf, à enregistrer.
+ */
+export async function openDroppedFlow(file: File): Promise<void> {
+  const path = useUi.getState().flowStorage === "files" ? window.etlDesktop?.pathForFile?.(file) : undefined;
+  if (path) return openFlowFileFromHome(path);
+  const s = useEditor.getState();
+  if (!confirmLoss()) return;
+  try {
+    const doc = await api.readFlow(file.name, await file.text());
+    history.pushState(null, "", "#new");
+    s.openDraft(doc);
+  } catch (err) {
+    s.setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Ouverture impossible") });
+  }
+}
+
 /** Ouvre un flux d'exemple comme un flux neuf : on l'essaie, on le modifie, on l'enregistre où l'on veut. */
 export async function openExampleFromHome(id: string): Promise<void> {
   const s = useEditor.getState();

@@ -1,6 +1,6 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AssistantPanel } from "./components/AssistantPanel";
 import { BottomPanel } from "./components/BottomPanel";
 import { Canvas } from "./components/Canvas";
@@ -13,13 +13,13 @@ import { api } from "./api/client";
 import { Palette } from "./components/Palette";
 import { RightPanel } from "./components/RightPanel";
 import { TopBar } from "./components/TopBar";
-import { applyRoute, newFlowFromHome, openFlowFileFromHome } from "./navigation";
+import { applyRoute, newFlowFromHome, openDroppedFlow, openFlowFileFromHome } from "./navigation";
 import { useEditor } from "./store/editor";
 import { useAssistant } from "./store/assistant";
 import { useSession } from "./store/session";
 import { useUi } from "./store/ui";
 import "./styles.css";
-import { setLanguage, useLanguage } from "./i18n";
+import { setLanguage, t, useLanguage } from "./i18n";
 
 /** Raccourcis clavier : enregistrer, annuler/rétablir, copier/coller, activer/désactiver. */
 function useShortcuts() {
@@ -97,6 +97,56 @@ function useCacheHold() {
   }, []);
 }
 
+/**
+ * Un fichier de flux (.json) glissé n'importe où dans la page s'ouvre, comme par « Ouvrir… ». Une zone qui accepte
+ * elle-même des fichiers (l'assistant) garde la main : son dépôt arrive ici déjà traité (`defaultPrevented`).
+ * Sans cela, le navigateur remplacerait la page par le fichier déposé.
+ */
+function useFlowDrop(): boolean {
+  const [over, setOver] = useState(false);
+  useEffect(() => {
+    let depth = 0; // dragenter / dragleave arrivent pour chaque élément traversé
+    const carriesFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
+    const enter = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      depth += 1;
+      setOver(true);
+    };
+    const leave = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) setOver(false);
+    };
+    const hover = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault(); // autorise le dépôt
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      setOver(!(e.target instanceof Element && e.target.closest(".ai-composer"))); // l'assistant prend ses fichiers
+    };
+    const drop = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      depth = 0;
+      setOver(false);
+      if (e.defaultPrevented) return;
+      e.preventDefault();
+      const file = Array.from(e.dataTransfer?.files ?? []).find((f) => f.name.toLowerCase().endsWith(".json"));
+      if (file) void openDroppedFlow(file);
+      else useEditor.getState().setNotice({ kind: "error", text: t("Seul un fichier de flux (.json) s'ouvre par glisser-déposer.") });
+    };
+    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("dragover", hover);
+    window.addEventListener("drop", drop);
+    return () => {
+      window.removeEventListener("dragenter", enter);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("dragover", hover);
+      window.removeEventListener("drop", drop);
+    };
+  }, []);
+  return over;
+}
+
 function Toast() {
   const notice = useEditor((s) => s.notice);
   const setNotice = useEditor.getState().setNotice;
@@ -127,6 +177,7 @@ export function App() {
 function Workspace() {
   useShortcuts();
   useCacheHold();
+  const dropping = useFlowDrop();
   const view = useUi((s) => s.view);
   const lang = useLanguage();
   const bottomHeight = useUi((s) => s.bottomHeight);
@@ -181,6 +232,11 @@ function Workspace() {
       <PickerHost />
       <GlobalDialogs />
       <ConnectionBanner />
+      {dropping && (
+        <div className="drop-overlay" data-testid="drop-overlay">
+          <span>{t("Déposer le fichier de flux pour l'ouvrir")}</span>
+        </div>
+      )}
     </ReactFlowProvider>
   );
 }
