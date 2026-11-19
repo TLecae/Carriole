@@ -63,17 +63,21 @@ class Reproject(Modifier):
         projection = transformer(source_name, self.params.target)
         geoms = shapely.from_wkb(batch.column(GEOM).to_numpy(zero_copy_only=False))
         present = ~shapely.is_missing(geoms)
-        has_z = bool(len(geoms) and shapely.has_z(geoms[present]).any()) if present.any() else False
+        has_z = shapely.has_z(geoms)
 
         def move(coords: np.ndarray) -> np.ndarray:
-            if has_z:
+            if coords.shape[1] == 3:
                 x, y, z = projection.transform(coords[:, 0], coords[:, 1], coords[:, 2])
                 return np.column_stack([x, y, z])
             x, y = projection.transform(coords[:, 0], coords[:, 1])
             return np.column_stack([x, y])
 
         moved = np.array(geoms, dtype=object)
-        moved[present] = shapely.transform(geoms[present], move, include_z=has_z)
+        # 2D et 3D séparément : une géométrie 2D passée avec un Z vide (NaN) en sortirait 3D, ou rejetée
+        for z in (False, True):
+            rows = present & (has_z == z)
+            if rows.any():
+                moved[rows] = shapely.transform(geoms[rows], move, include_z=z)
         finite = np.ones(len(geoms), dtype=bool)
         if present.any():
             bounds = shapely.bounds(moved[present])

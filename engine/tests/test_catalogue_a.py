@@ -276,6 +276,15 @@ def test_reprojector_forced_source_nulls_z_and_same_crs():
     ).rename_columns([GEOM])
     z = run_modifier(Reproject, {"target": "EPSG:2154", "source": "EPSG:4326"}, mixed)["output"]
     assert shapely.from_wkb(col(z, GEOM)[0]).has_z and col(z, GEOM)[1] is None
+    # 2D et 3D dans un même lot : avant, la 2D recevait un Z vide et partait sur « Rejected »
+    flat_and_z = pa.table(
+        {GEOM: pa.array(shapely.to_wkb([shapely.Point(2.35, 48.85), shapely.Point(2.35, 48.85, 30.0)]), pa.binary())}
+    )
+    params = {"target": "EPSG:2154", "source": "EPSG:4326"}
+    both = run_modifier(Reproject, params, flat_and_z, batch_rows=10)
+    moved = shapely.from_wkb(col(both["output"], GEOM))
+    assert both["Rejected"].num_rows == 0 and [g.has_z for g in moved] == [False, True]
+    assert abs(moved[0].x - moved[1].x) < 1e-6
     same = run_modifier(Reproject, {"target": "EPSG:2154"}, points([1], [1]))["output"]
     assert shapely.from_wkb(col(same, GEOM)[0]).x == 1
 
