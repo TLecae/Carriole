@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Map view: the feature under the cursor is highlighted (denser fill, thicker outline or line, larger point), not
+  only the cursor.
 - MeasureLength and MeasureArea, *ellipsoidal* method: projected coordinates (Lambert-93…) are converted to
   longitude/latitude first; they used to be read as degrees and gave empty values. Geodesic lengths are computed in
   one vectorized call.

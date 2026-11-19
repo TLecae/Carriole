@@ -71,6 +71,8 @@ const paletteLabel = (name: string): string =>
 
 const sourceId = (i: number) => `data-${i}`;
 const NO_FILTER: DataQuery = { filters: [], where: "", search: "", sort: [] };
+/** Valeur d'une propriété de dessin : `on` pour l'entité survolée (état `hover`), `off` sinon. */
+const hovering = (off: number, on: number): ExpressionSpecification => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
 const layerIds = (i: number) => [`${sourceId(i)}-fill`, `${sourceId(i)}-cut-fill`, `${sourceId(i)}-outline`, `${sourceId(i)}-line`, `${sourceId(i)}-circle`];
 const CLICKABLE = ["fill", "cut-fill", "line", "circle"]; // couches de l'entité visée par un clic
 
@@ -348,18 +350,18 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
       const line = ["==", ["geometry-type"], "LineString"] as ExpressionSpecification;
       const layer = { source: src, "source-layer": "data" } as const;
       if (/POLYGON/.test(types) || !types) {
-        const fill = { "fill-color": color, "fill-opacity": active && isRaster ? 0.04 : 0.35 };
+        const fill = { "fill-color": color, "fill-opacity": hovering(active && isRaster ? 0.04 : 0.35, active && isRaster ? 0.2 : 0.65) };
         map.addLayer({ id: `${src}-fill`, type: "fill", ...layer, filter: ["all", polygon, ["!=", ["get", "r"], 1]], paint: fill });
         // pièces d'un polygone découpé : sans anticrénelage (il trace le bord de chaque pièce, donc les coupes)
         map.addLayer({ id: `${src}-cut-fill`, type: "fill", ...layer, filter: ["all", polygon, ["==", ["get", "r"], 1]], paint: { ...fill, "fill-antialias": false } });
         // un polygone fusionné énorme est découpé en pièces (`r` 1, sans bord : les coupes) et son contour vient à part
         // (lignes, `r` 2)
         const outline = ["any", ["all", polygon, ["!=", ["get", "r"], 1]], ["all", line, ["==", ["get", "r"], 2]]] as ExpressionSpecification;
-        map.addLayer({ id: `${src}-outline`, type: "line", ...layer, filter: outline, paint: { "line-color": color, "line-width": 1 } });
+        map.addLayer({ id: `${src}-outline`, type: "line", ...layer, filter: outline, paint: { "line-color": color, "line-width": hovering(1, 3) } });
       }
-      if (/LINESTRING/.test(types) || !types) map.addLayer({ id: `${src}-line`, type: "line", ...layer, filter: ["all", line, ["!=", ["get", "r"], 2]], paint: { "line-color": color, "line-width": 2 } });
+      if (/LINESTRING/.test(types) || !types) map.addLayer({ id: `${src}-line`, type: "line", ...layer, filter: ["all", line, ["!=", ["get", "r"], 2]], paint: { "line-color": color, "line-width": hovering(2, 4) } });
       if (/POINT/.test(types) || !types) {
-        map.addLayer({ id: `${src}-circle`, type: "circle", ...layer, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": color, "circle-radius": 4, "circle-stroke-color": "#fff", "circle-stroke-width": 1 } });
+        map.addLayer({ id: `${src}-circle`, type: "circle", ...layer, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": color, "circle-radius": hovering(4, 7), "circle-stroke-color": "#fff", "circle-stroke-width": hovering(1, 2) } });
       }
       drawn.current[src] = { shape, url };
     });
@@ -507,18 +509,42 @@ export function MapView({ info, tools }: { info: PortInfo; tools?: ReactNode }) 
       if (target && rasterFid !== null) void showPixel(map, target, rasterFid, ev.lngLat, popup);
     };
     map.on("click", onClick);
-    const pointer = () => (map.getCanvas().style.cursor = "pointer");
-    const reset = () => (map.getCanvas().style.cursor = "");
-    for (const k of CLICKABLE) {
-      map.on("mouseenter", `data-0-${k}`, pointer);
-      map.on("mouseleave", `data-0-${k}`, reset);
-    }
+    // survol : l'entité sous le curseur est surlignée (état `hover` de la source, lu par les couches) ; un calcul par
+    // image au plus
+    const src = sourceId(0);
+    let hovered: number | null = null;
+    let frame = 0;
+    let at: maplibregl.Point | null = null;
+    const hover = (fid: number | null) => {
+      if (fid === hovered) return;
+      if (hovered !== null && map.getSource(src)) map.setFeatureState({ source: src, sourceLayer: "data", id: hovered }, { hover: false });
+      hovered = fid;
+      if (fid !== null) map.setFeatureState({ source: src, sourceLayer: "data", id: fid }, { hover: true });
+      map.getCanvas().style.cursor = fid !== null ? "pointer" : "";
+      box.current?.setAttribute("data-hovered", fid === null ? "" : String(fid)); // état observable (tests)
+    };
+    const track = () => {
+      frame = 0;
+      const ids = CLICKABLE.map((k) => `data-0-${k}`).filter((id) => map.getLayer(id));
+      const hit = at && ids.length ? map.queryRenderedFeatures(at, { layers: ids })[0] : undefined;
+      hover(typeof hit?.id === "number" && map.getSource(src) ? hit.id : null);
+    };
+    const onMove = (ev: maplibregl.MapMouseEvent) => {
+      at = ev.point;
+      if (!frame) frame = requestAnimationFrame(track);
+    };
+    const onOut = () => {
+      at = null;
+      if (!frame) frame = requestAnimationFrame(track);
+    };
+    map.on("mousemove", onMove);
+    map.on("mouseout", onOut);
     return () => {
       map.off("click", onClick);
-      for (const k of CLICKABLE) {
-        map.off("mouseenter", `data-0-${k}`, pointer);
-        map.off("mouseleave", `data-0-${k}`, reset);
-      }
+      map.off("mousemove", onMove);
+      map.off("mouseout", onOut);
+      if (frame) cancelAnimationFrame(frame);
+      hover(null);
     };
   }, [ready, target, sources, rasterFid]);
 

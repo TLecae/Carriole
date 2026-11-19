@@ -201,6 +201,20 @@ test("inspecter une connexion : table filtrée, tri, carte synchronisée", async
   await expect(page.getByTestId("data-count")).toHaveText("1 / 20 entités");
   await expect.poll(() => tiles.slice(seen).some((t) => filtered(t.url).includes("lieu 15")), { message: "tuiles du filtre" }).toBe(true);
   await expect.poll(rendered, { message: "entités dessinées après le filtre" }).toBe(1);
+  // Survol : l'entité sous le curseur est surlignée. Les 20 lieux sont alignés sur la diagonale de l'emprise, cadrée
+  // avec 40 px de marge : « lieu 15 » est aux 15/19 de cette diagonale (on vise autour, à quelques pixels près).
+  const map = page.getByTestId("map");
+  const frame = (await map.boundingBox())!;
+  const width = Math.min(frame.width - 80, (frame.height - 80) / 0.8);
+  const [cx, cy] = [frame.x + frame.width / 2 + (15 / 19 - 0.5) * width, frame.y + frame.height / 2 - (15 / 19 - 0.5) * width * 0.8];
+  const near = [0, -3, 3, -6, 6].flatMap((dx) => [0, -3, 3, -6, 6].map((dy) => [cx + dx, cy + dy]));
+  for (const [x, y] of near) {
+    await page.mouse.move(x, y);
+    if (await expect(map).toHaveAttribute("data-hovered", /\d/, { timeout: 200 }).then(() => true, () => false)) break;
+  }
+  await expect(map).toHaveAttribute("data-hovered", "15");
+  await page.mouse.move(frame.x + 5, frame.y + frame.height - 5);
+  await expect(map).toHaveAttribute("data-hovered", "");
   await page.getByLabel("Filtre nom", { exact: true }).fill("lieu 1");
   await page.getByLabel("Filtre nom", { exact: true }).press("Enter");
   await expect(page.getByTestId("data-count")).toHaveText("11 / 20 entités");
