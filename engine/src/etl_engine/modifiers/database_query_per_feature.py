@@ -8,7 +8,7 @@ from typing import Any, Literal
 import pyarrow as pa
 from pydantic import Field
 
-from etl_engine.data import get_crs, with_crs
+from etl_engine.data import conform, get_crs, unify_schemas, with_crs
 from etl_engine.formats import databases
 from etl_engine.sdk import ConfigError, DbConnection, DbSql, Emit, Modifier, Params, missing_attributes
 
@@ -117,7 +117,7 @@ class DatabaseQueryPerFeature(Modifier):
                     emit("NoResult", batch.take(pa.array(none, pa.int64())))
                 if results:
                     base = batch.take(pa.array(out_rows, pa.int64()))
-                    extra = pa.concat_tables(results)
+                    extra = merged(results)
                     for j, name in enumerate(extra.column_names):
                         target = p.prefix + name
                         if target in base.column_names:
@@ -134,3 +134,11 @@ class DatabaseQueryPerFeature(Modifier):
         finally:
             session.close()
         self.ctx.info(f"{done} entité(s) traitée(s)")
+
+
+def merged(results: list[pa.Table]) -> pa.Table:
+    """Résultats des requêtes d'un lot en une table : chaque résultat a ses types, déduits de ses valeurs (une colonne
+    toute vide est de type nul, un nombre peut être entier ici et décimal là) ; ils sont réunis (texte s'ils ne se
+    concilient pas)."""
+    schema = unify_schemas([t.schema for t in results])
+    return pa.concat_tables([conform(t, schema) for t in results])

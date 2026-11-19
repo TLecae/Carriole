@@ -7,6 +7,8 @@
   one vectorized call.
 - Reproject: 2D and 3D geometries in the same batch are transformed separately; a 2D geometry used to get an empty
   Z and go to *Rejected*.
+- DatabaseQueryPerFeature: results whose types differ from one feature to the next (an empty value, then a text or
+  a decimal) are merged; the node used to stop ("Schema at index 1 was different").
 - StatisticsByGroup: the *summary* rows follow the order of the first feature of each group; the order used to change
   from one run to the next.
 - TerrainAnalysis: an integer DTM (Int16…) no longer stops the run ("Cannot convert fill_value nan").

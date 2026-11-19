@@ -79,6 +79,32 @@ def test_attribute_values_are_bound_never_pasted():
     assert names == ["x", "y"] and sql == "SELECT * FROM t WHERE a = :x AND b LIKE 'z%' AND c = :x AND d = :y"
 
 
+def test_query_per_feature_merges_result_types(monkeypatch):
+    # avant : une colonne vide pour une entité (type nul) puis remplie pour la suivante arrêtait le nœud
+    from etl_engine.formats.dbapi import rows_table
+
+    answers = {1: [(None, 1)], 2: [("a", 2.5)], 3: []}
+
+    class Session:
+        def execute(self, statement, params):
+            return rows_table(["nom", "val"], answers[params["k"]])
+
+        def commit(self): ...
+
+        def rollback(self): ...
+
+        def close(self): ...
+
+    backend = Database(Oracle())
+    monkeypatch.setattr(backend, "session", lambda *a, **k: Session())
+    monkeypatch.setattr(databases, "backend", lambda name: backend)
+    params = {"connection": "x", "sql": "SELECT nom, val FROM t WHERE id = {{k}}"}
+    out = run_modifier(DatabaseQueryPerFeature, params, pa.table({"k": [1, 2, 3]}), batch_rows=10)
+    joined = out["output"]
+    assert joined.column("nom").to_pylist() == [None, "a"] and joined.column("val").to_pylist() == [1.0, 2.5]
+    assert out["NoResult"].column("k").to_pylist() == [3]
+
+
 def test_oracle_names_follow_oracle_rules():
     d = Oracle()
     assert d.normalize("communes") == "COMMUNES" and d.normalize("Mixed Case") == "Mixed Case"
