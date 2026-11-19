@@ -7,6 +7,8 @@
   one vectorized call.
 - Reproject: 2D and 3D geometries in the same batch are transformed separately; a 2D geometry used to get an empty
   Z and go to *Rejected*.
+- Buffer, distance read from an attribute: a text distance is read like PointFromXY does (decimal comma accepted);
+  an unreadable one sends the feature to *Rejected* ("distance invalide") instead of stopping the run.
 - CreateGrid (square cells, extent of the incoming features): a flat extent (one point, a horizontal or vertical
   line) gets one row or column of cells instead of none.
 - DatabaseQueryPerFeature: results whose types differ from one feature to the next (an empty value, then a text or

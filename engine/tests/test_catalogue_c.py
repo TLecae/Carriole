@@ -54,6 +54,10 @@ def test_bufferer_fixed_attribute_distance_and_negative():
     )
     assert col(shrunk["output"], "id") == [2] and col(shrunk["Rejected"], "_rejection_reason") == ["zone tampon vide"]
     assert get_crs(out["output"]) == "EPSG:2154"
+    # distance en texte : « 2,5 » se lit, « ? » part sur « Rejected » (avant : le run s'arrêtait)
+    text = make([shapely.Point(0, 0), shapely.Point(9, 9)], id=[1, 2], d=["2,5", "?"])
+    read = run_modifier(Buffer, {"distance_attribute": "d"}, text)
+    assert col(read["output"], "id") == [1] and col(read["Rejected"], "_rejection_reason") == ["distance invalide"]
 
 
 def test_bufferer_refuses_geographic_crs_and_missing_geometry():

@@ -78,7 +78,7 @@ class PointFromXY(Modifier):
             try:
                 coords.append(batch.column(name).cast(pa.float64(), safe=False).to_numpy(zero_copy_only=False))
             except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
-                coords.append(_numbers(batch.column(name)))
+                coords.append(numbers(batch.column(name)))
         stacked = np.column_stack(coords)
         bad = ~np.isfinite(stacked).all(axis=1)
         out_geoms = np.full(batch.num_rows, None, dtype=object)
@@ -107,7 +107,7 @@ class PointFromXY(Modifier):
 _NUMBER = r"^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$"
 
 
-def _numbers(column: pa.ChunkedArray) -> np.ndarray:
+def numbers(column: pa.ChunkedArray) -> np.ndarray:
     """Nombres d'une colonne de texte (virgule décimale acceptée) ; NaN pour ce qui n'en est pas un."""
     texts = pc.replace_substring(column.cast(pa.string()), ",", ".")
     numeric = pc.fill_null(pc.match_substring_regex(texts, _NUMBER), False)

@@ -10,6 +10,7 @@ import shapely
 from pydantic import Field
 
 from etl_engine.data import GEOM, geometries, get_crs, is_geographic, with_crs
+from etl_engine.modifiers.point_from_xy import numbers
 from etl_engine.sdk import (
     GEOMETRY_SLICE,
     REJECTED,
@@ -83,7 +84,11 @@ class Buffer(Modifier):
         if p.distance_attribute:
             if p.distance_attribute not in batch.column_names:
                 raise ConfigError(f"attribut absent : {p.distance_attribute}")
-            values = batch.column(p.distance_attribute).cast(pa.float64(), safe=False).to_numpy(zero_copy_only=False)
+            column = batch.column(p.distance_attribute)
+            try:
+                values = column.cast(pa.float64(), safe=False).to_numpy(zero_copy_only=False)
+            except (pa.ArrowInvalid, pa.ArrowNotImplementedError):  # texte illisible : NaN, sur « Rejected »
+                values = numbers(column)
             distances = np.asarray(values, dtype=float)
         else:
             distances = np.full(len(geoms), p.distance)
