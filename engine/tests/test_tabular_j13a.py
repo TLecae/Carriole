@@ -313,3 +313,24 @@ def test_json_explodes_an_array_into_features():
     }
     out = run_modifier(ExtractJson, params, ITEMS)["output"]
     assert rows(out) == [{"id": 1, "nom": "A", "val": 1.5}, {"id": 1, "nom": "B", "val": 2.0}]
+
+
+# ------------------------------------------------------------------ erreurs de configuration avant la lecture
+def test_configuration_errors_are_found_before_reading_data():
+    # avant : levées au premier lot, une fois les nœuds en amont calculés
+    from etl_engine.modifiers.file_io import CsvWriter
+    from etl_engine.modifiers.replace_nulls import ReplaceNulls
+    from etl_engine.sdk import Context
+
+    schema = table(id=[1], nom=["a"]).schema
+
+    def schema_of(cls, params):
+        return cls(cls.Params.model_validate(params), Context()).output_schema({"input": schema})
+
+    with pytest.raises(ConfigError, match="expression régulière invalide"):  # (?=…) : Python oui, Arrow (RE2) non
+        schema_of(ExtractText, {"attribute": "nom", "mode": "regex", "pattern": "(?P<a>x)(?=y)"})
+    with pytest.raises(ConfigError, match="n'est pas une valeur valide pour « id »"):
+        schema_of(ReplaceNulls, {"value": "inconnu"})
+    assert schema_of(ReplaceNulls, {"attributes": ["nom"], "value": "inconnu"})["output"] == schema
+    with pytest.raises(ConfigError, match="chemin du fichier non renseigné"):
+        schema_of(CsvWriter, {})

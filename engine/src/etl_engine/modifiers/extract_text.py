@@ -61,6 +61,10 @@ class ExtractText(Modifier):
         names = [n for n, _ in sorted(compiled.groupindex.items(), key=lambda kv: kv[1])]
         if not names:
             raise ConfigError("l'expression doit contenir au moins un groupe nommé (?P<nom>…)")
+        try:  # Arrow (RE2) ne connaît pas tout ce que Python accepte (ex. (?=…)) : refusé avant de lire les données
+            pc.extract_regex(pa.array([], pa.string()), self.params.pattern)
+        except pa.ArrowInvalid as exc:
+            raise ConfigError(f"expression régulière invalide : {exc}") from exc
         return names
 
     def _check(self) -> list[str]:

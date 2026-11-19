@@ -616,6 +616,8 @@ class FileWriter(Modifier):
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
         """Ajout à une couche existante : les attributs qu'elle ne peut pas recevoir sont une erreur de configuration,
         signalée dans l'éditeur, qui arrête le run avant toute lecture."""
+        if not self.params.path:
+            raise ConfigError("chemin du fichier non renseigné")
         schema = inputs.get("input")
         if schema is not None and self._appends():
             formats.check_append(self._fmt(self.params.path), self.params.path, schema, *self._where())

@@ -54,10 +54,20 @@ class ReplaceNulls(Modifier):
             raise missing_attributes(missing)
         return [a for a in wanted if a != GEOM]
 
+    def _fill(self, name: str, kind: pa.DataType) -> pa.Scalar:
+        """Valeur de remplacement convertie au type de l'attribut ; impossible : erreur de configuration."""
+        value = self.params.value
+        try:
+            return pa.scalar(value).cast(kind) if not pa.types.is_string(kind) else pa.scalar(value, kind)
+        except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
+            raise ConfigError(f"« {value} » n'est pas une valeur valide pour « {name} » ({kind})") from None
+
     def output_schema(self, inputs):
         schema = inputs.get("input")
         if schema is not None:
-            self._columns(schema.names)
+            for name in self._columns(schema.names):  # valeur inconvertible : arrêt avant de lire les données
+                if self.params.mode == "fill":
+                    self._fill(name, schema.field(name).type)
         return {"output": schema}
 
     def sql(self, relations, schemas):
@@ -91,11 +101,7 @@ class ReplaceNulls(Modifier):
                 blank = pc.equal(pc.utf8_trim_whitespace(column), "")
                 column = pc.if_else(blank, pa.scalar(None, kind), column)
             if p.mode == "fill":
-                try:
-                    fill = pa.scalar(p.value).cast(kind) if not pa.types.is_string(kind) else pa.scalar(p.value, kind)
-                except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
-                    raise ConfigError(f"« {p.value} » n'est pas une valeur valide pour « {name} » ({kind})") from None
-                column = pc.fill_null(column, fill)
+                column = pc.fill_null(column, self._fill(name, kind))
             else:
                 text = pc.cast(column, pa.string())
                 column = pc.if_else(pc.fill_null(pc.equal(text, p.value), False), pa.scalar(None, kind), column)
