@@ -97,7 +97,12 @@ class StatisticsByGroup(Modifier):
         stats = self._check_columns(names)
         select = ", ".join(f"{expr} AS {quote(name)}" for name, expr in stats)
         keys = ", ".join(quote(g) for g in p.group_by)
-        summary = f"SELECT {keys + ', ' if keys else ''}{select} FROM {relation} {'GROUP BY ' + keys if keys else ''}"
+        grouped = f"SELECT {keys + ', ' if keys else ''}{select} FROM {relation} {'GROUP BY ' + keys if keys else ''}"
+        summary = grouped
+        if keys:  # groupes dans l'ordre de leur première entité : un GROUP BY seul les rend dans un ordre variable
+            used = ", ".join(quote(n) for n in dict.fromkeys([*p.group_by, *p.attributes]))
+            ordered = f"SELECT row_number() OVER () AS __etl_rn, {used} FROM {relation}"
+            summary = f"SELECT {keys}, {select} FROM ({ordered}) GROUP BY {keys} ORDER BY MIN(__etl_rn)"
         if not p.attach:
             return {"output": f"SELECT * FROM {relation}", "summary": summary}
         # les statistiques de chaque entité, dans l'ordre des entités, sont calculées sur les seules clés (tri étroit),
@@ -106,7 +111,7 @@ class StatisticsByGroup(Modifier):
         cols = ", ".join(f"s.{quote(n)}" for n, _ in stats)
         on = " AND ".join(f"t.{quote(g)} IS NOT DISTINCT FROM s.{quote(g)}" for g in p.group_by) or "TRUE"
         numbered = f"SELECT row_number() OVER () AS __rn{', ' + keys if keys else ''} FROM {relation}"
-        attached = f"SELECT {cols} FROM ({numbered}) t LEFT JOIN ({summary}) s ON {on} ORDER BY t.__rn"
+        attached = f"SELECT {cols} FROM ({numbered}) t LEFT JOIN ({grouped}) s ON {on} ORDER BY t.__rn"
         output = f"SELECT t.*, k.* FROM {relation} t POSITIONAL JOIN ({attached}) k"
         return {"output": output, "summary": summary}
 

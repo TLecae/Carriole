@@ -1,5 +1,6 @@
 """Catalogue, lot A : statistiques, jointures, tri, doublons, compteur, retrait d'attributs, reprojection."""
 
+import numpy as np
 import pyarrow as pa
 import pytest
 import shapely
@@ -64,6 +65,16 @@ def test_statistics_text_numbers_and_geometry_crs_kept():
     out = run_modifier(StatisticsByGroup, {"group_by": ["g"], "attributes": ["v"], "functions": ["sum"]}, t)
     assert col(out["summary"], "v_sum") == [10]  # « x » n'est pas un nombre : ignoré
     assert GEOM in out["output"].column_names and get_crs(out["output"]) == "EPSG:2154"
+
+
+def test_statistics_summary_in_order_of_first_feature():
+    # avant : GROUP BY seul, les groupes sortaient dans un ordre qui changeait d'un run à l'autre
+    n = 200_000
+    keys = ((np.arange(n) * 7919) % 5000).astype(str)
+    t = pa.table({"k": keys, "v": np.ones(n)})
+    params = {"group_by": ["k"], "attributes": ["v"], "functions": ["sum"]}
+    summary = run_modifier(StatisticsByGroup, params, t, batch_rows=n)["summary"]
+    assert col(summary, "k") == list(dict.fromkeys(keys.tolist())) and set(col(summary, "v_sum")) == {40.0}
 
 
 def test_statistics_config_errors(communes):
