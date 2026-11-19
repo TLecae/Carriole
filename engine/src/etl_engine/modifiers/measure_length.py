@@ -10,10 +10,21 @@ import pyproj
 import shapely
 from pydantic import Field
 
-from etl_engine.data import GEOM, LINES, geometries, get_crs, is_geographic, type_ids, with_crs
+from etl_engine.data import GEOM, LINES, geometries, get_crs, is_geographic, lonlat, type_ids, with_crs
 from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, ConfigError, Modifier, Params, reject
 
 _UNIT = {"m": 1.0, "km": 1e-3}
+
+
+def geodesic_length(geoms: np.ndarray) -> np.ndarray:
+    """Longueur de chaque ligne (longitude/latitude) sur l'ellipsoïde WGS84, en mètres : tous les segments de toutes
+    les parties en un seul appel à pyproj, sommés par entité."""
+    parts, owner = shapely.get_parts(geoms, return_index=True)
+    coords, which = shapely.get_coordinates(parts, return_index=True)
+    same = which[1:] == which[:-1]  # segment intérieur à une partie (pas de saut d'une partie à la suivante)
+    start, end = coords[:-1][same], coords[1:][same]
+    _, _, dist = pyproj.Geod(ellps="WGS84").inv(start[:, 0], start[:, 1], end[:, 0], end[:, 1])
+    return np.bincount(owner[which[:-1][same]], weights=dist, minlength=len(geoms))
 
 
 class MeasureLength(Modifier):
@@ -24,8 +35,8 @@ class MeasureLength(Modifier):
     description = "Ajoute la longueur de chaque ligne."
     help = (
         "« planar » calcule dans l'unité du système de coordonnées (des mètres en Lambert-93) ; refusé pour un système "
-        "géographique (degrés). « ellipsoidal » calcule sur l'ellipsoïde WGS84, quel que soit le système (les coordonnées "
-        "doivent alors être en longitude/latitude). Les entités qui ne sont pas des lignes (points, polygones, sans "
+        "géographique (degrés). « ellipsoidal » calcule sur l'ellipsoïde WGS84, quel que soit le système (des coordonnées "
+        "projetées sont d'abord converties en longitude/latitude). Les entités qui ne sont pas des lignes (points, polygones, sans "
         "géométrie) partent sur « Rejected » ; pour le périmètre d'un polygone, utiliser « Surface et périmètre »."
     )
 
@@ -35,7 +46,7 @@ class MeasureLength(Modifier):
         method: Literal["planar", "ellipsoidal"] = Field(
             "planar",
             title="Méthode",
-            description="planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, coordonnées en longitude/latitude.",
+            description="planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, quel que soit le système.",
         )
         decimals: int = Field(2, ge=0, le=15, title="Décimales", description="Nombre de décimales conservées (0 à 15).")
 
@@ -70,9 +81,7 @@ class MeasureLength(Modifier):
         if p.method == "planar":
             length[ok] = shapely.length(geoms[ok])
         else:
-            geod = pyproj.Geod(ellps="WGS84")
-            for i in np.flatnonzero(ok):
-                length[i] = geod.geometry_length(geoms[i])
+            length[ok] = geodesic_length(lonlat(geoms[ok], get_crs(batch)))
         column = pa.array(np.round(length * _UNIT[p.unit], p.decimals), pa.float64(), mask=~ok)
         out = batch
         name = p.attribute

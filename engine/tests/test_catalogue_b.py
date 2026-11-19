@@ -242,6 +242,14 @@ def test_area_calculator_ellipsoidal():
     assert 8000 < col(out, "_area")[0] < 8400  # un degré × un degré vers 48,5° N
 
 
+def test_area_calculator_ellipsoidal_converts_projected_coordinates():
+    # avant : les mètres du Lambert-93 étaient lus comme des degrés (surface vide)
+    t = polygons([(600000.0, 6500000.0, 601000.0, 6501000.0)], crs="EPSG:2154", id=[1])
+    params = {"method": "ellipsoidal", "area_unit": "km2", "perimeter": "per", "decimals": 4}
+    out = run_modifier(MeasureArea, params, t)["output"]
+    assert abs(col(out, "_area")[0] - 1) < 0.003 and abs(col(out, "per")[0] - 4000) < 8  # déformation du Lambert-93
+
+
 def test_geometry_extractor_and_replacer_roundtrip():
     t = points([1.5, 2.0], [3.0, 4.0], id=[1, 2])
     wkt = run_modifier(GeometryToAttribute, {"attribute": "wkt", "remove_geometry": True}, t)["output"]

@@ -768,13 +768,13 @@ Ajoute la longueur de chaque ligne.
 
 - **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : au fil de l'eau
 
-« planar » calcule dans l'unité du système de coordonnées (des mètres en Lambert-93) ; refusé pour un système géographique (degrés). « ellipsoidal » calcule sur l'ellipsoïde WGS84, quel que soit le système (les coordonnées doivent alors être en longitude/latitude). Les entités qui ne sont pas des lignes (points, polygones, sans géométrie) partent sur « Rejected » ; pour le périmètre d'un polygone, utiliser « Surface et périmètre ».
+« planar » calcule dans l'unité du système de coordonnées (des mètres en Lambert-93) ; refusé pour un système géographique (degrés). « ellipsoidal » calcule sur l'ellipsoïde WGS84, quel que soit le système (des coordonnées projetées sont d'abord converties en longitude/latitude). Les entités qui ne sont pas des lignes (points, polygones, sans géométrie) partent sur « Rejected » ; pour le périmètre d'un polygone, utiliser « Surface et périmètre ».
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
 | <a id="measurelength-attribute"></a>Attribut longueur | Reçoit la longueur. | `_length` |
 | <a id="measurelength-unit"></a>Unité | Mètres ou kilomètres. | `m` |
-| <a id="measurelength-method"></a>Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, coordonnées en longitude/latitude. | `planar` |
+| <a id="measurelength-method"></a>Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, quel que soit le système. | `planar` |
 | <a id="measurelength-decimals"></a>Décimales | Nombre de décimales conservées (0 à 15). | `2` |
 
 <a id="centroids"></a>
@@ -863,7 +863,7 @@ Ajoute la surface (et au choix le périmètre) de chaque polygone.
 
 - **Entrées** : `input` — **Sorties** : `output`, `Rejected` — **Traitement** : au fil de l'eau
 
-« planar » calcule dans l'unité du système de coordonnées (des mètres en Lambert-93) ; refusé pour un système géographique (degrés). « ellipsoidal » calcule sur l'ellipsoïde WGS84, quel que soit le système (les coordonnées doivent alors être en longitude/latitude). Les entités qui ne sont pas des polygones partent sur « Rejected ».
+« planar » calcule dans l'unité du système de coordonnées (des mètres en Lambert-93) ; refusé pour un système géographique (degrés). « ellipsoidal » calcule sur l'ellipsoïde WGS84, quel que soit le système (des coordonnées projetées sont d'abord converties en longitude/latitude). Les entités qui ne sont pas des polygones partent sur « Rejected ».
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |
@@ -871,7 +871,7 @@ Ajoute la surface (et au choix le périmètre) de chaque polygone.
 | <a id="measurearea-perimeter"></a>Attribut périmètre | Vide = pas de périmètre. |  |
 | <a id="measurearea-area_unit"></a>Unité de surface | Unité de la surface écrite : m² (m2), hectares (ha) ou km² (km2). | `m2` |
 | <a id="measurearea-length_unit"></a>Unité de périmètre | Unité du périmètre écrit : mètres ou kilomètres. | `m` |
-| <a id="measurearea-method"></a>Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, les coordonnées doivent être en longitude/latitude. | `planar` |
+| <a id="measurearea-method"></a>Méthode | planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur l'ellipsoïde WGS84, quel que soit le système. | `planar` |
 | <a id="measurearea-decimals"></a>Décimales | Nombre de décimales conservées (0 à 15). | `2` |
 
 <a id="checkvalidity"></a>

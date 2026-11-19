@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- MeasureLength and MeasureArea, *ellipsoidal* method: projected coordinates (Lambert-93…) are converted to
+  longitude/latitude first; they used to be read as degrees and gave empty values. Geodesic lengths are computed in
+  one vectorized call.
 - GeoParquet reader: a geometry stored in the native encoding of GeoParquet 1.1 (coordinates in nested lists, point
   to multipolygon, separated or interleaved) is read as WKB, on disk and at a web address; it used to break the map
   and the modifiers that read the geometry.

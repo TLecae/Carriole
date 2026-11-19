@@ -811,13 +811,13 @@ Adds the length of each line.
 
 - **Inputs** : `input` — **Outputs** : `output`, `Rejected` — **Processing** : streaming
 
-"planar" computes in the unit of the coordinate system (meters in Lambert-93); refused for a geographic system (degrees). "ellipsoidal" computes on the WGS84 ellipsoid whatever the system (coordinates must then be longitude/latitude). Features that are not lines (points, polygons, no geometry) go to "Rejected"; for the perimeter of a polygon, use "Area and perimeter".
+"planar" computes in the unit of the coordinate system (meters in Lambert-93); refused for a geographic system (degrees). "ellipsoidal" computes on the WGS84 ellipsoid whatever the system (projected coordinates are first converted to longitude/latitude). Features that are not lines (points, polygons, no geometry) go to "Rejected"; for the perimeter of a polygon, use "Area and perimeter".
 
 | Parameter | Role | Default |
 | --- | --- | --- |
 | <a id="measurelength-attribute"></a>Length attribute | Receives the length. | `_length` |
 | <a id="measurelength-unit"></a>Unit | Meters or kilometers. | `m` |
-| <a id="measurelength-method"></a>Method | planar: in the unit of the coordinate system (refused in degrees); ellipsoidal: on the WGS84 ellipsoid, coordinates in longitude/latitude. | `planar` |
+| <a id="measurelength-method"></a>Method | planar: in the unit of the coordinate system (refused in degrees); ellipsoidal: on the WGS84 ellipsoid, whatever the system. | `planar` |
 | <a id="measurelength-decimals"></a>Decimals | Number of decimals kept (0 to 15). | `2` |
 
 <a id="centroids"></a>
@@ -906,7 +906,7 @@ Adds the area (and optionally the perimeter) of each polygon.
 
 - **Inputs** : `input` — **Outputs** : `output`, `Rejected` — **Processing** : streaming
 
-"planar" computes in the unit of the coordinate system (meters in Lambert-93); refused for a geographic system (degrees). "ellipsoidal" computes on the WGS84 ellipsoid whatever the system (coordinates must then be longitude/latitude). Features that are not polygons go to "Rejected".
+"planar" computes in the unit of the coordinate system (meters in Lambert-93); refused for a geographic system (degrees). "ellipsoidal" computes on the WGS84 ellipsoid whatever the system (projected coordinates are first converted to longitude/latitude). Features that are not polygons go to "Rejected".
 
 | Parameter | Role | Default |
 | --- | --- | --- |
@@ -914,7 +914,7 @@ Adds the area (and optionally the perimeter) of each polygon.
 | <a id="measurearea-perimeter"></a>Perimeter attribute | Empty = no perimeter. |  |
 | <a id="measurearea-area_unit"></a>Area unit | Unit of the written area: m² (m2), hectares (ha) or km² (km2). | `m2` |
 | <a id="measurearea-length_unit"></a>Perimeter unit | Unit of the written perimeter: meters or kilometers. | `m` |
-| <a id="measurearea-method"></a>Method | planar: in the unit of the coordinate system (refused in degrees); ellipsoidal: on the WGS84 ellipsoid, coordinates must be longitude/latitude. | `planar` |
+| <a id="measurearea-method"></a>Method | planar: in the unit of the coordinate system (refused in degrees); ellipsoidal: on the WGS84 ellipsoid, whatever the system. | `planar` |
 | <a id="measurearea-decimals"></a>Decimals | Number of decimals kept (0 to 15). | `2` |
 
 <a id="checkvalidity"></a>

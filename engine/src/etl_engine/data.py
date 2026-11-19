@@ -138,6 +138,14 @@ def to_crs(geoms: np.ndarray, source: str | None, target: str | None) -> np.ndar
     return shapely.transform(geoms, lambda coords: np.column_stack(move.transform(coords[:, 0], coords[:, 1])))
 
 
+def lonlat(geoms: np.ndarray, crs: str | None) -> np.ndarray:
+    """Géométries en longitude/latitude pour un calcul sur l'ellipsoïde : reprojetées en WGS84 si `crs` est projeté,
+    telles quelles s'il est géographique ou inconnu."""
+    if not crs or is_geographic(crs):
+        return geoms
+    return to_crs(geoms, crs, "EPSG:4326")
+
+
 @functools.lru_cache(maxsize=64)
 def is_geographic(crs: str | None) -> bool:
     """Le SCR est-il en degrés ? (mis en cache : la question revient à chaque lot ; faux si inconnu)"""

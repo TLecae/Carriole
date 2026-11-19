@@ -54,6 +54,17 @@ def test_length_ellipsoidal_and_planar_in_degrees():
         run_modifier(MeasureLength, {}, line)
 
 
+def test_length_ellipsoidal_converts_projected_coordinates():
+    # avant : les mètres du Lambert-93 étaient lus comme des degrés (longueur vide) ; multi-ligne : pas de segment
+    # entre ses parties
+    multi = shapely.MultiLineString([[(600000, 6500000), (601000, 6500000)], [(700000, 6600000), (700000, 6602000)]])
+    lines = shapes([shapely.LineString([(600000, 6500000), (601000, 6500000)]), multi], crs="EPSG:2154")
+    out = run_modifier(MeasureLength, {"method": "ellipsoidal", "decimals": 0}, lines)["output"]
+    planar = run_modifier(MeasureLength, {"decimals": 0}, lines)["output"]
+    ellipsoidal, flat = out.column("_length").to_pylist(), planar.column("_length").to_pylist()
+    assert flat == [1000, 3000] and all(abs(e - f) / f < 0.002 for e, f in zip(ellipsoidal, flat, strict=True))
+
+
 # ------------------------------------------------------------------ MultipartToSingleparts
 def test_deaggregator_splits_multi_geometries_and_keeps_attributes():
     multi = shapely.MultiPolygon([shapely.box(0, 0, 1, 1), shapely.box(5, 5, 6, 6)])

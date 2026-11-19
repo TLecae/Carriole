@@ -10,7 +10,7 @@ import pyproj
 import shapely
 from pydantic import Field
 
-from etl_engine.data import AREAS, GEOM, geometries, get_crs, is_geographic, type_ids, with_crs
+from etl_engine.data import AREAS, GEOM, geometries, get_crs, is_geographic, lonlat, type_ids, with_crs
 from etl_engine.sdk import GEOMETRY_SLICE, REJECTED, ConfigError, Modifier, Params, reject
 
 _FACTOR = {"m2": 1.0, "ha": 1e-4, "km2": 1e-6}
@@ -26,7 +26,7 @@ class MeasureArea(Modifier):
     help = (
         "« planar » calcule dans l'unité du système de coordonnées (des mètres en Lambert-93) ; refusé pour un "
         "système géographique (degrés). « ellipsoidal » calcule sur l'ellipsoïde WGS84, quel que soit le système "
-        "(les coordonnées doivent alors être en longitude/latitude). Les entités qui ne sont pas des polygones "
+        "(des coordonnées projetées sont d'abord converties en longitude/latitude). Les entités qui ne sont pas des polygones "
         "partent sur « Rejected »."
     )
 
@@ -46,7 +46,7 @@ class MeasureArea(Modifier):
             title="Méthode",
             description=(
                 "planar : dans l'unité du système de coordonnées (refusé en degrés) ; ellipsoidal : sur "
-                "l'ellipsoïde WGS84, les coordonnées doivent être en longitude/latitude."
+                "l'ellipsoïde WGS84, quel que soit le système."
             ),
         )
         decimals: int = Field(2, ge=0, le=15, title="Décimales", description="Nombre de décimales conservées (0 à 15).")
@@ -87,9 +87,12 @@ class MeasureArea(Modifier):
             area[ok] = shapely.area(geoms[ok])
             perimeter[ok] = shapely.length(geoms[ok])  # périmètre d'un polygone = longueur de son contour
         else:
+            # pyproj n'a pas de calcul vectorisé de l'aire géodésique : un appel (en C) par polygone
             geod = pyproj.Geod(ellps="WGS84")
+            degrees = np.array(geoms, dtype=object)
+            degrees[ok] = lonlat(geoms[ok], get_crs(batch))
             for i in np.flatnonzero(ok):
-                a, per = geod.geometry_area_perimeter(geoms[i])
+                a, per = geod.geometry_area_perimeter(degrees[i])
                 area[i], perimeter[i] = abs(a), per
         area = np.round(area * _FACTOR[p.area_unit], p.decimals)
         perimeter = np.round(perimeter * _LENGTH[p.length_unit], p.decimals)
