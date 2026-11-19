@@ -53,8 +53,8 @@ simples. Les comportements suivent ceux des ETL géographiques établis, sous de
 - Voies SQL, avec test de parité : ReplaceText, MapValues, ExtractJson, Counter (sans groupe), ReplaceNulls
   (attributs texte), FindDuplicates (repérage sur les clés seules, recollage par position), BuildList, ExecuteSql,
   ExplodeList (`UNNEST` de la liste et de ses rangs ; un attribut indice existant est remplacé, plus doublé).
-  OrderBy : la voie par lots exécute la requête de la voie SQL, les deux donnent donc le même ordre (texte de
-  nombres, espaces, NaN). Le résultat d'ExecuteSql a la même forme par les deux voies (`querier.final_select` :
+  OrderBy : les deux voies partagent l'ORDER BY, donc le même ordre (texte de nombres, espaces, NaN) ; la voie par
+  lots n'y trie que les clés, puis recolle les entités par position, lot par lot. Le résultat d'ExecuteSql a la même forme par les deux voies (`querier.final_select` :
   géométrie en WKB, entier de 128 bits en DOUBLE comme l'écrit Parquet).
 - Transformations pyproj en cache partagé (`data.transformer`, `data.to_crs`).
 

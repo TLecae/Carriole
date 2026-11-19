@@ -11,6 +11,8 @@
   line) gets one row or column of cells instead of none.
 - DatabaseQueryPerFeature: results whose types differ from one feature to the next (an empty value, then a text or
   a decimal) are merged; the node used to stop ("Schema at index 1 was different").
+- OrderBy (batch route): only the sort keys are sorted, then the features are taken by position and sent batch by
+  batch; peak memory beyond the input is about halved on a wide table (1 M rows, 22 columns and a geometry).
 - PivotLonger: the features made from one feature follow each other (feature order kept); they used to come
   attribute by attribute within each batch, an order that changed with the batch size. Built without a loop over
   the attributes.

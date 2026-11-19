@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any, Literal
 
 import duckdb
+import pyarrow as pa
 from pydantic import Field
 
 from etl_engine.blocking import collect, duck, quote
@@ -51,13 +52,10 @@ class OrderBy(Modifier):
         require_attributes(inputs.get("input"), [k.attribute for k in keys])
         return {"output": inputs.get("input")}
 
-    def sql(self, relations, schemas):
-        keys = self._check()
-        schema = schemas.get("input")
-        if schema is None:
-            return None
+    def _order(self, schema: pa.Schema) -> str:
+        """Clauses de l'ORDER BY (les deux voies les partagent : mêmes conversions, texte d'un nombre, espaces, NaN)."""
         order = []
-        for key in keys:
+        for key in self._check():
             if key.attribute not in schema.names:
                 raise ConfigError(f"attribut absent : {key.attribute}")
             column = quote(key.attribute)
@@ -65,18 +63,31 @@ class OrderBy(Modifier):
                 key.kind
             ]
             order.append(f"{expr} {'DESC' if key.order == 'descending' else 'ASC'} NULLS LAST")
+        return ", ".join(order)
+
+    def sql(self, relations, schemas):
+        self._check()
+        schema = schemas.get("input")
+        if schema is None:
+            return None
         numbered = f"SELECT row_number() OVER () AS __rn, * FROM {relations['input']}"
-        return {"output": f"SELECT * EXCLUDE (__rn) FROM ({numbered}) ORDER BY {', '.join(order)}, __rn"}
+        return {"output": f"SELECT * EXCLUDE (__rn) FROM ({numbered}) ORDER BY {self._order(schema)}, __rn"}
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
         self._check()
         table = collect(inputs.get("input", ()))
         if table is None or table.num_rows == 0:
             return
-        # la requête de la voie SQL, sur la table en mémoire : mêmes conversions (texte d'un nombre, espaces, NaN)
-        query = self.sql({"input": "t"}, {"input": table.schema})["output"]
+        # les seules clés sont triées (même ORDER BY que la voie SQL), puis les entités recollées par position, lot par
+        # lot : trier les entités elles-mêmes (toutes leurs colonnes, géométrie comprise) coûte bien plus de mémoire
+        keys = table.select(list(dict.fromkeys(k.attribute for k in self._check())))
+        query = f"SELECT __rn FROM (SELECT row_number() OVER () - 1 AS __rn, * FROM t) ORDER BY {self._order(keys.schema)}, __rn"
         try:
-            ordered = duck(query, t=table)
+            positions = duck(query, t=keys).column(0).to_numpy()
         except duckdb.Error as exc:
             raise ConfigError(f"tri impossible : {str(exc).splitlines()[0]}") from None
-        emit("output", with_crs(ordered, get_crs(table)))
+        crs = get_crs(table)
+        step = max(1, self.ctx.batch_rows)
+        for start in range(0, len(positions), step):
+            self.ctx.check_cancel()
+            emit("output", with_crs(table.take(pa.array(positions[start : start + step])), crs))
