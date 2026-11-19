@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 from pydantic import Field
@@ -23,7 +24,7 @@ class PivotLonger(Modifier):
     help = (
         "Chaque entité reçue donne une entité par attribut de « Attributs à dépivoter » : les autres attributs (et la "
         "géométrie) sont recopiés, « Attribut du nom » reçoit le nom de la colonne d'origine et « Attribut de la valeur » sa "
-        "valeur. Si les colonnes n'ont pas le même type, les valeurs deviennent du texte. Les valeurs vides sont ignorées "
+        "valeur ; les entités produites par une même entité se suivent, dans l'ordre des attributs. Si les colonnes n'ont pas le même type, les valeurs deviennent du texte. Les valeurs vides sont ignorées "
         "sauf si « Garder les valeurs vides » est coché. Exemple : (commune, pop_2020, pop_2021) devient "
         "(commune, annee, population)."
     )
@@ -79,15 +80,21 @@ class PivotLonger(Modifier):
         base = batch.drop_columns(
             [c for c in [*p.attributes, p.name_attribute, p.value_attribute] if c in batch.column_names]
         )
-        parts = []
-        for attr in p.attributes:
-            column = batch.column(attr)
-            if column.type != value_type:
-                column = column.cast(value_type)
-            part = base.append_column(p.name_attribute, pa.repeat(pa.scalar(attr, pa.string()), batch.num_rows))
-            part = part.append_column(p.value_attribute, column)
-            if not p.keep_nulls:
-                part = part.filter(pc.is_valid(column))
-            parts.append(part)
-        out = pa.concat_tables(parts)
+        n, k = batch.num_rows, len(p.attributes)
+        columns = [
+            batch.column(a).cast(value_type) if batch.column(a).type != value_type else batch.column(a)
+            for a in p.attributes
+        ]
+        stacked = pa.chunked_array([chunk for column in columns for chunk in column.chunks], value_type)
+        # ligne par ligne : les k valeurs d'une entité se suivent (l'ordre ne dépend pas de la taille des lots) ;
+        # la valeur de l'attribut j de la ligne i est à j * n + i dans `stacked`
+        rows, which = np.divmod(np.arange(n * k, dtype=np.int64), k)
+        values = stacked.take(pa.array(which * n + rows))
+        names = pa.array(p.attributes, pa.string()).take(pa.array(which))
+        kept = base.take(pa.array(rows))  # sans colonne (tout est dépivoté) : la table se construit quand même
+        out = pa.Table.from_arrays(
+            [*kept.columns, names, values], names=[*kept.column_names, p.name_attribute, p.value_attribute]
+        )
+        if not p.keep_nulls:
+            out = out.filter(pc.is_valid(values))
         return {"output": with_crs(out.cast(target) if out.schema != target else out, get_crs(batch))}

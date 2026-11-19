@@ -113,7 +113,7 @@ Transforme des colonnes en lignes : une entité par colonne choisie, avec son no
 
 - **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
 
-Chaque entité reçue donne une entité par attribut de « Attributs à dépivoter » : les autres attributs (et la géométrie) sont recopiés, « Attribut du nom » reçoit le nom de la colonne d'origine et « Attribut de la valeur » sa valeur. Si les colonnes n'ont pas le même type, les valeurs deviennent du texte. Les valeurs vides sont ignorées sauf si « Garder les valeurs vides » est coché. Exemple : (commune, pop_2020, pop_2021) devient (commune, annee, population).
+Chaque entité reçue donne une entité par attribut de « Attributs à dépivoter » : les autres attributs (et la géométrie) sont recopiés, « Attribut du nom » reçoit le nom de la colonne d'origine et « Attribut de la valeur » sa valeur ; les entités produites par une même entité se suivent, dans l'ordre des attributs. Si les colonnes n'ont pas le même type, les valeurs deviennent du texte. Les valeurs vides sont ignorées sauf si « Garder les valeurs vides » est coché. Exemple : (commune, pop_2020, pop_2021) devient (commune, annee, population).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |

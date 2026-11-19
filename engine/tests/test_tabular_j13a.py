@@ -147,6 +147,15 @@ def test_unpivot_makes_one_row_per_column_and_skips_empty_values():
     assert kept.num_rows == 4
 
 
+def test_unpivot_keeps_the_rows_of_a_feature_together_whatever_the_batches():
+    # avant : attribut par attribut dans chaque lot, un ordre qui changeait avec la taille des lots
+    wide = table(id=[1, 2, 3], a=[10, None, 30], b=[11, 21, 31])
+    for size in (1, 2, 10):
+        out = run_modifier(PivotLonger, {"attributes": ["a", "b"]}, wide, batch_rows=size)["output"]
+        assert out.column("id").to_pylist() == [1, 1, 2, 3, 3]
+        assert out.column("attribute").to_pylist() == ["a", "b", "b", "a", "b"]
+
+
 def test_unpivot_makes_text_when_types_differ():
     mixed = table(id=[1], a=[1], b=["x"])
     out = run_modifier(PivotLonger, {"attributes": ["a", "b"]}, mixed)["output"]

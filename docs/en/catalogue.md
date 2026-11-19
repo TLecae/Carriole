@@ -113,7 +113,7 @@ Turns columns into rows: one feature per chosen column, with its name and its va
 
 - **Inputs** : `input` — **Outputs** : `output` — **Processing** : streaming
 
-Each received feature gives one feature per attribute of "Attributes to unpivot": the other attributes (and the geometry) are copied, "Name attribute" receives the name of the original column and "Value attribute" its value. If the columns do not have the same type, the values become text. Empty values are ignored unless "Keep empty values" is checked. Example: (commune, pop_2020, pop_2021) becomes (commune, year, population).
+Each received feature gives one feature per attribute of "Attributes to unpivot": the other attributes (and the geometry) are copied, "Name attribute" receives the name of the original column and "Value attribute" its value; the features made from one feature follow each other, in the order of the attributes. If the columns do not have the same type, the values become text. Empty values are ignored unless "Keep empty values" is checked. Example: (commune, pop_2020, pop_2021) becomes (commune, year, population).
 
 | Parameter | Role | Default |
 | --- | --- | --- |

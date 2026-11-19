@@ -11,6 +11,9 @@
   line) gets one row or column of cells instead of none.
 - DatabaseQueryPerFeature: results whose types differ from one feature to the next (an empty value, then a text or
   a decimal) are merged; the node used to stop ("Schema at index 1 was different").
+- PivotLonger: the features made from one feature follow each other (feature order kept); they used to come
+  attribute by attribute within each batch, an order that changed with the batch size. Built without a loop over
+  the attributes.
 - StatisticsByGroup: the *summary* rows follow the order of the first feature of each group; the order used to change
   from one run to the next.
 - TerrainAnalysis: an integer DTM (Int16…) no longer stops the run ("Cannot convert fill_value nan").
