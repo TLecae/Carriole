@@ -79,7 +79,8 @@ class CreateGrid(Modifier):
         p = self.params
         xmin, ymin, xmax, ymax = extent
         if p.shape == "square":
-            return math.ceil((xmax - xmin) / p.size), math.ceil((ymax - ymin) / p.size)
+            # au moins une cellule : une emprise plate (un point, une ligne droite) en a une, pas zéro
+            return max(1, math.ceil((xmax - xmin) / p.size)), max(1, math.ceil((ymax - ymin) / p.size))
         return math.ceil((xmax - xmin) / p.size) + 2, math.ceil((ymax - ymin) / (1.5 * p.size / math.sqrt(3))) + 2
 
     def _cells(

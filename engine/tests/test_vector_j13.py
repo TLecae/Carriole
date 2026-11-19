@@ -156,6 +156,13 @@ def test_grid_is_the_same_whatever_the_slices(shape):
     assert one.column("cell_id").to_pylist() == list(range(one.num_rows))
 
 
+def test_square_grid_around_a_single_point():
+    # avant : emprise de largeur nulle, zéro colonne, grille vide
+    data = shapes([shapely.Point(600050, 6500050)])
+    out = run_modifier(CreateGrid, {"from_input": True, "only_touching": True, "size": 100}, data)["output"]
+    assert out.num_rows == 1 and geoms_of(out)[0].intersects(shapely.Point(600050, 6500050))
+
+
 def test_grid_from_incoming_features_and_limits():
     data = shapes([shapely.box(0, 0, 250, 100), shapely.box(1000, 1000, 1010, 1010)])
     full = run_modifier(CreateGrid, {"from_input": True, "size": 500}, data)["output"]
