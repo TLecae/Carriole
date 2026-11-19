@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
+import numpy as np
 import pyarrow as pa
 from pydantic import Field
 
@@ -84,7 +85,8 @@ class BuildList(Modifier):
         if missing:
             raise missing_attributes(missing)
         out = duck(
-            self._query(table.column_names), t=table.append_column("__row", pa.array(range(table.num_rows), pa.int64()))
+            self._query(table.column_names),
+            t=table.append_column("__row", pa.array(np.arange(table.num_rows), pa.int64())),
         )
         return with_crs(out, get_crs(table))
 

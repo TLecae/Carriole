@@ -83,7 +83,10 @@ class Contour(Modifier):
             y = f + e * (np.arange(desc["height"]) + 0.5)
             order = slice(None, None, -1) if e < 0 else slice(None)  # contourpy veut des ordonnées croissantes
             generator = contourpy.contour_generator(
-                x, y[order], np.ma.masked_invalid(z[order].astype("float64")), line_type=contourpy.LineType.Separate
+                x,
+                y[order],
+                np.ma.masked_invalid(z[order].astype("float64")),
+                line_type=contourpy.LineType.ChunkCombinedOffset,
             )
             low, high = float(z.min()), float(z.max())
             levels = (
@@ -94,24 +97,35 @@ class Contour(Modifier):
                     for k in range(math.ceil((low - p.base) / p.interval), math.floor((high - p.base) / p.interval) + 1)
                 ]
             )
-            lines, elevations = [], []
-            for level in levels:
-                for points in generator.lines(level):
-                    if len(points) >= 2:
-                        line = shapely.LineString(points)
-                        if line.length >= p.min_length:
-                            lines.append(line)
-                            elevations.append(float(level))
-            if not lines:
+            found, heights = [], []
+            for level in levels:  # les courbes d'un niveau d'un coup : sommets réunis et bornes de chaque ligne
+                points, offsets = generator.lines(level)
+                for coords, bounds in zip(points, offsets, strict=True):  # un bloc par morceau du raster
+                    if coords is None:
+                        continue
+                    sizes = np.diff(bounds)
+                    usable = sizes >= 2
+                    owner = np.repeat(np.arange(len(sizes)), sizes)
+                    lines = shapely.linestrings(
+                        coords[usable[owner]], indices=np.repeat(np.arange(int(usable.sum())), sizes[usable])
+                    )
+                    found.append(lines)
+                    heights.append(np.full(len(lines), float(level)))
+            if not found:
+                continue
+            lines, elevations = np.concatenate(found), np.concatenate(heights)
+            long_enough = shapely.length(lines) >= p.min_length
+            lines, elevations = lines[long_enough], elevations[long_enough]
+            if not len(lines):
                 continue
             n = len(lines)
-            table = pa.table({"_row": pa.array(range(n), pa.int64())})
+            table = pa.table({"_row": pa.array(np.arange(n), pa.int64())})
             for k, v in attributes.items():
                 table = table.append_column(k, pa.repeat(v[r], n))
             table = table.drop_columns(["_row"])
             table = table.append_column(p.elevation_attribute, pa.array(elevations, pa.float64()))
             table = table.append_column(GEOM, pa.nulls(n, pa.binary()))
-            pieces.append(set_geometries(table, np.array(lines, dtype=object), desc["crs"]))
+            pieces.append(set_geometries(table, lines, desc["crs"]))
         if not pieces:
             return {}
         self.ctx.info(f"{sum(t.num_rows for t in pieces)} courbe(s)")

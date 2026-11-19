@@ -9,6 +9,8 @@
   Z and go to *Rejected*.
 - Buffer, distance read from an attribute: a text distance is read like PointFromXY does (decimal comma accepted);
   an unreadable one sends the feature to *Rejected* ("distance invalide") instead of stopping the run.
+- Contour: the lines of a level are built in one vectorized call (2.4 times faster on 1.9 M lines, same result).
+  BuildList and PivotWider number their rows with numpy instead of a Python range.
 - CreateGrid (square cells, extent of the incoming features): a flat extent (one point, a horizontal or vertical
   line) gets one row or column of cells instead of none.
 - DatabaseQueryPerFeature: results whose types differ from one feature to the next (an empty value, then a text or

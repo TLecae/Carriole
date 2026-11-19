@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
+import numpy as np
 import pyarrow as pa
 from pydantic import Field
 
@@ -103,7 +104,7 @@ class PivotWider(Modifier):
         )
         if p.group_by:
             sql += " ORDER BY " + ", ".join(quote(g) for g in p.group_by)
-        return duck(sql, t=table.append_column("__row", pa.array(range(table.num_rows), pa.int64())))
+        return duck(sql, t=table.append_column("__row", pa.array(np.arange(table.num_rows), pa.int64())))
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
         self._check()
