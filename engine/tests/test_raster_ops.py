@@ -112,6 +112,17 @@ def test_terrain_slope_aspect_hillshade(tmp_path):
     assert abs(float(read(percent)[0][10, 30]) - 50.0) < 1.0
 
 
+def test_terrain_on_integer_dem(tmp_path):
+    # avant : la lecture au-delà du bord demandait NaN comme valeur de remplissage, refusé pour des entiers
+    y, x = np.mgrid[0:20, 0:20]
+    dem = (x * 5).astype("int16")
+    dem[0, 0] = -9999
+    mnt = make_raster(tmp_path / "entier.tif", dem, nodata=-9999)
+    slope = read(run_modifier(TerrainAnalysis, {"slope_unit": "percent"}, raster_table(mnt))["output"])[0]
+    assert slope.mask[0, 5] and slope.mask[1, 1] and not slope.mask[5, 5]  # bord et voisin du vide : sans valeur
+    assert abs(float(slope[5, 5]) - 50.0) < 1e-6  # 5 m pour 10 m
+
+
 def test_terrain_on_flat_ground_and_geographic_pixels(tmp_path):
     flat = make_raster(tmp_path / "plat.tif", np.full((20, 20), 100, dtype="float32"), nodata=-9999.0)
     out = run_modifier(TerrainAnalysis, {"products": ["slope", "aspect"]}, raster_table(flat))["output"]

@@ -95,8 +95,13 @@ class TerrainAnalysis(Modifier):
             def compute(window: Window, cache, desc=desc, xres=xres, yres=yres, top=top, geographic=geographic):
                 ds = cache.open(desc["uri"])
                 padded = Window(window.col_off - 1, window.row_off - 1, window.width + 2, window.height + 2)
-                z = ds.read(p.band, window=padded, masked=True, boundless=True, fill_value=np.nan)
-                valid = ~np.ma.getmaskarray(z)
+                # sans `fill_value` NaN, refusé pour un MNT entier : les pixels hors du raster sont écartés ici
+                z = ds.read(p.band, window=padded, masked=True, boundless=True)
+                rows = np.arange(padded.row_off, padded.row_off + padded.height)
+                cols = np.arange(padded.col_off, padded.col_off + padded.width)
+                inside = ((rows >= 0) & (rows < ds.height))[:, None] & ((cols >= 0) & (cols < ds.width))[None, :]
+                valid = ~np.ma.getmaskarray(z) & inside
+                z = np.ma.masked_array(z.data, ~valid)
                 z = np.ma.filled(z.astype("float64"), np.nan) * p.z_factor
                 if geographic:  # degrés -> mètres, à la latitude de chaque ligne
                     rows = np.arange(window.row_off, window.row_off + window.height)

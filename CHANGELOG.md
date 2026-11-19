@@ -7,6 +7,7 @@
   one vectorized call.
 - Reproject: 2D and 3D geometries in the same batch are transformed separately; a 2D geometry used to get an empty
   Z and go to *Rejected*.
+- TerrainAnalysis: an integer DTM (Int16…) no longer stops the run ("Cannot convert fill_value nan").
 - GeoParquet reader: a geometry stored in the native encoding of GeoParquet 1.1 (coordinates in nested lists, point
   to multipolygon, separated or interleaved) is read as WKB, on disk and at a web address; it used to break the map
   and the modifiers that read the geometry.
