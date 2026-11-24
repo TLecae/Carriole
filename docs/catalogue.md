@@ -1385,6 +1385,7 @@ Les entités passent sans changement. Les variables posées ici s'utilisent dans
 | <a id="splittofiles-delimiter"></a>Séparateur (CSV) | Séparateur de colonnes du CSV écrit. | `,` |
 | <a id="splittofiles-compression"></a>Compression ((Geo)Parquet) | Compression des fichiers (Geo)Parquet. | `zstd` |
 | <a id="splittofiles-partition_by"></a>Partitionner par ((Geo)Parquet) | Colonnes dont chaque valeur donne un sous-dossier de chaque fichier. |  |
+| <a id="splittofiles-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 ## Rasters
 

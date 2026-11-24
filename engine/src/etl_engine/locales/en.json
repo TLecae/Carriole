@@ -1153,6 +1153,8 @@
   "ShapefileWriter.params.column_order.title": "Column order",
   "SpatiaLiteWriter.params.column_order.description": "Columns written first, in this order; the others follow in the received order.",
   "SpatiaLiteWriter.params.column_order.title": "Column order",
+  "SplitToFiles.params.column_order.description": "Columns written first, in this order; the others follow in the received order.",
+  "SplitToFiles.params.column_order.title": "Column order",
   "STACSearch.description": "Searches images in a STAC catalog (Sentinel-2, Landsat, DEMs…) and references them without downloading.",
   "STACSearch.help": "Queries the STAC API \"Catalog address\" (Element 84's Earth Search by default; Planetary Computer: https://planetarycomputer.microsoft.com/api/stac/v1 with signing enabled). Filters: collections, extent (WGS84 longitude/latitude), dates (2024-06-01/2024-06-30), properties (JSON, e.g. {\"eo:cloud_cover\": {\"lt\": 20}}). With \"Received geometries\", each feature of the input gives a search (its extent) and its attributes are copied. \"Assets\" lists the wanted bands (e.g. red, nir: their names in the catalog): each scene becomes a virtual raster whose bands are these assets, read on demand over HTTP (nothing is downloaded entirely). Each feature carries the scene identifier, its date, its collection and the requested properties. The computer's proxy is used.",
   "STACSearch.label": "STAC search",

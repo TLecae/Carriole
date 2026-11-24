@@ -455,6 +455,7 @@ Writing {attribute} in the path creates one file per value of that attribute, e.
 | <a id="splittofiles-delimiter"></a>Delimiter (CSV) | Column delimiter of the written CSV. | `,` |
 | <a id="splittofiles-compression"></a>Compression ((Geo)Parquet) | Compression of the (Geo)Parquet files. | `zstd` |
 | <a id="splittofiles-partition_by"></a>Partition by ((Geo)Parquet) | Columns whose values each give a sub-folder of each file. |  |
+| <a id="splittofiles-column_order"></a>Column order | Columns written first, in this order; the others follow in the received order. |  |
 
 ## Calculations
 

@@ -15,6 +15,7 @@ import pyarrow.parquet as pq
 from pydantic import Field
 
 from etl_engine import duck
+from etl_engine.column_order import order_field, reorder, reorder_schema
 from etl_engine.modifiers.writer import Format, abort_target, finish_target, open_target
 from etl_engine.sdk import AttributeList, ConfigError, Emit, Modifier, OutPath, Params, missing_attributes
 
@@ -100,6 +101,7 @@ class SplitToFiles(Modifier):
             title="Partitionner par ((Geo)Parquet)",
             description="Colonnes dont chaque valeur donne un sous-dossier de chaque fichier.",
         )
+        column_order: list[str] = order_field()
 
     def _names(self) -> list[str]:
         if not self.params.path:
@@ -113,6 +115,7 @@ class SplitToFiles(Modifier):
             missing = [n for n in names if n not in upstream.names]
             if missing:
                 raise missing_attributes(missing)
+            reorder_schema(upstream, self.params.column_order)  # colonne absente : erreur avant toute lecture
         return {"summary": SUMMARY}
 
     def used_attributes(self) -> list[str]:
@@ -159,6 +162,7 @@ class SplitToFiles(Modifier):
                     missing = [n for n in names if n not in batch.column_names]
                     if missing:
                         raise missing_attributes(missing)
+                    batch = reorder(batch, self.params.column_order)
                     for key, part in groups(batch, names):
                         path = self._path_for(dict(zip(names, key, strict=True)))
                         rows[path] = rows.get(path, 0) + part.num_rows

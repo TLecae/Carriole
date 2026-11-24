@@ -163,7 +163,10 @@ def test_feature_writer_cleans_names_and_refuses_unknown_attributes(registry, co
     res = run_flow(make_flow(nodes, [("r", "output", "w", "input")]), registry, tmp_path / "run")
     assert res.status == "done", res.error
     assert (tmp_path / "o" / "commune 3.parquet").exists() and len(list((tmp_path / "o").glob("*.parquet"))) == 20
-    nodes[1]["params"]["path"] = str(tmp_path / "o2" / "{inconnu}.parquet")
+    nodes[1]["params"] |= {"path": str(tmp_path / "o1" / "{dep}.parquet"), "column_order": ["dep", "pop"]}
+    assert run_flow(make_flow(nodes, [("r", "output", "w", "input")]), registry, tmp_path / "run1").status == "done"
+    assert pq.read_schema(tmp_path / "o1" / "31.parquet").names[:3] == ["dep", "pop", "id"]  # ordre des colonnes
+    nodes[1]["params"] = {"path": str(tmp_path / "o2" / "{inconnu}.parquet")}
     assert (
         "attribut absent"
         in run_flow(make_flow(nodes, [("r", "output", "w", "input")]), registry, tmp_path / "run2").error
