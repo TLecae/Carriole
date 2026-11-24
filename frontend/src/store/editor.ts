@@ -238,10 +238,10 @@ export const useEditor = create<EditorState>((set, get) => {
   const scheduleAnalysis = () => {
     clearTimeout(analysisTimer);
     analysisTimer = setTimeout(async () => {
-      const { meta, nodes, edges } = get();
+      const { meta, nodes, edges, run } = get();
       const seq = ++analysisSeq;
       try {
-        const analysis = await api.analyze(toFlowDoc(meta, nodes, edges), defaultParams(meta));
+        const analysis = await api.analyze(toFlowDoc(meta, nodes, edges), defaultParams(meta), run.id);
         if (seq === analysisSeq) set({ analysis });
       } catch {
         /* l'analyse est facultative : l'éditeur reste utilisable si l'API ne répond pas */
@@ -717,6 +717,7 @@ export const useEditor = create<EditorState>((set, get) => {
       }
       state = settle({ ...applyResult(state, detail.result), status: detail.status, error: detail.error, paused: !!detail.paused });
       set({ run: state });
+      scheduleAnalysis(); // schémas connus seulement à l'exécution : ceux du cache de ce run
       if (!FINAL.includes(detail.status)) {
         unsubscribe = subscribeRun(id, lastId, pushEvent, (status) => {
           flushEvents();
@@ -725,6 +726,7 @@ export const useEditor = create<EditorState>((set, get) => {
           void api.run(id).then(
             (done) => {
               set((s) => (s.run.id === id ? { run: settle({ ...applyResult(s.run, done.result), status: done.status, error: done.error, paused: false }) } : {}));
+              if (get().run.id === id) scheduleAnalysis();
               if (restart?.id === id && get().run.id === id) {
                 const target = restart.target;
                 restart = null;

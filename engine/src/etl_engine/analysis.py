@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import pyarrow as pa
 
 from etl_engine import i18n
@@ -14,6 +16,7 @@ from etl_engine.registry import Registry
 from etl_engine.sdk import ConfigError, Context
 
 SchemaMap = dict[tuple[str, str], pa.Schema | None]
+RanSchema = Callable[[str, str], pa.Schema | None]  # (nœud, port) -> schéma de ses données au dernier run
 
 
 def input_schemas(plan: Plan, nid: str, schemas: SchemaMap) -> dict[str, pa.Schema | None]:
@@ -29,8 +32,10 @@ def input_schemas(plan: Plan, nid: str, schemas: SchemaMap) -> dict[str, pa.Sche
     }
 
 
-def compute_schemas(plan: Plan) -> tuple[SchemaMap, list[Issue]]:
-    """Schéma de chaque port de sortie, dans l'ordre du flux, et problèmes détectés."""
+def compute_schemas(plan: Plan, ran: RanSchema | None = None) -> tuple[SchemaMap, list[Issue]]:
+    """Schéma de chaque port de sortie, dans l'ordre du flux, et problèmes détectés. Un port dont le schéma n'est connu
+    qu'à l'exécution (PivotWider sans colonnes listées, ExecuteSql…) prend celui de ses données au dernier run (`ran`),
+    s'il y en a : les nœuds suivants proposent alors ses attributs."""
     schemas: SchemaMap = {}
     issues: list[Issue] = []
     for nid in plan.order:
@@ -41,8 +46,10 @@ def compute_schemas(plan: Plan) -> tuple[SchemaMap, list[Issue]]:
             missing = sorted({a for a in inst.used_attributes() if a not in known.names})
             for attr in missing:
                 issues.append(Issue("warning", "missing_attribute", f"attribut absent en amont : {attr}", nid))
+        failed = True
         try:
             outs = inst.output_schema(inputs)
+            failed = False
         except ConfigError as exc:
             issues.append(Issue("error", "config", str(exc), nid))
             outs = {}
@@ -53,6 +60,8 @@ def compute_schemas(plan: Plan) -> tuple[SchemaMap, list[Issue]]:
         known_crs = {get_crs(s) for s in inputs.values() if s is not None and GEOM in s.names} - {None}
         for port in inst.ports(inst.params)[1]:
             out = outs.get(port)
+            if out is None and ran is not None and not failed:
+                out = ran(nid, port)
             if out is not None and len(known_crs) == 1 and GEOM in out.names and not get_crs(out):
                 out = with_crs(out, next(iter(known_crs)))
             schemas[(nid, port)] = out
@@ -77,13 +86,20 @@ def unset_variables(plan: Plan) -> list[Issue]:
     return issues
 
 
-def analyze(flow: Flow, registry: Registry, overrides: dict[str, str] | None = None, lang: str | None = None) -> dict:
-    """Avertissements avant exécution et schéma de chaque port, au format JSON pour l'éditeur (messages dans `lang`)."""
-    result = _analyze(flow, registry, overrides)
+def analyze(
+    flow: Flow,
+    registry: Registry,
+    overrides: dict[str, str] | None = None,
+    lang: str | None = None,
+    ran: RanSchema | None = None,
+) -> dict:
+    """Avertissements avant exécution et schéma de chaque port, au format JSON pour l'éditeur (messages dans `lang`) ;
+    `ran` : schémas du dernier run, pour les ports qui ne connaissent le leur qu'à l'exécution."""
+    result = _analyze(flow, registry, overrides, ran)
     return i18n.translate_json(result, lang, frozenset({"message"}))
 
 
-def _analyze(flow: Flow, registry: Registry, overrides: dict[str, str] | None) -> dict:
+def _analyze(flow: Flow, registry: Registry, overrides: dict[str, str] | None, ran: RanSchema | None) -> dict:
     try:
         values = resolve_params(flow, overrides, system_values(preview=True))
         problems: list[Issue] = []
@@ -97,7 +113,7 @@ def _analyze(flow: Flow, registry: Registry, overrides: dict[str, str] | None) -
     except ConfigError as exc:
         return {"issues": [Issue("error", "component", str(exc)).to_json()], "schemas": {}, "order": [], "aliases": {}}
     plan = build_plan(flow, registry, values, lambda nid: Context(node_id=nid, params=values))
-    schemas, issues = compute_schemas(plan)
+    schemas, issues = compute_schemas(plan, ran)
     issues.extend(unset_variables(plan))
     for (outer, port), inner in aliases.items():  # un port de nœud composant a le schéma du port interne
         if inner in schemas:

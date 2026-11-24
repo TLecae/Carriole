@@ -173,8 +173,9 @@ export const api = {
   saveFlow: (id: string, flow: FlowDoc, revision: number | string | null) =>
     call<FlowRecord>(`/flows/${id}`, { method: "PUT", ...json({ flow, revision }) }),
   deleteFlow: (id: string) => call<void>(`/flows/${id}`, { method: "DELETE" }),
-  analyze: (flow: FlowDoc, params: Record<string, string> = {}) =>
-    call<Analysis>("/analyze", { method: "POST", ...json({ flow, params }) }),
+  // run : dernier run du flux, dont le cache donne le schéma des ports connus seulement à l'exécution (PivotWider…)
+  analyze: (flow: FlowDoc, params: Record<string, string> = {}, run: string | null = null) =>
+    call<Analysis>("/analyze", { method: "POST", ...json({ flow, params, run: run ?? "" }) }),
   createRun: (body: {
     flow?: FlowDoc;
     flow_id?: string | null;

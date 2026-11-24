@@ -110,6 +110,20 @@ def test_analyze_returns_schemas_and_issues(client):
     )
 
 
+def test_analyze_takes_unknown_schemas_from_the_last_run(client):
+    """PivotWider sans colonnes listées : schéma inconnu avant le run, celui du cache du run ensuite."""
+    flow = sample_flow(client.tmp)
+    flow["nodes"].append({"id": "p", "type": "PivotWider", "params": {"pivot_attribute": "dep", "function": "count"}})
+    flow["links"].append({"id": "l3", "from": ["r", "output"], "to": ["p", "input"]})
+    assert client.post("/api/analyze", json={"flow": flow}).json()["schemas"]["p/output"] is None
+    (client.tmp / "cache" / "run1" / "p").mkdir(parents=True)
+    pq.write_table(pa.table({"31": [5]}), client.tmp / "cache" / "run1" / "p" / "output.parquet")
+    rep = client.post("/api/analyze", json={"flow": flow, "run": "run1"}).json()
+    assert [f["name"] for f in rep["schemas"]["p/output"]["fields"]] == ["31"]
+    for run in ("inconnu", "../cache"):
+        assert client.post("/api/analyze", json={"flow": flow, "run": run}).json()["schemas"]["p/output"] is None
+
+
 def test_create_run_validates_and_queues(client):
     flow = sample_flow(client.tmp)
     run = client.post("/api/runs", json={"flow": flow, "params": {"DEP": "09"}}, headers={"X-ETL-User": "alice"})

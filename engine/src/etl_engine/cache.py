@@ -35,7 +35,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 from etl_engine import duck
-from etl_engine.data import conform, get_crs, with_crs
+from etl_engine.data import conform, get_crs, plain_geometry, with_crs
 from etl_engine.sdk import Cancelled, ConfigError, hold
 
 PORT_COMPRESSION = os.environ.get("ETL_PORT_COMPRESSION", "zstd")
@@ -161,6 +161,26 @@ def port_relation(run_dir: Path, node: str, port: str) -> Relation | None:
         ctes.append(f"{name} AS ({' UNION ALL BY NAME '.join(parts)})")
     prefix = f"WITH {', '.join(ctes)} " if ctes else ""
     return Relation(f"{prefix}{spec['query']}", spec.get("crs"), files)
+
+
+def port_schema(run_dir: Path, node: str, port: str) -> pa.Schema | None:
+    """Schéma des données d'un port dans ce run, sans en lire les lignes ; None : pas de données (port vide, cache
+    purgé, fichier lu modifié depuis). Sert à l'analyse quand un modificateur ne connaît son schéma qu'à l'exécution."""
+    try:
+        data = port_data(port_path(run_dir, node, port))
+        if data is not None:
+            return plain_geometry(pq.read_schema(data))
+        relation = port_relation(run_dir, node, port)
+        if relation is None:
+            return None
+        con, _ = connect_for(relation, "inspect")
+        try:
+            schema = con.sql(f"SELECT * FROM ({relation.sql}) LIMIT 0").to_arrow_table().schema
+        finally:
+            con.close()
+        return plain_geometry(with_crs(schema, relation.crs))
+    except (OSError, ValueError, KeyError, duckdb.Error, pa.ArrowException):
+        return None
 
 
 def write_query(

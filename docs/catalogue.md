@@ -198,7 +198,7 @@ Transforme les valeurs d'un attribut en colonnes : une ligne par groupe, une col
 
 - **Entrées** : `input` — **Sorties** : `output` — **Traitement** : bloquant (lit toutes les données avant de produire)
 
-Les entités sont regroupées par « Regrouper par » ; chaque valeur de « Attribut à pivoter » devient une colonne (préfixe + valeur), remplie avec « Attribut des valeurs » combiné par la fonction choisie : first (la première), sum, mean, min, max, count (nombre de lignes) ou concat (valeurs réunies par une virgule). Pour que le schéma soit connu avant l'exécution (formulaires des nœuds suivants), lister les valeurs attendues dans « Colonnes » ; sinon elles sont découvertes dans les données, par ordre alphabétique. La géométrie n'est pas conservée. Exemple : (commune, annee, population) devient (commune, pop_2020, pop_2021, …).
+Les entités sont regroupées par « Regrouper par » ; chaque valeur de « Attribut à pivoter » devient une colonne (préfixe + valeur), remplie avec « Attribut des valeurs » combiné par la fonction choisie : first (la première), sum, mean, min, max, count (nombre de lignes) ou concat (valeurs réunies par une virgule). Pour que le schéma soit connu avant l'exécution (formulaires des nœuds suivants), lister les valeurs attendues dans « Colonnes » ; sinon elles sont découvertes dans les données, par ordre alphabétique, et les nœuds suivants proposent les colonnes du dernier run. La géométrie n'est pas conservée. Exemple : (commune, annee, population) devient (commune, pop_2020, pop_2021, …).
 
 | Paramètre | Rôle | Défaut |
 | --- | --- | --- |

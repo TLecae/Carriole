@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Editor: a port whose schema is only known at run time (PivotWider without listed columns, ExecuteSql…) takes the
+  schema of its data in the last run's cache; the following nodes offer its attributes again.
 - Map view: the feature under the cursor is highlighted (denser fill, thicker outline or line, larger point), not
   only the cursor.
 - MeasureLength and MeasureArea, *ellipsoidal* method: projected coordinates (Lambert-93…) are converted to

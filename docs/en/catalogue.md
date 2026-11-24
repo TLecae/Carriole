@@ -198,7 +198,7 @@ Turns the values of an attribute into columns: one row per group, one column per
 
 - **Inputs** : `input` — **Outputs** : `output` — **Processing** : blocking (reads all the data before producing)
 
-Features are grouped by "Group by"; each value of "Attribute to pivot" becomes a column (prefix + value), filled with "Values attribute" combined by the chosen function: first (the first one), sum, mean, min, max, count (number of rows) or concat (values joined by a comma). For the schema to be known before running (forms of the following nodes), list the expected values in "Columns"; otherwise they are discovered in the data, in alphabetical order. The geometry is not kept. Example: (commune, year, population) becomes (commune, pop_2020, pop_2021, …).
+Features are grouped by "Group by"; each value of "Attribute to pivot" becomes a column (prefix + value), filled with "Values attribute" combined by the chosen function: first (the first one), sum, mean, min, max, count (number of rows) or concat (values joined by a comma). For the schema to be known before running (forms of the following nodes), list the expected values in "Columns"; otherwise they are discovered in the data, in alphabetical order, and the following nodes offer the columns of the last run. The geometry is not kept. Example: (commune, year, population) becomes (commune, pop_2020, pop_2021, …).
 
 | Parameter | Role | Default |
 | --- | --- | --- |
