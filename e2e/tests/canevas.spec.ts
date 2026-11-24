@@ -92,3 +92,47 @@ test("canevas : brancher par clics, intercaler sur une liaison, attributs des po
   await page.getByTestId("minimap-toggle").click();
   await expect(page.locator(".react-flow__minimap")).toBeVisible();
 });
+
+/** Glisse d'une poignée de port à une autre. */
+async function connect(page: Page, from: Locator, to: Locator) {
+  const a = (await from.boundingBox())!;
+  const b = (await to.boundingBox())!;
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 10 });
+  await page.mouse.up();
+}
+
+test("filtre à plusieurs sorties : chaque sortie se branche, renommée elle garde sa liaison", async ({ page }) => {
+  await page.goto("/#new");
+  for (let i = 0; i < 3; i++) await addFromPalette(page, "CsvWriter");
+  await addFromPalette(page, "RouteByExpression");
+  const router = page.getByTestId("node-RouteByExpression_1");
+  const outputs = page.getByLabel("Sortie", { exact: true });
+  const conditions = page.getByLabel("Condition", { exact: true });
+  const names = ["Petites", "Moyennes", "Grandes"];
+  for (const [i, name] of names.entries()) {
+    if (i) await page.getByRole("button", { name: "+ Ajouter une ligne" }).click();
+    await outputs.nth(i).fill("");
+    await outputs.nth(i).pressSequentially(name); // frappe par frappe : le nœud garde sa taille d'un nom à l'autre
+    await conditions.nth(i).fill(`"pop" > ${i}`);
+  }
+  await page.getByRole("button", { name: "fit view" }).click();
+  const handle = (node: Locator, port: string) => node.locator(`.react-flow__handle[data-handleid="${port}"]`);
+  for (const [i, name] of names.entries()) {
+    await expect(handle(router, name)).toBeVisible();
+    await connect(page, handle(router, name), handle(page.getByTestId(`node-CsvWriter_${i + 1}`), "input"));
+    await expect(edge(page, "RouteByExpression_1", `CsvWriter_${i + 1}`)).toHaveCount(1);
+  }
+
+  // renommer une sortie (d'un coup, ou en la vidant puis en la ressaisissant) : la liaison suit, sans erreur
+  await router.locator(".node-head").click();
+  await outputs.nth(1).fill("Moyennes_bis");
+  await outputs.nth(2).fill("");
+  await outputs.nth(2).pressSequentially("Enormes");
+  await expect(handle(router, "Enormes")).toBeVisible();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
+  await expect(router).not.toHaveClass(/has-error/);
+  await page.getByRole("tab", { name: /Avertissements/ }).click();
+  await expect(page.getByText(/n'a pas de sortie/)).toHaveCount(0);
+});

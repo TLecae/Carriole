@@ -9,6 +9,7 @@ import { pickPath } from "../platform";
 import { useUi, type RenameChoice } from "./ui";
 import {
   applyCollapsed,
+  followPortRenames,
   fromFlowDoc,
   idPrefix,
   inputFor,
@@ -124,6 +125,7 @@ let lastCommitAt = 0;
 let unsubscribe: (() => void) | undefined;
 let eventBuffer: RunEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
+const heldPorts = new Map<string, string>(); // port vidé dans les paramètres : son ancien nom, pour ses liaisons
 
 const select = (nodes: AppNode[], ids: Set<string>): AppNode[] => nodes.map((n) => (n.selected === ids.has(n.id) ? n : { ...n, selected: ids.has(n.id) }));
 
@@ -470,7 +472,15 @@ export const useEditor = create<EditorState>((set, get) => {
       set((s) => ({ nodes: s.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, ...patch } } as AppNode) : n)) }));
       touch();
     },
-    updateParams: (id, params) => get().updateNodeData(id, { params }, "params"),
+    updateParams: (id, params) => {
+      const node = get().nodes.find((n) => n.id === id);
+      get().updateNodeData(id, { params }, "params");
+      if (!node || !isEtl(node)) return;
+      // port renommé dans les paramètres (sortie de RouteByExpression…) : ses liaisons le suivent
+      const schema = get().paletteMap.get(node.data.type)?.params_schema;
+      const edges = followPortRenames(get().edges, id, schema, node.data.params, params, heldPorts);
+      if (edges !== get().edges) set({ edges });
+    },
     toggleEnabled: () => {
       const { nodes, edges } = get();
       const selectedNodes = nodes.filter((n) => n.selected && isEtl(n));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FlowDoc } from "../api/types";
-import { applyCollapsed, fromFlowDoc, inputFor, layoutBookmarks, nextId, spliceEdge, toFlowDoc, upstreamAttributes, type AppEdge } from "./graph";
+import { applyCollapsed, followPortRenames, fromFlowDoc, inputFor, layoutBookmarks, nextId, spliceEdge, toFlowDoc, upstreamAttributes, type AppEdge } from "./graph";
 
 const doc: FlowDoc = {
   schema_version: 1,
@@ -108,6 +108,37 @@ describe("liaisons", () => {
     expect(spliceEdge(edges, "l_1", "W", { inputs: ["input"], outputs: [] })).toBeNull();
     expect(spliceEdge(edges, "l_1", "C", { inputs: ["input"], outputs: ["output"] })).toBeNull();
     expect(spliceEdge(edges, "inconnue", "B", { inputs: ["input"], outputs: ["output"] })).toBeNull();
+  });
+});
+
+describe("ports nommés par les paramètres", () => {
+  const schema = { properties: { tests: { "x-etl-ports": { side: "out" as const, key: "output" } }, inputs: { "x-etl-ports": { side: "in" as const } } } };
+  const tests = (...names: string[]) => ({ tests: names.map((output) => ({ output, condition: "x" })) });
+  const edges = [
+    { id: "a", source: "R", sourceHandle: "A", target: "W1", targetHandle: "input" },
+    { id: "b", source: "R", sourceHandle: "B", target: "W2", targetHandle: "input" },
+    { id: "c", source: "R", sourceHandle: "Failed", target: "W3", targetHandle: "input" },
+  ];
+  const handles = (list: { sourceHandle?: string | null }[]) => list.map((e) => e.sourceHandle);
+
+  it("une sortie renommée garde ses liaisons", () => {
+    expect(handles(followPortRenames(edges, "R", schema, tests("A", "B"), tests("A", "Bis"), new Map()))).toEqual(["A", "Bis", "Failed"]);
+  });
+
+  it("vidée puis ressaisie, aussi", () => {
+    const held = new Map<string, string>();
+    expect(followPortRenames(edges, "R", schema, tests("A", "B"), tests("A", ""), held)).toBe(edges);
+    expect(handles(followPortRenames(edges, "R", schema, tests("A", ""), tests("A", "C"), held))).toEqual(["A", "C", "Failed"]);
+  });
+
+  it("ligne supprimée : ses liaisons partent ; échange de deux noms : rien ne bouge", () => {
+    expect(handles(followPortRenames(edges, "R", schema, tests("A", "B"), tests("A"), new Map()))).toEqual(["A", "Failed"]);
+    expect(followPortRenames(edges, "R", schema, tests("A", "B"), tests("B", "A"), new Map())).toBe(edges);
+  });
+
+  it("entrées nommées (ExecuteSql)", () => {
+    const into = [{ id: "a", source: "X", sourceHandle: "output", target: "S", targetHandle: "communes" }];
+    expect(followPortRenames(into, "S", schema, { inputs: ["communes"] }, { inputs: ["villes"] }, new Map())[0].targetHandle).toBe("villes");
   });
 });
 

@@ -16,6 +16,9 @@ export interface JsonSchema {
   "x-etl-language"?: "python" | "sql"; // champ de code : langage de l'éditeur
   "x-etl-access"?: "read" | "write"; // champ chemin : dossiers parcourus par l'explorateur de fichiers
   "x-etl-input"?: string; // champ attribut d'un modificateur à plusieurs entrées : l'entrée dont il vient
+  // liste qui nomme des ports du nœud (sorties de RouteByExpression, entrées d'ExecuteSql) : `key`, la propriété
+  // de chaque élément qui donne le nom (absente : l'élément est le nom)
+  "x-etl-ports"?: { side: "in" | "out"; key?: string };
   [key: string]: unknown;
 }
 

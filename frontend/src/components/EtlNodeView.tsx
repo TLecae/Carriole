@@ -1,5 +1,5 @@
-import { Handle, NodeToolbar, Position, type NodeProps } from "@xyflow/react";
-import { memo } from "react";
+import { Handle, NodeToolbar, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
+import { memo, useEffect } from "react";
 import { staleOf, useEditor } from "../store/editor";
 import type { EtlNode } from "../model/graph";
 import type { ModifierInfo } from "../api/types";
@@ -156,6 +156,11 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
   const runCache = useEditor((s) => s.run.cache);
   const stale = useEditor((s) => staleOf(s).has(id));
   const livePorts = useEditor((s) => s.analysis?.ports?.[id]);
+  // ports changés (nommés par les paramètres) : React Flow re-mesure les poignées, sinon une sortie renommée sans
+  // que le nœud change de taille n'est pas branchable
+  const updateInternals = useUpdateNodeInternals();
+  const portKey = livePorts ? `${livePorts.inputs.join("\n")}\t${livePorts.outputs.join("\n")}` : "";
+  useEffect(() => updateInternals(id), [id, portKey, updateInternals]);
   const picked = usePicked(id);
   const worst = useEditor((s) => {
     const issues = s.analysis?.issues.filter((i) => i.node === id) ?? [];

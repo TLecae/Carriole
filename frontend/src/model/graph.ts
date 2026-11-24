@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { AnnotationDoc, BookmarkDoc, ComponentMeta, FlowDoc, PublishedParam, ModifierInfo } from "../api/types";
+import type { AnnotationDoc, BookmarkDoc, ComponentMeta, FlowDoc, JsonSchema, PublishedParam, ModifierInfo } from "../api/types";
 
 // ---- types des nœuds et des liens de l'éditeur ---------------------------------------
 
@@ -234,6 +234,70 @@ export function applyCollapsed(nodes: AppNode[]): AppNode[] {
   for (const n of nodes) if (isBookmark(n) && n.data.collapsed) n.data.members.forEach((id) => hidden.add(id));
   for (const n of nodes) if (n.parentId && hidden.has(n.parentId)) hidden.add(n.id); // annotation liée à un nœud replié
   return nodes.map((n) => (isBookmark(n) ? n : !!n.hidden === hidden.has(n.id) ? n : { ...n, hidden: hidden.has(n.id) }));
+}
+
+// ---- ports nommés par les paramètres ---------------------------------------------------------
+
+const portNames = (value: unknown, key?: string): string[] =>
+  Array.isArray(value) ? value.map((v) => String((key ? (v as Record<string, unknown> | null)?.[key] : v) ?? "")) : [];
+
+/**
+ * Liaisons d'un nœud dont une liste de paramètres nomme les ports (`x-etl-ports` : sorties de RouteByExpression,
+ * entrées d'ExecuteSql…), après un changement de ses paramètres : un port renommé garde ses liaisons, y compris vidé
+ * puis ressaisi (`held` garde son ancien nom d'une frappe à l'autre) ; une ligne supprimée retire les liaisons de son
+ * port. Les liaisons inchangées gardent leur identité (même tableau si rien ne change).
+ */
+export function followPortRenames(
+  edges: AppEdge[],
+  nodeId: string,
+  schema: JsonSchema | undefined,
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+  held: Map<string, string>,
+): AppEdge[] {
+  const renamed = new Map<string, string>(); // « in/ancien » -> nouveau
+  const dropped = new Set<string>(); // « in/nom »
+  for (const [field, prop] of Object.entries(schema?.properties ?? {})) {
+    const spec = prop["x-etl-ports"];
+    if (!spec || before[field] === after[field]) continue;
+    const old = portNames(before[field], spec.key);
+    const now = portNames(after[field], spec.key);
+    if (old.length === now.length) {
+      old.forEach((name, i) => {
+        const slot = `${nodeId}/${field}/${i}`;
+        const next = now[i];
+        if (name === next) return;
+        if (!next) {
+          if (name && !now.includes(name)) held.set(slot, name); // vidé : ses liaisons attendent le nouveau nom
+          return;
+        }
+        const from = name || held.get(slot);
+        held.delete(slot);
+        if (from && !now.includes(from) && !old.includes(next)) renamed.set(`${spec.side}/${from}`, next);
+      });
+    } else if (now.length < old.length) {
+      for (const name of old) if (name && !now.includes(name)) dropped.add(`${spec.side}/${name}`);
+      for (const k of [...held.keys()]) if (k.startsWith(`${nodeId}/${field}/`)) held.delete(k); // lignes décalées
+    }
+  }
+  if (!renamed.size && !dropped.size) return edges;
+  let changed = false;
+  const out: AppEdge[] = [];
+  for (const e of edges) {
+    const side = e.source === nodeId ? "out" : e.target === nodeId ? "in" : null;
+    const port = side === "out" ? (e.sourceHandle ?? "output") : side === "in" ? (e.targetHandle ?? "input") : null;
+    const key = side && `${side}/${port}`;
+    if (key && dropped.has(key)) {
+      changed = true;
+      continue;
+    }
+    const next = key ? renamed.get(key) : undefined;
+    if (next) {
+      changed = true;
+      out.push(side === "out" ? { ...e, sourceHandle: next } : { ...e, targetHandle: next });
+    } else out.push(e);
+  }
+  return changed ? out : edges;
 }
 
 // ---- schéma disponible en amont d'un nœud ---------------------------------------------------

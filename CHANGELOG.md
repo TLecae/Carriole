@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Editor, ports named by parameters (RouteByExpression outputs, ExecuteSql and RasterCalculator inputs): renaming a
+  port keeps its links (also when the name is cleared, then typed again), deleting a row removes the links of its
+  port, and React Flow measures the handles again when the ports change. A renamed output used to keep links to the
+  old name (error "n'a pas de sortie") and could not be connected.
 - Editor: saving a flow whose name was changed asks whether to create a new flow (default; with flow files, a new
   file next to the original) or to rename it (with flow files, the file is renamed). The name of a flow file can now
   be edited in the top bar (ADR 0060).

@@ -42,8 +42,9 @@ class RouteByExpression(Modifier):
             title="Conditions",
             description="Une sortie par ligne, dans l'ordre d'évaluation.",
             json_schema_extra={
-                "default": [{"output": "Passed", "condition": ""}]
-            },  # l'éditeur montre la ligne par défaut
+                "default": [{"output": "Passed", "condition": ""}],  # l'éditeur montre la ligne par défaut
+                "x-etl-ports": {"side": "out", "key": "output"},  # renommer une sortie : ses liaisons suivent
+            },
         )
         mode: Literal["first", "all"] = Field(
             "first",

@@ -69,7 +69,7 @@ class RasterCalculator(Modifier):
             default_factory=lambda: ["input"],
             title="Entrées",
             description="Noms des ports d'entrée (lettres, chiffres et _).",
-            json_schema_extra={"default": ["input"]},
+            json_schema_extra={"default": ["input"], "x-etl-ports": {"side": "in"}},  # renommée : ses liaisons suivent
         )
         calculations: list[Calculation] = Field(
             default_factory=list, title="Bandes calculées", description="Une ligne par bande du résultat."

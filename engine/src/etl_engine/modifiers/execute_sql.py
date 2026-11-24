@@ -37,7 +37,7 @@ class ExecuteSql(Modifier):
             default_factory=lambda: ["input"],
             title="Entrées",
             description="Noms des ports d'entrée (lettres, chiffres et _) ; chacun est une table de la requête.",
-            json_schema_extra={"default": ["input"]},
+            json_schema_extra={"default": ["input"], "x-etl-ports": {"side": "in"}},  # renommée : ses liaisons suivent
         )
         sql: SqlCode = Field(
             "SELECT * FROM input",
