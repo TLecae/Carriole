@@ -608,6 +608,12 @@ class Store:
         except IntegrityError:
             return False  # un autre worker vient de créer le verrou (démarrage simultané) : c'est lui qui l'a
 
+    def move_flow_references(self, old_id: str, new_id: str) -> None:
+        """Le flux `old_id` est devenu `new_id` (fichier renommé) : ses runs et ses planifications le suivent."""
+        with self._session.begin() as s:
+            s.execute(update(RunRow).where(RunRow.flow_id == old_id).values(flow_id=new_id))
+            s.execute(update(ScheduleRow).where(ScheduleRow.flow_id == old_id).values(flow_id=new_id))
+
     # ---------------------------------------------------------------- planifications
     def create_schedule(self, data: dict[str, Any], owner: str, next_run_at: float | None) -> dict[str, Any]:
         now = time.time()

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Flow files: renaming a file from the editor moves its runs and schedules to the new file; schedules used to point
+  to the old path.
 - Editor: a link to a port that a setting removed (ClipRasterByMask *by*, ResampleRaster *align*, CreateGrid and
   StacSearch *from_input*…) stays drawn, to a struck-out port, and can be deleted; it used to be invisible while the
   node showed an error.

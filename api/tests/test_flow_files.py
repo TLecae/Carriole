@@ -58,6 +58,8 @@ def test_rename_a_flow_file(client):
     """Nom changé dans l'éditeur, choix « renommer » : le fichier change de nom dans son dossier, l'ancien disparaît."""
     path = client.tmp / "partage" / "flux.json"
     flow = client.post("/api/flows", json={"flow": FLOW, "path": str(path)}).json()
+    plan = client.post("/api/schedules", json={"name": "nuit", "flow_id": flow["id"], "cron": "0 2 * * *"})
+    assert plan.status_code == 201, plan.text
     renamed = client.post(
         f"/api/flows/{flow['id']}/rename",
         json={"flow": {**FLOW, "name": "Bilan: 2026", "description": "v2"}, "revision": flow["revision"]},
@@ -67,6 +69,9 @@ def test_rename_a_flow_file(client):
     assert renamed.json()["path"] == str(target) and renamed.json()["name"] == "Bilan_ 2026"
     assert not path.exists() and json.loads(target.read_text("utf-8"))["description"] == "v2"
     assert [f["path"] for f in client.get("/api/flows").json()] == [str(target)]  # l'ancien chemin a quitté les récents
+    # la planification suit le fichier renommé (l'identifiant d'un flux en fichier est son chemin)
+    schedule = next(s for s in client.get("/api/schedules").json() if s["id"] == plan.json()["id"])
+    assert schedule["flow_id"] == renamed.json()["id"] and schedule["flow_name"] == "Bilan_ 2026"
 
     other = client.post("/api/flows", json={"flow": FLOW, "path": str(path)}).json()
     taken = client.post(f"/api/flows/{other['id']}/rename", json={"flow": {**FLOW, "name": "Bilan_ 2026"}})

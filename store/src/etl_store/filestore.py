@@ -220,6 +220,7 @@ class FileStore(Store):
             except OSError as exc:
                 raise FileAccessError(f"{path} : {exc.strerror or exc}") from exc
             self._forget(path)
+            self.move_flow_references(flow_id, make_id(target))
             return self.update_flow(make_id(target), name, content, None)
         if revision is not None:
             _current, raw = self._read(path)
@@ -229,6 +230,7 @@ class FileStore(Store):
         with contextlib.suppress(OSError):
             path.unlink()
         self._forget(path)
+        self.move_flow_references(flow_id, created["id"])  # runs et planifications suivent le fichier
         return created
 
     def _forget(self, path: Path) -> None:

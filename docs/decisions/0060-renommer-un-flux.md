@@ -21,5 +21,5 @@ pas modifiable dans l'éditeur : seul « Enregistrer sous… » en donnait un au
    fichier (409), rien de perdu si l'ancien ne peut pas être retiré.
 
 ## Conséquences
-- En fichiers, l'identifiant d'un flux est son chemin : les runs passés d'un fichier renommé ne sont plus rattachés au
-  flux dans la page d'accueil (ils restent dans l'historique des runs).
+- En fichiers, l'identifiant d'un flux est son chemin : au renommage, les runs et les planifications du flux passent
+  au nouvel identifiant (`Store.move_flow_references`). Un fichier renommé hors de Carriole, lui, n'est plus retrouvé.
