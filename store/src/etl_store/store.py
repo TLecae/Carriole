@@ -275,6 +275,12 @@ class Store:
             row.updated_at, row.revision = time.time(), row.revision + 1
             return _flow_dict(row)
 
+    def rename_flow(
+        self, flow_id: str, name: str, content: dict[str, Any], revision: int | str | None
+    ) -> dict[str, Any]:
+        """Renomme le flux (et l'enregistre) ; en base, le nom n'est qu'un champ du flux."""
+        return self.update_flow(flow_id, name, content, revision)
+
     @staticmethod
     def _check_component_name(s: Session, name: str | None, flow_id: str | None) -> None:
         if not name:

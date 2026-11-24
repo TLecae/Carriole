@@ -8,6 +8,7 @@ import { ConnectionBanner } from "./components/ConnectionBanner";
 import { Home } from "./components/Home";
 import { LoginPage } from "./components/LoginPage";
 import { PickerHost } from "./components/PickerHost";
+import { RenameHost } from "./components/Dialogs";
 import { GlobalDialogs } from "./components/GlobalDialogs";
 import { api } from "./api/client";
 import { Palette } from "./components/Palette";
@@ -230,6 +231,7 @@ function Workspace() {
         </div>
       )}
       <PickerHost />
+      <RenameHost />
       <GlobalDialogs />
       <ConnectionBanner />
       {dropping && (

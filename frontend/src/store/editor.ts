@@ -6,7 +6,7 @@ import type { Access, Analysis, FlowDoc, FlowRecord, FlowSummary, RunEvent, RunS
 import { applyResult, IDLE_RUN, reduceEvent, type RunState, settle } from "../model/runState";
 import { differsFrom, signatures, staleNodes } from "../model/staleness";
 import { pickPath } from "../platform";
-import { useUi } from "./ui";
+import { useUi, type RenameChoice } from "./ui";
 import {
   applyCollapsed,
   fromFlowDoc,
@@ -51,6 +51,7 @@ interface EditorState {
   access: Access; // mode serveur : « read », le flux d'un autre partagé en lecture (enregistré en copie)
   flowOwner: string;
   meta: FlowMeta;
+  savedName: string; // nom du flux à l'ouverture ou au dernier enregistrement : changé, on demande quoi en faire
   nodes: AppNode[];
   edges: AppEdge[];
   dirty: boolean;
@@ -155,30 +156,45 @@ function savedCaching(): boolean {
 
 const fileName = (name: string) => `${name.replace(/[<>:"/\\|?*]+/g, "_").trim() || "flux"}.json`;
 
+/** Fichier `name` dans le dossier du fichier `path`. */
+const siblingPath = (path: string, name: string) => path.replace(/[^\\/]*$/, "") + fileName(name);
+
 /** Enregistrement demandé pendant une coupure du moteur : refait à son retour (`path` : emplacement déjà choisi). */
-let pendingSave: { saveAs: boolean; path: string | null } | null = null;
+let pendingSave: { saveAs: boolean; path: string | null; choice: RenameChoice | null } | null = null;
 
 onConnection((online) => {
   if (!online || !pendingSave) return;
-  const { saveAs, path } = pendingSave;
+  const { saveAs, path, choice } = pendingSave;
   pendingSave = null;
-  void persist(saveAs, path);
+  void persist(saveAs, path, choice);
 });
 
 /**
  * Enregistre le flux. Flux en fichiers : un flux neuf (ou « enregistrer sous ») demande son emplacement ; un flux déjà
  * ouvert réécrit son fichier, sauf s'il a changé sur le disque depuis l'ouverture (message du serveur, rien d'écrasé).
- * Moteur injoignable : l'enregistrement est refait dès son retour (rien n'est perdu, la page garde le flux).
+ * Nom changé depuis l'ouverture : l'utilisateur choisit entre un nouveau flux (l'original reste tel quel ; en fichiers,
+ * à côté de lui) et le renommage. Moteur injoignable : l'enregistrement est refait dès son retour (rien n'est perdu,
+ * la page garde le flux).
  */
-async function persist(saveAs: boolean, chosen: string | null = null): Promise<boolean> {
-  const { flowId, revision, meta, nodes, edges, access } = useEditor.getState();
+async function persist(saveAs: boolean, chosen: string | null = null, decided: RenameChoice | null = null): Promise<boolean> {
+  const { flowId, flowPath, revision, meta, nodes, edges, access, savedName } = useEditor.getState();
   const doc = toFlowDoc(meta, nodes, edges);
   const files = useUi.getState().flowStorage === "files";
   let path = chosen;
   const copy = access === "read" && !files; // flux partagé en lecture : une copie à son nom
+  let choice = decided;
+  if (!choice && flowId && !saveAs && !copy && meta.name.trim() !== savedName.trim()) {
+    choice = await useUi.getState().askRename(savedName, meta.name.trim());
+    if (!choice) return false;
+  }
   try {
     let rec: FlowRecord;
-    if (flowId && !(saveAs && files) && !copy) {
+    if (choice === "rename" && flowId) {
+      rec = await api.renameFlow(flowId, doc, revision);
+    } else if (choice === "new") {
+      path ??= files && flowPath ? siblingPath(flowPath, meta.name.trim()) : null;
+      rec = await api.createFlow(doc, path ?? undefined);
+    } else if (flowId && !(saveAs && files) && !copy) {
       rec = await api.saveFlow(flowId, doc, revision);
     } else if (files) {
       path ??= await pickPath({ mode: "write", title: t("Enregistrer le flux"), defaultName: fileName(meta.name), extensions: [".json"] });
@@ -193,6 +209,7 @@ async function persist(saveAs: boolean, chosen: string | null = null): Promise<b
       flowPath: rec.path ?? null,
       revision: rec.revision,
       meta: files ? { ...s.meta, name: rec.name } : s.meta,
+      savedName: files ? rec.name : doc.name,
       dirty: false,
       access: copy ? "owner" : s.access,
       flowOwner: copy ? rec.owner : s.flowOwner,
@@ -203,7 +220,7 @@ async function persist(saveAs: boolean, chosen: string | null = null): Promise<b
     return true;
   } catch (err) {
     if (err instanceof ApiError && err.status === 0) {
-      pendingSave = { saveAs, path };
+      pendingSave = { saveAs, path, choice };
       useEditor.setState({ notice: { kind: "error", text: t("Le moteur ne répond pas : le flux sera enregistré dès son retour.") } });
       return false;
     }
@@ -264,7 +281,7 @@ export const useEditor = create<EditorState>((set, get) => {
   };
 
   const replace = (nodes: AppNode[], edges: AppEdge[], meta: FlowMeta, extra: Partial<EditorState> = {}) =>
-    set({ nodes: relayout(nodes), edges, meta, past: [], future: [], dirty: false, analysis: null, ...extra });
+    set({ nodes: relayout(nodes), edges, meta, savedName: meta.name, past: [], future: [], dirty: false, analysis: null, ...extra });
 
   /** Affiche un flux lu sur le serveur dans l'éditeur, puis rattache son dernier run (« reconnexion »). */
   const show = async (rec: FlowRecord): Promise<void> => {
@@ -293,6 +310,7 @@ export const useEditor = create<EditorState>((set, get) => {
     access: "owner",
     flowOwner: "",
     meta: { name: t("Nouveau flux"), description: "", publishedParams: [], variables: [], component: null },
+    savedName: "",
     nodes: [],
     edges: [],
     dirty: false,

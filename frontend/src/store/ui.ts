@@ -9,6 +9,14 @@ export interface PickerRequest extends PickOptions {
   resolve: (path: string | null) => void;
 }
 
+/** Nom du flux changé : en faire un nouveau flux (l'ancien reste tel quel) ou renommer celui-ci. */
+export type RenameChoice = "new" | "rename";
+export interface RenameRequest {
+  previous: string;
+  name: string;
+  resolve: (choice: RenameChoice | null) => void;
+}
+
 export const MIN_BOTTOM = 120;
 const DEFAULT_BOTTOM = 230;
 const HEIGHT_KEY = "etl.bottomHeight";
@@ -77,6 +85,9 @@ interface UiState {
   picker: PickerRequest | null;
   openPicker: (request: PickerRequest) => void;
   closePicker: (path: string | null) => void;
+  renameAsk: RenameRequest | null; // nom du flux changé avant d'enregistrer : nouveau flux ou renommage
+  askRename: (previous: string, name: string) => Promise<RenameChoice | null>;
+  closeRename: (choice: RenameChoice | null) => void;
   setConnectionsOpen: (open: boolean) => void;
   runRequest: { target: string | null; fresh: boolean } | null; // lancement qui attend ses paramètres publiés
   setRunRequest: (request: { target: string | null; fresh: boolean } | null) => void;
@@ -118,6 +129,13 @@ export const useUi = create<UiState>((set) => ({
     set((s) => {
       s.picker?.resolve(path);
       return { picker: null };
+    }),
+  renameAsk: null,
+  askRename: (previous, name) => new Promise((resolve) => set({ renameAsk: { previous, name, resolve } })),
+  closeRename: (choice) =>
+    set((s) => {
+      s.renameAsk?.resolve(choice);
+      return { renameAsk: null };
     }),
   setConnectionsOpen: (connectionsOpen) => set({ connectionsOpen }),
   runRequest: null,

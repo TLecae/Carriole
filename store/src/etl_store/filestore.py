@@ -16,6 +16,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -64,6 +65,14 @@ def _named(path: Path, content: dict[str, Any]) -> dict[str, Any]:
     """Le flux porte le nom de son fichier (sans « .json ») : un seul nom, celui que l'utilisateur a choisi en
     l'enregistrant ; on renomme un flux par « Enregistrer sous… »."""
     return {**content, "name": path.stem}
+
+
+_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
+
+
+def _file_stem(name: str) -> str:
+    """Nom de fichier tiré du nom d'un flux : sans séparateur ni caractère refusé par Windows."""
+    return _UNSAFE.sub("_", name).strip().rstrip(". ") or "flux"
 
 
 def _component_of(content: dict[str, Any]) -> str | None:
@@ -191,6 +200,46 @@ class FileStore(Store):
             raise FileAccessError(f"{path} : {exc.strerror or exc}") from exc
         self._remember(path, content)
         return self._dict(path, content, _text(content).encode("utf-8"))
+
+    def rename_flow(
+        self, flow_id: str, name: str, content: dict[str, Any], revision: int | str | None
+    ) -> dict[str, Any]:
+        """Renomme le fichier du flux (même dossier, `<name>.json`) et y écrit `content`. Le nouveau fichier est écrit
+        avant que l'ancien soit retiré : rien n'est perdu si le retrait échoue (fichier verrouillé)."""
+        path = flow_path(flow_id)
+        target = path.with_name(_file_stem(name) + ".json")
+        if not path.exists():
+            raise NotFound(str(path))
+        if os.path.normcase(str(target)) == os.path.normcase(str(path)):
+            if target.name == path.name:
+                return self.update_flow(flow_id, name, content, revision)
+            # seule la casse change : le système de fichiers y voit le même fichier, on le renomme en place
+            self.update_flow(flow_id, name, content, revision)
+            try:
+                os.rename(path, target)
+            except OSError as exc:
+                raise FileAccessError(f"{path} : {exc.strerror or exc}") from exc
+            self._forget(path)
+            return self.update_flow(make_id(target), name, content, None)
+        if revision is not None:
+            _current, raw = self._read(path)
+            if str(revision) != _revision(raw):
+                raise Conflict("le fichier a changé sur le disque depuis son ouverture")
+        created = self.create_flow(name, content, "", path=str(target))
+        with contextlib.suppress(OSError):
+            path.unlink()
+        self._forget(path)
+        return created
+
+    def _forget(self, path: Path) -> None:
+        """Retire `path` des récents (fichier renommé)."""
+        key = os.path.normcase(os.path.abspath(path))
+        with self._recents_lock:
+            recents = self._recents()
+            kept = [r for r in recents if os.path.normcase(os.path.abspath(r.get("path", ""))) != key]
+            if len(kept) != len(recents):
+                with contextlib.suppress(OSError):
+                    atomic.write_text(self._recents_file, json.dumps(kept, ensure_ascii=False, indent=1))
 
     def list_flows(self) -> list[dict[str, Any]]:
         """Flux récents, le plus récent d'abord ; aucun accès disque (un partage injoignable ne bloque rien)."""

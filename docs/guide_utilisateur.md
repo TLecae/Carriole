@@ -41,8 +41,9 @@ un flux neuf, à enregistrer.
 4. **Enregistrer** : `Ctrl+S`. Un flux neuf s'appelle « Nouveau flux » et porte la mention *non enregistré* ; le
    premier enregistrement demande où ranger le fichier, et **le flux prend le nom de ce fichier** (un seul nom : pas
    de nom à saisir à part). Les enregistrements suivants réécrivent le même fichier (un point signale des
-   modifications non enregistrées). **Enregistrer sous…** (`Ctrl+Maj+S`) crée une copie ailleurs, ou sous un autre
-   nom : c'est ainsi qu'on renomme un flux. Si un collègue a modifié le fichier depuis
+   modifications non enregistrées). **Enregistrer sous…** (`Ctrl+Maj+S`) crée une copie ailleurs. Le nom se modifie
+   dans la barre du haut : à l'enregistrement, Carriole propose de **créer un nouveau fichier** dans le même dossier
+   (choix par défaut, l'original reste tel quel) ou de **renommer le fichier**. Si un collègue a modifié le fichier depuis
    que vous l'avez ouvert, l'enregistrement est **refusé** (rien n'est écrasé) : *Enregistrer sous…* garde votre travail.
 
 Sélection : cliquer un nœud, ou tirer un cadre sur le fond du canvas ; `Ctrl`+clic (ou `Maj`+clic) ajoute un nœud à

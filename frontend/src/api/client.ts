@@ -172,6 +172,9 @@ export const api = {
   readFlow: (name: string, content: string) => call<FlowDoc>("/flows/read", { method: "POST", ...json({ name, content }) }),
   saveFlow: (id: string, flow: FlowDoc, revision: number | string | null) =>
     call<FlowRecord>(`/flows/${id}`, { method: "PUT", ...json({ flow, revision }) }),
+  // nouveau nom : fichiers, le fichier est renommé dans son dossier ; base, un enregistrement sous ce nom
+  renameFlow: (id: string, flow: FlowDoc, revision: number | string | null) =>
+    call<FlowRecord>(`/flows/${id}/rename`, { method: "POST", ...json({ flow, revision }) }),
   deleteFlow: (id: string) => call<void>(`/flows/${id}`, { method: "DELETE" }),
   // run : dernier run du flux, dont le cache donne le schéma des ports connus seulement à l'exécution (PivotWider…)
   analyze: (flow: FlowDoc, params: Record<string, string> = {}, run: string | null = null) =>

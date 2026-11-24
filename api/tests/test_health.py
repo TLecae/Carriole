@@ -94,6 +94,8 @@ def test_flow_crud_with_revision_conflict(client):
     stale = client.put(f"/api/flows/{created['id']}", json={"flow": flow, "revision": 1})
     assert stale.status_code == 409
     assert [f["name"] for f in client.get("/api/flows").json()] == ["v2"]
+    renamed = client.post(f"/api/flows/{created['id']}/rename", json={"flow": {**flow, "name": "v3"}, "revision": 2})
+    assert renamed.status_code == 200 and renamed.json()["name"] == "v3"  # en base : un enregistrement sous ce nom
     assert client.delete(f"/api/flows/{created['id']}").status_code == 204
     assert client.get(f"/api/flows/{created['id']}").status_code == 404
 

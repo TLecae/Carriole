@@ -154,6 +154,24 @@ def update_flow(flow_id: str, body: FlowIn, store: Annotated[Store, Depends(get_
         raise HTTPException(503, f"enregistrement impossible : {exc}") from None
 
 
+@router.post("/flows/{flow_id}/rename")
+def rename_flow(flow_id: str, body: FlowIn, store: Annotated[Store, Depends(get_store)], identity: Who):
+    """Enregistre le flux sous son nouveau nom. Fichiers : le fichier est renommé (même dossier) ; base : comme un
+    enregistrement."""
+    if rights.server_mode():
+        access.flow_access(store, identity, flow_id, "write")
+    try:
+        return store.rename_flow(flow_id, body.flow.name or "(sans nom)", _dump(body.flow), body.revision)
+    except NotFound:
+        raise HTTPException(404, "flux introuvable") from None
+    except DuplicateComponent as exc:
+        raise HTTPException(422, str(exc)) from None
+    except Conflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except FileAccessError as exc:
+        raise HTTPException(503, f"enregistrement impossible : {exc}") from None
+
+
 @router.delete("/flows/{flow_id}", status_code=204)
 def delete_flow(flow_id: str, store: Annotated[Store, Depends(get_store)], identity: Who) -> None:
     """Base : supprime le flux. Fichiers : le retire des récents (le fichier n'est jamais supprimé)."""

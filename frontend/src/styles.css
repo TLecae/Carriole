@@ -566,7 +566,7 @@ button.icon-only { padding: 4px 6px; }
 .menu-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 4px 8px 2px; }
 .appbar .flow-name { width: 240px; font-weight: 600; }
 .appbar .flow-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 320px; padding: 0 4px; }
-.appbar .flow-file { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.appbar .flow-file { min-width: 0; }
 .appbar .unsaved-tag { flex: none; font-size: 11px; color: var(--warn); background: var(--warn-soft); border: 1px solid var(--warn-line); border-radius: 9px; padding: 0 7px; }
 .appbar .dirty-dot { flex: none; color: var(--warn); font-weight: 700; }
 /* mise en cache globale : interrupteur à côté de « Lancer » */

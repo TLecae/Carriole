@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { PublishedParam } from "../api/types";
 import { useEditor } from "../store/editor";
+import { useUi } from "../store/ui";
 import { formatDateTime, t } from "../i18n";
 
 export function Modal({ title, onClose, children, className = "" }: { title: string; onClose: () => void; children: React.ReactNode; className?: string }) {
@@ -17,6 +18,31 @@ export function Modal({ title, onClose, children, className = "" }: { title: str
         {children}
       </div>
     </div>
+  );
+}
+
+/** Nom du flux changé avant d'enregistrer : nouveau flux (choix par défaut, l'original reste tel quel) ou renommage. */
+export function RenameHost() {
+  const ask = useUi((s) => s.renameAsk);
+  const close = useUi((s) => s.closeRename);
+  const files = useUi((s) => s.flowStorage === "files");
+  if (!ask) return null;
+  return (
+    <Modal title={t("Nom du flux modifié")} onClose={() => close(null)}>
+      <p>{t("« {{previous}} » devient « {{name}} ».", { previous: ask.previous, name: ask.name })}</p>
+      <p className="muted">
+        {files
+          ? t("Nouveau fichier : écrit dans le même dossier, l'original reste tel quel. Renommer : le fichier change de nom.")
+          : t("Nouveau flux : l'original reste tel quel. Renommer : le flux change de nom.")}
+      </p>
+      <div className="modal-actions">
+        <button onClick={() => close(null)}>{t("Annuler")}</button>
+        <button onClick={() => close("rename")}>{files ? t("Renommer le fichier") : t("Renommer le flux")}</button>
+        <button className="primary" autoFocus onClick={() => close("new")}>
+          {files ? t("Créer un nouveau fichier") : t("Créer un nouveau flux")}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

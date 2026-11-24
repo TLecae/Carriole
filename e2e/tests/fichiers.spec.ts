@@ -23,7 +23,7 @@ test("enregistrer un flux dans un fichier, le retrouver dans les récents et le 
   fs.rmSync(file, { force: true });
   await page.goto("/#new");
   // un flux neuf s'appelle « Nouveau flux » et le dit : il n'est pas encore enregistré
-  await expect(page.getByTestId("flow-name")).toHaveText("Nouveau flux");
+  await expect(page.getByTestId("flow-name")).toHaveValue("Nouveau flux");
   await expect(page.getByTestId("flow-unsaved")).toBeVisible();
   await addFromPalette(page, "CsvReader");
   await page.getByLabel("Fichier", { exact: true }).fill(`${IN}/communes.csv`);
@@ -39,9 +39,9 @@ test("enregistrer un flux dans un fichier, le retrouver dans les récents et le 
   await dialog.getByRole("button", { name: "Choisir" }).click();
   await expect(page.getByText("Flux enregistré")).toBeVisible();
   await expect(page).toHaveURL(/flow=[A-Za-z0-9_-]+/);
-  // le flux prend le nom de son fichier, une fois pour toutes (« Enregistrer sous… » pour le changer)
+  // le flux prend le nom de son fichier
   expect(JSON.parse(fs.readFileSync(file, "utf-8")).name).toBe("flux_e2e");
-  await expect(page.getByTestId("flow-name")).toHaveText("flux_e2e");
+  await expect(page.getByTestId("flow-name")).toHaveValue("flux_e2e");
   await expect(page.getByTestId("flow-unsaved")).toHaveCount(0);
 
   // Enregistrements suivants : directement dans le même fichier, sans question
@@ -75,7 +75,7 @@ test("enregistrer un flux dans un fichier, le retrouver dans les récents et le 
   await goTo(open, folder());
   await open.getByRole("option", { name: /flux_e2e\.json/ }).click();
   await open.getByRole("button", { name: "Choisir" }).click();
-  await expect(page.getByTestId("flow-name")).toHaveText("flux_e2e");
+  await expect(page.getByTestId("flow-name")).toHaveValue("flux_e2e");
   await expect(page.getByTestId("node-CsvReader_1")).toBeVisible();
 });
 
@@ -88,7 +88,7 @@ test("un collègue a modifié le fichier : l'enregistrement est refusé, rien n'
   const id = (await created.json()).id as string;
 
   await page.goto(`/#flow=${id}`);
-  await expect(page.getByTestId("flow-name")).toHaveText("partage_e2e"); // le nom du fichier
+  await expect(page.getByTestId("flow-name")).toHaveValue("partage_e2e"); // le nom du fichier
   // le collègue enregistre de son côté
   const theirs = JSON.parse(fs.readFileSync(file, "utf-8"));
   fs.writeFileSync(file, JSON.stringify({ ...theirs, description: "Version du collègue" }));
@@ -108,5 +108,35 @@ test("un collègue a modifié le fichier : l'enregistrement est refusé, rien n'
   const mine = JSON.parse(fs.readFileSync(path.join(folder(), "ma_version.json"), "utf-8"));
   expect(mine.name).toBe("ma_version");
   expect(mine.nodes).toHaveLength(1);
-  await expect(page.getByTestId("flow-name")).toHaveText("ma_version");
+  await expect(page.getByTestId("flow-name")).toHaveValue("ma_version");
+});
+
+test("nom du flux changé : nouveau fichier par défaut, ou renommage du fichier", async ({ page }) => {
+  const file = (name: string) => path.join(folder(), `${name}.json`);
+  for (const name of ["nom_e2e", "nom_e2e_copie", "nom_e2e_final"]) fs.rmSync(file(name), { force: true });
+  const created = await page.request.post("/api/flows", { data: { flow: { name: "x", nodes: [], links: [] }, path: file("nom_e2e") } });
+  await page.goto(`/#flow=${(await created.json()).id}`);
+  await expect(page.getByTestId("flow-name")).toHaveValue("nom_e2e");
+
+  const save = async (name: string) => {
+    await page.getByTestId("flow-name").fill(name);
+    await page.getByRole("button", { name: "Enregistrer", exact: false }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Nom du flux modifié" });
+    await expect(dialog).toBeVisible();
+    return dialog;
+  };
+  // choix par défaut : un nouveau fichier à côté, l'original reste
+  const first = await save("nom_e2e_copie");
+  await expect(first.getByRole("button", { name: "Créer un nouveau fichier" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => fs.existsSync(file("nom_e2e_copie"))).toBe(true);
+  expect(fs.existsSync(file("nom_e2e"))).toBe(true);
+  await expect(page.getByTestId("flow-name")).toHaveValue("nom_e2e_copie");
+
+  // renommer : le fichier change de nom
+  const second = await save("nom_e2e_final");
+  await second.getByRole("button", { name: "Renommer le fichier" }).click();
+  await expect.poll(() => fs.existsSync(file("nom_e2e_final"))).toBe(true);
+  expect(fs.existsSync(file("nom_e2e_copie"))).toBe(false);
+  await expect(page.getByTestId("flow-name")).toHaveValue("nom_e2e_final");
 });

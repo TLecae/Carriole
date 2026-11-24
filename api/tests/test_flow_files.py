@@ -54,6 +54,29 @@ def test_save_open_and_edit_a_flow_file(client):
     assert json.loads(path.read_text("utf-8"))["description"] == "v2"
 
 
+def test_rename_a_flow_file(client):
+    """Nom changé dans l'éditeur, choix « renommer » : le fichier change de nom dans son dossier, l'ancien disparaît."""
+    path = client.tmp / "partage" / "flux.json"
+    flow = client.post("/api/flows", json={"flow": FLOW, "path": str(path)}).json()
+    renamed = client.post(
+        f"/api/flows/{flow['id']}/rename",
+        json={"flow": {**FLOW, "name": "Bilan: 2026", "description": "v2"}, "revision": flow["revision"]},
+    )
+    assert renamed.status_code == 200, renamed.text
+    target = client.tmp / "partage" / "Bilan_ 2026.json"
+    assert renamed.json()["path"] == str(target) and renamed.json()["name"] == "Bilan_ 2026"
+    assert not path.exists() and json.loads(target.read_text("utf-8"))["description"] == "v2"
+    assert [f["path"] for f in client.get("/api/flows").json()] == [str(target)]  # l'ancien chemin a quitté les récents
+
+    other = client.post("/api/flows", json={"flow": FLOW, "path": str(path)}).json()
+    taken = client.post(f"/api/flows/{other['id']}/rename", json={"flow": {**FLOW, "name": "Bilan_ 2026"}})
+    assert taken.status_code == 409 and path.is_file()  # jamais d'écrasement d'un autre fichier
+    stale = client.post(f"/api/flows/{renamed.json()['id']}/rename", json={"flow": FLOW, "revision": "0"})
+    assert stale.status_code == 409 and target.is_file()
+    same = client.post(f"/api/flows/{other['id']}/rename", json={"flow": {**FLOW, "name": "flux"}})
+    assert same.status_code == 200 and same.json()["path"] == str(path)
+
+
 def test_open_by_path_recents_and_error_messages(client):
     path = client.tmp / "existant.json"
     path.write_text(json.dumps(FLOW), encoding="utf-8")

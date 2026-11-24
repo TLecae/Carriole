@@ -123,11 +123,16 @@ export function TopBar() {
       <ToolsMenu />
       <Divider />
       {files ? (
-        // flux en fichiers : un seul nom, celui du fichier ; « Enregistrer sous… » pour le changer
+        // flux en fichiers : un seul nom, celui du fichier ; changé, l'enregistrement propose un nouveau fichier ou le renommage
         <span className="flow-title">
-          <strong className="flow-file" aria-label={t("Nom du flux")} data-testid="flow-name" title={s.flowPath ?? t("Pas encore enregistré : Ctrl+S pour choisir le fichier")}>
-            {s.meta.name}
-          </strong>
+          <input
+            className="flow-name flow-file"
+            aria-label={t("Nom du flux")}
+            data-testid="flow-name"
+            title={s.flowPath ?? t("Pas encore enregistré : Ctrl+S pour choisir le fichier")}
+            value={s.meta.name}
+            onChange={(e) => s.setMeta({ name: e.target.value })}
+          />
           {!s.flowId ? (
             <span className="unsaved-tag" data-testid="flow-unsaved">
               {t("non enregistré")}

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Editor: saving a flow whose name was changed asks whether to create a new flow (default; with flow files, a new
+  file next to the original) or to rename it (with flow files, the file is renamed). The name of a flow file can now
+  be edited in the top bar (ADR 0060).
 - Editor: a port whose schema is only known at run time (PivotWider without listed columns, ExecuteSql…) takes the
   schema of its data in the last run's cache; the following nodes offer its attributes again.
 - Map view: the feature under the cursor is highlighted (denser fill, thicker outline or line, larger point), not
