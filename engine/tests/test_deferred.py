@@ -100,6 +100,8 @@ CASES = {
     ),
     "retirer": ("DropAttributes", {"attributes": ["txt"], "remove_geometry": True}, ["output"]),
     "garder": ("RetainAttributes", {"attributes": ["dep", "id"]}, ["output"]),
+    "réordonner": ("ReorderAttributes", {"attributes": ["txt", "id"]}, ["output"]),
+    "réordonner (autres avant)": ("ReorderAttributes", {"attributes": ["id"], "others": "before"}, ["output"]),
     "renommer (échange)": ("RenameAttributes", {"renamings": SWAP}, ["output"]),
     "plusieurs sorties (first)": ("RouteByExpression", {"tests": ROUTES, "mode": "first"}, ["A", "B", "Failed"]),
     "plusieurs sorties (all)": ("RouteByExpression", {"tests": ROUTES, "mode": "all"}, ["A", "B", "Failed"]),

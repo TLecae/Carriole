@@ -19,6 +19,7 @@ import pyarrow.compute as pc
 from pydantic import Field
 
 from etl_engine import duck, formats, paths
+from etl_engine.column_order import order_field, reorder, reorder_schema
 from etl_engine.expr import (
     check_single_expression,
     expression_type,
@@ -619,6 +620,8 @@ class FileWriter(Modifier):
         if not self.params.path:
             raise ConfigError("chemin du fichier non renseigné")
         schema = inputs.get("input")
+        if schema is not None:
+            schema = reorder_schema(schema, getattr(self.params, "column_order", []))  # colonne absente : erreur
         if schema is not None and self._appends():
             formats.check_append(self._fmt(self.params.path), self.params.path, schema, *self._where())
         return {}
@@ -639,6 +642,7 @@ class FileWriter(Modifier):
         p = self.params
         if not p.path:
             raise ConfigError("chemin du fichier non renseigné")
+        order = getattr(p, "column_order", [])
         writer, stage = open_target(p, p.path, self._fmt(p.path))
         rows = 0
         try:
@@ -648,7 +652,7 @@ class FileWriter(Modifier):
                 for batch in inputs.get("input", ()):
                     self.ctx.check_cancel()
                     rows += batch.num_rows
-                    yield batch
+                    yield reorder(batch, order)
 
             if hasattr(writer, "write_stream"):
                 writer.write_stream(counted())
@@ -682,6 +686,7 @@ class CsvWriter(FileWriter):
         path: str = path_field((".csv", ".txt", ".tsv"), "D:/sorties/resultat.csv", "write")
         delimiter: str = Field(",", title="Séparateur", description="Séparateur de colonnes.", examples=[";"])
         mode: Literal["create", "overwrite", "append"] = mode()
+        column_order: list[str] = order_field()
 
 
 class ExcelWriter(FileWriter):
@@ -698,6 +703,7 @@ class ExcelWriter(FileWriter):
         path: str = path_field((".xlsx",), "D:/sorties/resultat.xlsx", "write")
         sheet: str = Field("", title="Feuille", description="Nom de la feuille ; vide = « Feuil1 ».", examples=["2024"])
         mode: Literal["create", "overwrite", "append"] = mode(layer=True)
+        column_order: list[str] = order_field()
 
 
 class GeoPackageWriter(FileWriter):
@@ -716,6 +722,7 @@ class GeoPackageWriter(FileWriter):
             "", title="Couche", description="Nom de la couche ; vide = le nom du fichier.", examples=["communes"]
         )
         mode: Literal["create", "overwrite", "append"] = mode(layer=True)
+        column_order: list[str] = order_field()
 
 
 class ShapefileWriter(FileWriter):
@@ -732,6 +739,7 @@ class ShapefileWriter(FileWriter):
         path: str = path_field((".shp",), "D:/sorties/resultat.shp", "write")
         encoding: str = Field("", title="Encodage", description="Vide = utf-8 (écrit dans le .cpg).")
         mode: Literal["create", "overwrite", "append"] = mode()
+        column_order: list[str] = order_field()
 
 
 class GeoJsonWriter(FileWriter):
@@ -744,6 +752,7 @@ class GeoJsonWriter(FileWriter):
     class Params(Params):
         path: str = path_field((".geojson", ".json"), "D:/sorties/resultat.geojson", "write")
         mode: Literal["create", "overwrite", "append"] = mode()
+        column_order: list[str] = order_field()
 
 
 class FlatGeobufWriter(FileWriter):
@@ -756,6 +765,7 @@ class FlatGeobufWriter(FileWriter):
     class Params(Params):
         path: str = path_field((".fgb",), "D:/sorties/resultat.fgb", "write")
         mode: Literal["create", "overwrite", "append"] = mode()
+        column_order: list[str] = order_field()
 
 
 class GeoParquetWriter(FileWriter):
@@ -770,6 +780,7 @@ class GeoParquetWriter(FileWriter):
     class Params(Params):
         path: str = path_field((".parquet", ".geoparquet"), "D:/sorties/resultat.parquet", "write")
         mode: Literal["create", "overwrite", "append"] = mode()
+        column_order: list[str] = order_field()
         compression: Literal["zstd", "snappy", "gzip", "none"] = Field(
             "zstd", title="Compression", description="zstd : compact et rapide ; none : aucune."
         )
@@ -791,6 +802,7 @@ class MapInfoWriter(FileWriter):
         path: str = path_field((".tab", ".mif"), "D:/sorties/resultat.tab", "write")
         encoding: str = Field("", title="Encodage", description="Vide = celui du format.")
         mode: Literal["create", "overwrite", "append"] = mode()
+        column_order: list[str] = order_field()
 
 
 class DxfWriter(FileWriter):
@@ -872,6 +884,7 @@ class SpatiaLiteWriter(FileWriter):
             "", title="Table", description="Nom de la table ; vide = le nom du fichier.", examples=["communes"]
         )
         mode: Literal["create", "overwrite", "append"] = mode(layer=True)
+        column_order: list[str] = order_field()
 
 
 # ------------------------------------------------------------------------------------------------ anciens nœuds

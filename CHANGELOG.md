@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- ReorderAttributes, a new modifier: puts attributes in the chosen order and keeps the others after (or before) them.
+  File and database writers (except DXF) get a *Column order* setting. Both use a new form field: the received
+  attributes, moved with arrows or by drag and drop.
 - Editor, ports named by parameters (RouteByExpression outputs, ExecuteSql and RasterCalculator inputs): renaming a
   port keeps its links (also when the name is cleared, then typed again), deleting a row removes the links of its
   port, and React Flow measures the handles again when the ports change. A renamed output used to keep links to the

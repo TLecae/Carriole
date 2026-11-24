@@ -4,6 +4,7 @@ from etl_engine.modifiers.add_attributes import AddAttributes
 from etl_engine.modifiers.extract_by_expression import ExtractByExpression
 from etl_engine.modifiers.refactor_attributes import RefactorAttributes
 from etl_engine.modifiers.rename_attributes import RenameAttributes
+from etl_engine.modifiers.reorder_attributes import ReorderAttributes
 from etl_engine.modifiers.retain_attributes import RetainAttributes
 from etl_engine.sdk import ConfigError
 from etl_engine.testing import points, run_modifier, table
@@ -147,6 +148,17 @@ def test_keeper_order_and_geometry():
     assert out.column_names == ["c"]
     with pytest.raises(ConfigError):
         run_modifier(RetainAttributes, {"attributes": ["nope"]}, t)
+
+
+def test_reorder_keeps_every_attribute():
+    t = points([1.0], [2.0], a=[1], b=[2], c=[3])
+    out = run_modifier(ReorderAttributes, {"attributes": ["c", "a"]}, t)["output"]
+    assert out.column_names == ["c", "a", "b", "geometry"] and out.column("c").to_pylist() == [3]
+    out = run_modifier(ReorderAttributes, {"attributes": ["a"], "others": "before"}, t)["output"]
+    assert out.column_names == ["b", "c", "a", "geometry"]
+    assert run_modifier(ReorderAttributes, {}, t)["output"].column_names == t.column_names
+    with pytest.raises(ConfigError, match="attribut absent : nope"):
+        run_modifier(ReorderAttributes, {"attributes": ["nope"]}, t)
 
 
 def test_manager_rules_in_order():

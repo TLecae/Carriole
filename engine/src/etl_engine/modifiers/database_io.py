@@ -11,6 +11,7 @@ from typing import Annotated, Any, ClassVar, Literal
 import pyarrow as pa
 from pydantic import Field
 
+from etl_engine.column_order import order_field, reorder, reorder_schema
 from etl_engine.formats import databases
 from etl_engine.sdk import (
     AttributeList,
@@ -93,7 +94,10 @@ class DatabaseWriter(Modifier):
 
     def output_schema(self, inputs: Mapping[str, pa.Schema | None]) -> dict[str, pa.Schema | None]:
         p = self.params
-        databases.check_into_table(p.connection, p.table, p.mode, p.geometry_column or "geom", inputs.get("input"))
+        schema = inputs.get("input")
+        if schema is not None:
+            schema = reorder_schema(schema, p.column_order)  # colonne absente : erreur avant toute lecture
+        databases.check_into_table(p.connection, p.table, p.mode, p.geometry_column or "geom", schema)
         return {}
 
     def run(self, inputs: Mapping[str, Any], emit: Emit) -> None:
@@ -117,7 +121,7 @@ class DatabaseWriter(Modifier):
         try:
             for batch in inputs.get("input", ()):
                 self.ctx.check_cancel()
-                writer.write(batch)
+                writer.write(reorder(batch, p.column_order))
                 rows += batch.num_rows
         except BaseException:
             writer.abort()
@@ -182,6 +186,7 @@ class WriterParams(Params):
     )
     create_spatial_index: bool = Field(True, title="Index spatial", description="Crée un index spatial avec la table.")
     crs: Crs = Field("", title="Système de coordonnées", description="Vide = celui des données.")
+    column_order: list[str] = order_field()
 
 
 CONNECTION = {"title": "Connexion", "description": "Connexion nommée (menu Connexions)."}

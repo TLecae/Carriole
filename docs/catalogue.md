@@ -4,7 +4,7 @@ Page générée par `etl modifiers doc` : ne pas la modifier à la main.
 
 | Catégorie | Modificateurs |
 | --- | --- |
-| Attributs | [Construire une liste](#buildlist), [Convertir le type d'attributs](#castattributes), [Convertir une date](#convertdate), [Créer des attributs](#addattributes), [Découper un texte](#splittext), [Dépivoter (colonnes en lignes)](#pivotlonger), [Extraire du JSON](#extractjson), [Extraire du texte](#extracttext), [Garder des attributs](#retainattributes), [Gérer des attributs](#refactorattributes), [Pivoter (lignes en colonnes)](#pivotwider), [Remplacer du texte](#replacetext), [Renommer des attributs](#renameattributes), [Renommer en masse](#renameattributesbypattern), [Retirer des attributs](#dropattributes), [Table de correspondance](#mapvalues), [Valeurs vides](#replacenulls), [Éclater une liste](#explodelist) |
+| Attributs | [Construire une liste](#buildlist), [Convertir le type d'attributs](#castattributes), [Convertir une date](#convertdate), [Créer des attributs](#addattributes), [Découper un texte](#splittext), [Dépivoter (colonnes en lignes)](#pivotlonger), [Extraire du JSON](#extractjson), [Extraire du texte](#extracttext), [Garder des attributs](#retainattributes), [Gérer des attributs](#refactorattributes), [Pivoter (lignes en colonnes)](#pivotwider), [Remplacer du texte](#replacetext), [Renommer des attributs](#renameattributes), [Renommer en masse](#renameattributesbypattern), [Retirer des attributs](#dropattributes), [Réordonner des attributs](#reorderattributes), [Table de correspondance](#mapvalues), [Valeurs vides](#replacenulls), [Éclater une liste](#explodelist) |
 | Calculs | [Agréger](#aggregate), [Calculer des statistiques](#statisticsbygroup), [Code Python](#pythonscript), [Compteur](#counter), [Requête SQL sur les entrées](#executesql), [Trier](#orderby) |
 | Composants | [Entrée du composant](#componentinput), [Sortie du composant](#componentoutput) |
 | Entrées / sorties | [Appeler une API web](#httprequest), [Créer des entités](#createfeatures), [SQL (créateur)](#databasequery) |
@@ -281,6 +281,21 @@ Un attribut absent est une erreur de configuration (sauf si « Ignorer les absen
 | <a id="dropattributes-attributes"></a>Attributs à retirer | Attributs à supprimer ; vide = rien n'est retiré. |  |
 | <a id="dropattributes-remove_geometry"></a>Retirer aussi la géométrie | Retire aussi la géométrie des entités. | false |
 | <a id="dropattributes-ignore_missing"></a>Ignorer les attributs absents | Décoché : un attribut absent des données est une erreur ; coché : il est ignoré. | false |
+
+<a id="reorderattributes"></a>
+
+### Réordonner des attributs — `ReorderAttributes`
+
+Place des attributs dans l'ordre choisi ; les autres sont gardés, à la suite.
+
+- **Entrées** : `input` — **Sorties** : `output` — **Traitement** : au fil de l'eau
+
+Les attributs de « Ordre » viennent dans cet ordre ; les autres gardent leur ordre d'arrivée, après eux (ou avant, selon « Autres attributs »). Aucun attribut n'est retiré ; la géométrie reste en dernier. Un attribut de la liste absent en amont est une erreur. Les valeurs et l'ordre des entités ne changent pas.
+
+| Paramètre | Rôle | Défaut |
+| --- | --- | --- |
+| <a id="reorderattributes-attributes"></a>Ordre | Attributs placés dans cet ordre (flèches pour déplacer). |  |
+| <a id="reorderattributes-others"></a>Autres attributs | after : après ceux de la liste ; before : avant eux. | `after` |
 
 <a id="mapvalues"></a>
 
@@ -1704,6 +1719,7 @@ Encodage utf-8. Sur un partage réseau, le fichier est écrit en local puis publ
 | <a id="csvwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="csvwriter-delimiter"></a>Séparateur | Séparateur de colonnes. | `,` |
 | <a id="csvwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="csvwriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="dxfwriter"></a>
 
@@ -1739,6 +1755,7 @@ Plusieurs écritures Excel peuvent viser des feuilles différentes du même clas
 | <a id="excelwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="excelwriter-sheet"></a>Feuille | Nom de la feuille ; vide = « Feuil1 ». |  |
 | <a id="excelwriter-mode"></a>Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
+| <a id="excelwriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="flatgeobufwriter"></a>
 
@@ -1754,6 +1771,7 @@ Sur un partage réseau, le fichier est écrit en local puis publié d'un bloc : 
 | --- | --- | --- |
 | <a id="flatgeobufwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="flatgeobufwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="flatgeobufwriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="geojsonwriter"></a>
 
@@ -1769,6 +1787,7 @@ Pour suivre la norme, reprojeter avant en WGS 84 (EPSG:4326). Sur un partage ré
 | --- | --- | --- |
 | <a id="geojsonwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="geojsonwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="geojsonwriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="geopackagewriter"></a>
 
@@ -1785,6 +1804,7 @@ Plusieurs écritures GeoPackage peuvent viser des couches différentes du même 
 | <a id="geopackagewriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="geopackagewriter-layer"></a>Couche | Nom de la couche ; vide = le nom du fichier. |  |
 | <a id="geopackagewriter-mode"></a>Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
+| <a id="geopackagewriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="geoparquetwriter"></a>
 
@@ -1800,6 +1820,7 @@ Plusieurs écritures GeoPackage peuvent viser des couches différentes du même 
 | --- | --- | --- |
 | <a id="geoparquetwriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="geoparquetwriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="geoparquetwriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 | <a id="geoparquetwriter-compression"></a>Compression | zstd : compact et rapide ; none : aucune. | `zstd` |
 | <a id="geoparquetwriter-partition_by"></a>Partitionner par | Colonnes dont chaque valeur donne un sous-dossier ; vide = un seul fichier. |  |
 
@@ -1818,6 +1839,7 @@ Le format (TAB ou MIF) est déduit de l'extension. Sur un partage réseau, le fi
 | <a id="mapinfowriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="mapinfowriter-encoding"></a>Encodage | Vide = celui du format. |  |
 | <a id="mapinfowriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="mapinfowriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="oraclewriter"></a>
 
@@ -1838,6 +1860,7 @@ Modes : create : échoue si la table existe ; overwrite : la recrée ; append : 
 | <a id="oraclewriter-geometry_column"></a>Colonne géométrique créée | Nom de la colonne géométrique, utilisé quand la table est créée. | `geom` |
 | <a id="oraclewriter-create_spatial_index"></a>Index spatial | Crée un index spatial avec la table. | true |
 | <a id="oraclewriter-crs"></a>Système de coordonnées | Vide = celui des données. |  |
+| <a id="oraclewriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="postgreswriter"></a>
 
@@ -1859,6 +1882,7 @@ Modes : « create » échoue si la table existe ; « overwrite » la recrée ; �
 | <a id="postgreswriter-geometry_type"></a>Type de géométrie (création) | Type de la colonne créée. auto : multi-surfaces et multi-lignes pour les polygones et les lignes, sinon le type du premier lot. | `auto` |
 | <a id="postgreswriter-create_spatial_index"></a>Index spatial (GIST) | Crée un index spatial GIST avec la table. | true |
 | <a id="postgreswriter-crs"></a>Système de coordonnées | Vide = celui des données. |  |
+| <a id="postgreswriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="spatialitewriter"></a>
 
@@ -1875,6 +1899,7 @@ Plusieurs écritures peuvent viser des tables différentes de la même base : en
 | <a id="spatialitewriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="spatialitewriter-layer"></a>Table | Nom de la table ; vide = le nom du fichier. |  |
 | <a id="spatialitewriter-mode"></a>Mode | create : échoue si la couche existe ; overwrite : remplace la couche (les autres couches du fichier restent) ; append : ajoute. | `overwrite` |
+| <a id="spatialitewriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |
 
 <a id="shapefilewriter"></a>
 
@@ -1891,3 +1916,4 @@ Noms de colonnes limités à 10 caractères (les renommages sont journalisés), 
 | <a id="shapefilewriter-path"></a>Fichier | Chemin du fichier à écrire (dossiers créés si besoin). |  |
 | <a id="shapefilewriter-encoding"></a>Encodage | Vide = utf-8 (écrit dans le .cpg). |  |
 | <a id="shapefilewriter-mode"></a>Mode | create : échoue si le fichier existe ; overwrite : le remplace ; append : ajoute. | `overwrite` |
+| <a id="shapefilewriter-column_order"></a>Ordre des colonnes | Colonnes écrites d'abord, dans cet ordre ; les autres suivent dans l'ordre reçu. |  |

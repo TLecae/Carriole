@@ -189,6 +189,7 @@ function Editor({ label, schema, value, onChange, ctx, compact }: EditorProps) {
   if (kind === "array") {
     const item = resolveSchema(s.items, ctx.defs);
     if (widget === "attributes") return <CheckList value={asArray(value) as string[]} options={attributesFor(s, ctx)} free onChange={onChange} label={label} />;
+    if (widget === "attribute-order") return <OrderList value={asArray(value) as string[]} options={attributesFor(s, ctx)} onChange={onChange} label={label} />;
     if (item.enum) return <CheckList value={asArray(value) as string[]} options={item.enum.map(String)} onChange={onChange} label={label} />;
     if (widget === "attribute-manager")
       return (
@@ -444,6 +445,93 @@ function CheckList({ value, options, onChange, label, free }: { value: string[];
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Ordre d'attributs : ceux de la liste, puis les autres attributs reçus dans leur ordre (grisés). Flèches ou
+ * glisser-déposer pour déplacer ; un déplacement fixe la place de toutes les lignes jusqu'à celle déplacée, les
+ * suivantes gardent l'ordre reçu. Un nom absent en amont reste visible (à retirer) ; un nom se saisit si l'amont
+ * n'est pas encore connu.
+ */
+function OrderList({ value, options, onChange, label }: { value: string[]; options: string[]; onChange: (v: unknown) => void; label?: string }) {
+  const [typed, setTyped] = useState("");
+  const [dragged, setDragged] = useState<number | null>(null);
+  const known = new Set(options);
+  const rows = [...value, ...options.filter((o) => !value.includes(o))];
+  const name = label ?? t("Ordre");
+  const move = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= rows.length) return;
+    const next = [...rows];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange(next.slice(0, Math.max(from, to, value.length - 1) + 1));
+  };
+  const add = () => {
+    const typedName = typed.trim();
+    if (typedName && !value.includes(typedName)) onChange([...value, typedName]);
+    setTyped("");
+  };
+  return (
+    <div className="order-list" role="list" aria-label={name}>
+      {rows.map((o, i) => (
+        <div
+          key={o}
+          role="listitem"
+          className={`order-row${i >= value.length ? " received" : ""}${dragged === i ? " dragging" : ""}`}
+          draggable
+          onDragStart={() => setDragged(i)}
+          onDragEnd={() => setDragged(null)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (dragged !== null) move(dragged, i);
+            setDragged(null);
+          }}
+        >
+          <span className="order-handle" aria-hidden>
+            ⋮⋮
+          </span>
+          <span className="order-name">{o}</span>
+          {!known.has(o) && <small className="muted">{t("absent en amont")}</small>}
+          <button type="button" className="link" aria-label={t("Monter {{name}}", { name: o })} disabled={i === 0} onClick={() => move(i, i - 1)}>
+            ↑
+          </button>
+          <button type="button" className="link" aria-label={t("Descendre {{name}}", { name: o })} disabled={i === rows.length - 1} onClick={() => move(i, i + 1)}>
+            ↓
+          </button>
+          {i < value.length && (
+            <button type="button" className="link" aria-label={t("Remettre {{name}} dans l'ordre reçu", { name: o })} onClick={() => onChange(value.filter((v) => v !== o))}>
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      {!rows.length && <small className="muted">{t("Attributs inconnus tant que l'amont n'est pas branché : saisir des noms, ou lancer le flux.")}</small>}
+      <div className="list-row">
+        <input
+          type="text"
+          value={typed}
+          placeholder={t("Autre attribut…")}
+          aria-label={t("{{label}} : saisir un nom", { label: name })}
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <button type="button" onClick={add} disabled={!typed.trim()}>
+          {t("+ Ajouter")}
+        </button>
+        {value.length > 0 && (
+          <button type="button" className="link" onClick={() => onChange([])}>
+            {t("Ordre reçu")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

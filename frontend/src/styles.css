@@ -233,6 +233,15 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
 .check-options label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .check-options label input { width: auto; flex: none; }
 .check-options label.absent span { color: var(--warn); }
+.order-list { display: grid; gap: 1px; }
+.order-row { display: flex; gap: 6px; align-items: center; min-width: 0; padding: 1px 4px; border-radius: 4px; cursor: grab; }
+.order-row:hover { background: var(--hover); }
+.order-row.received .order-name { color: var(--muted); }
+.order-row.dragging { opacity: 0.4; }
+.order-row .order-handle { color: var(--muted); font-size: 11px; letter-spacing: -2px; }
+.order-row .order-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.order-row button.link { flex: none; padding: 0 3px; }
+.order-list .list-row { margin-top: 4px; }
 .check-order { word-break: break-word; }
 .node-panel h2 { margin: 0 0 4px; font-size: 16px; }
 .node-panel h3 { margin: 14px 0 4px; font-size: 13px; }

@@ -1,5 +1,7 @@
 """Un lecteur et un écrivain par format : leurs seuls réglages, mêmes résultats que l'ancien lecteur générique."""
 
+from pathlib import Path
+
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
@@ -23,7 +25,7 @@ from etl_engine.modifiers.file_io import (
     convert_legacy_node,
 )
 from etl_engine.registry import Registry
-from etl_engine.sdk import first_rows
+from etl_engine.sdk import ConfigError, Context, first_rows
 from etl_engine.testing import run_modifier
 
 
@@ -81,6 +83,20 @@ def test_csv_round_trip_with_wkt_and_text_codes(tmp_path):
     back = read(CsvReader, {"path": path, "delimiter": ";", "wkt_column": "wkt", "crs": "EPSG:2154"})
     assert back.column("code").to_pylist() == ["031", "009"]  # zéros initiaux conservés
     assert geometries(back)[1].equals(shapely.Point(2, 4))
+
+
+def test_writers_put_the_columns_in_the_chosen_order(tmp_path):
+    """« Ordre des colonnes » : sur les écrivains qui ont une table attributaire ; une colonne absente arrête le run."""
+    registry = Registry.discover()
+    writers = [c for c in registry.all() if c.category == "Écriture" and not c.hidden and c.name != "DxfWriter"]
+    assert len(writers) >= 11 and all("column_order" in c.Params.model_fields for c in writers)
+    path = str(tmp_path / "out.csv")
+    write(CsvWriter, {"path": path, "delimiter": ";", "column_order": ["pop"]}, sample())
+    header = Path(path).read_text(encoding="utf-8").splitlines()[0].replace('"', "")
+    assert header.split(";")[:2] == ["pop", "code"]
+    with pytest.raises(ConfigError, match="attribut absent : nope"):
+        writer = CsvWriter(CsvWriter.Params(path=path, column_order=["nope"]), Context())
+        writer.output_schema({"input": sample().schema})
 
 
 def test_every_reader_can_read_only_the_first_rows(tmp_path):

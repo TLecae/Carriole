@@ -93,6 +93,29 @@ test("canevas : brancher par clics, intercaler sur une liaison, attributs des po
   await expect(page.locator(".react-flow__minimap")).toBeVisible();
 });
 
+test("réordonner des attributs : flèches dans le formulaire, ordre du port de sortie", async ({ page }) => {
+  await page.goto("/#new");
+  await addFromPalette(page, "CsvReader");
+  await page.getByLabel("Fichier", { exact: true }).fill(`${IN}/communes.csv`);
+  await page.getByLabel("Séparateur", { exact: true }).fill(";");
+  await addFromPalette(page, "ReorderAttributes");
+  await page.getByTestId("node-CsvReader_1").locator(".node-head").click();
+  await page.getByRole("button", { name: "Brancher à un autre modificateur" }).click();
+  await page.getByTestId("node-ReorderAttributes_1").locator(".node-head").click();
+  await expect(edge(page, "CsvReader_1", "ReorderAttributes_1")).toHaveCount(1);
+
+  await page.getByTestId("node-ReorderAttributes_1").locator(".node-head").click();
+  const order = page.getByRole("list", { name: "Ordre" });
+  await expect(order.getByRole("listitem")).toHaveText([/id/, /nom/, /pop/, /dep/]);
+  await order.getByRole("button", { name: "Monter pop" }).click();
+  await order.getByRole("button", { name: "Monter pop" }).click();
+  await expect(order.getByRole("listitem")).toHaveText([/pop/, /id/, /nom/, /dep/]);
+  await page.getByTestId("port-toggle-ReorderAttributes_1-output").click();
+  await expect(page.getByTestId("port-fields-ReorderAttributes_1-output").locator("li").first()).toContainText("pop");
+  await order.getByRole("button", { name: "Remettre pop dans l'ordre reçu" }).click();
+  await expect(order.getByRole("listitem")).toHaveText([/id/, /nom/, /pop/, /dep/]);
+});
+
 /** Glisse d'une poignée de port à une autre. */
 async function connect(page: Page, from: Locator, to: Locator) {
   const a = (await from.boundingBox())!;

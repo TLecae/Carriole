@@ -57,6 +57,7 @@ def _widget(kind: str, **extra: Any) -> Any:
 # Types de paramètres métier : l'éditeur en fait le bon champ de formulaire.
 Attribute = Annotated[str, _widget("attribute")]  # un attribut présent en amont
 AttributeList = Annotated[list[str], _widget("attributes")]  # plusieurs attributs
+AttributeOrder = Annotated[list[str], _widget("attribute-order")]  # des attributs dans un ordre choisi
 
 
 def attribute_of(port: str) -> Any:
@@ -337,7 +338,8 @@ def used_attributes(model: BaseModel, port: str | None = None) -> list[str]:
                 walk(getattr(value, name), info.json_schema_extra if isinstance(info.json_schema_extra, dict) else None)
         elif isinstance(value, list | tuple):
             for item in value:
-                walk(item, {**(extra or {}), "x-etl-widget": "attribute"} if kind == "attributes" else extra)
+                listed = kind in ("attributes", "attribute-order")
+                walk(item, {**(extra or {}), "x-etl-widget": "attribute"} if listed else extra)
         elif isinstance(value, str) and kind == "attribute" and value:
             found.append(value)
 
