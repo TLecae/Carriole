@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Editor: renaming a published parameter or a flow variable updates its `${NAME}` references in the nodes and in the
+  other variables (also when the name is cleared, then typed again); they used to stop the run as unknown.
 - SplitToFiles gets the *Column order* setting of the writers.
 - Flow files: renaming a file from the editor moves its runs and schedules to the new file; schedules used to point
   to the old path.

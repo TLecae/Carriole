@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FlowDoc } from "../api/types";
-import { applyCollapsed, followPortRenames, fromFlowDoc, inputFor, layoutBookmarks, nextId, spliceEdge, toFlowDoc, upstreamAttributes, type AppEdge } from "./graph";
+import { applyCollapsed, followPortRenames, fromFlowDoc, refersTo, renameReferences, renamesByIndex, inputFor, layoutBookmarks, nextId, spliceEdge, toFlowDoc, upstreamAttributes, type AppEdge } from "./graph";
 
 const doc: FlowDoc = {
   schema_version: 1,
@@ -139,6 +139,25 @@ describe("ports nommés par les paramètres", () => {
   it("entrées nommées (ExecuteSql)", () => {
     const into = [{ id: "a", source: "X", sourceHandle: "output", target: "S", targetHandle: "communes" }];
     expect(followPortRenames(into, "S", schema, { inputs: ["communes"] }, { inputs: ["villes"] }, new Map())[0].targetHandle).toBe("villes");
+  });
+});
+
+describe("références ${NOM} renommées", () => {
+  it("suivent un nom changé à sa place, vidé puis ressaisi, mais pas un échange", () => {
+    const held = new Map<string, string>();
+    expect([...renamesByIndex(["DEP", "AN"], ["DEPT", "AN"], held, "p")]).toEqual([["DEP", "DEPT"]]);
+    expect(renamesByIndex(["DEP"], [""], held, "p").size).toBe(0);
+    expect([...renamesByIndex([""], ["CODE"], held, "p")]).toEqual([["DEP", "CODE"]]);
+    expect(renamesByIndex(["A", "B"], ["B", "A"], new Map(), "p").size).toBe(0);
+    expect(renamesByIndex(["A"], ["A", "B"], new Map(), "p").size).toBe(0);
+  });
+
+  it("remplacent les seules références exactes, partout dans les paramètres", () => {
+    const renames = new Map([["DEP", "CODE"]]);
+    const params = { where: "dep = '${DEP}' AND x = '${DEPX}'", list: [{ path: "D:/donnees/${DEP}/${env:DEP}.gpkg" }], n: 3 };
+    expect(refersTo(params, renames)).toBe(true);
+    expect(renameReferences(params, renames)).toEqual({ where: "dep = '${CODE}' AND x = '${DEPX}'", list: [{ path: "D:/donnees/${CODE}/${env:DEP}.gpkg" }], n: 3 });
+    expect(refersTo({ where: "${DEPX}" }, renames)).toBe(false);
   });
 });
 

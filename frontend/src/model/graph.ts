@@ -242,6 +242,51 @@ const portNames = (value: unknown, key?: string): string[] =>
   Array.isArray(value) ? value.map((v) => String((key ? (v as Record<string, unknown> | null)?.[key] : v) ?? "")) : [];
 
 /**
+ * Renommages d'une liste de noms éditée ligne à ligne (ports, paramètres publiés, variables) : un nom changé à la
+ * même place, sauf échange de deux noms ; vidé puis ressaisi aussi (`held` garde l'ancien nom, clé `slot/ligne`).
+ * Une ligne ajoutée ou retirée décale les autres : rien n'est renommé.
+ */
+export function renamesByIndex(old: string[], now: string[], held: Map<string, string>, slot: string): Map<string, string> {
+  const out = new Map<string, string>();
+  if (old.length !== now.length) {
+    for (const k of [...held.keys()]) if (k.startsWith(`${slot}/`)) held.delete(k);
+    return out;
+  }
+  old.forEach((name, i) => {
+    const key = `${slot}/${i}`;
+    const next = now[i];
+    if (name === next) return;
+    if (!next) {
+      if (name && !now.includes(name)) held.set(key, name); // vidé : ses références attendent le nouveau nom
+      return;
+    }
+    const from = name || held.get(key);
+    held.delete(key);
+    if (from && !now.includes(from) && !old.includes(next)) out.set(from, next);
+  });
+  return out;
+}
+
+const REFERENCE = /\$\{([^}]+)\}/g;
+
+/** `${ancien}` devient `${nouveau}` dans toutes les valeurs texte de `value` (paramètres d'un nœud, variables). */
+export function renameReferences<T>(value: T, renames: Map<string, string>): T {
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") return v.replace(REFERENCE, (whole, key: string) => (renames.has(key) ? `\${${renames.get(key)}}` : whole));
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  return renames.size ? (walk(value) as T) : value;
+}
+
+/** `value` contient une référence `${nom}` à l'un des noms renommés. */
+export const refersTo = (value: unknown, renames: Map<string, string>): boolean => {
+  const text = JSON.stringify(value) ?? "";
+  return [...renames.keys()].some((name) => text.includes(`\${${name}}`));
+};
+
+/**
  * Liaisons d'un nœud dont une liste de paramètres nomme les ports (`x-etl-ports` : sorties de RouteByExpression,
  * entrées d'ExecuteSql…), après un changement de ses paramètres : un port renommé garde ses liaisons, y compris vidé
  * puis ressaisi (`held` garde son ancien nom d'une frappe à l'autre) ; une ligne supprimée retire les liaisons de son
@@ -262,23 +307,8 @@ export function followPortRenames(
     if (!spec || before[field] === after[field]) continue;
     const old = portNames(before[field], spec.key);
     const now = portNames(after[field], spec.key);
-    if (old.length === now.length) {
-      old.forEach((name, i) => {
-        const slot = `${nodeId}/${field}/${i}`;
-        const next = now[i];
-        if (name === next) return;
-        if (!next) {
-          if (name && !now.includes(name)) held.set(slot, name); // vidé : ses liaisons attendent le nouveau nom
-          return;
-        }
-        const from = name || held.get(slot);
-        held.delete(slot);
-        if (from && !now.includes(from) && !old.includes(next)) renamed.set(`${spec.side}/${from}`, next);
-      });
-    } else if (now.length < old.length) {
-      for (const name of old) if (name && !now.includes(name)) dropped.add(`${spec.side}/${name}`);
-      for (const k of [...held.keys()]) if (k.startsWith(`${nodeId}/${field}/`)) held.delete(k); // lignes décalées
-    }
+    for (const [from, to] of renamesByIndex(old, now, held, `${nodeId}/${field}`)) renamed.set(`${spec.side}/${from}`, to);
+    if (now.length < old.length) for (const name of old) if (name && !now.includes(name)) dropped.add(`${spec.side}/${name}`);
   }
   if (!renamed.size && !dropped.size) return edges;
   let changed = false;

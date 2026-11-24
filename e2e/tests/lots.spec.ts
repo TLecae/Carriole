@@ -60,4 +60,11 @@ test("variables : paramètres, variables du flux et valeur résolue affichée so
   // le sélecteur insère une variable connue
   await page.getByLabel("Insérer une variable").first().selectOption("sys:date");
   await expect(page.getByLabel("Fichier", { exact: true })).toHaveValue(/\$\{sys:date\}/);
+
+  // renommer la variable (vidée puis ressaisie) : les ${…} des nœuds suivent
+  await page.locator(".react-flow__pane").click({ position: { x: 600, y: 400 } }); // le panneau du flux reste déplié
+  await page.getByLabel("Nom de la variable 1").fill("");
+  await page.getByLabel("Nom de la variable 1").pressSequentially("DOSSIER");
+  await page.getByTestId("node-CsvReader_1").click();
+  await expect(page.getByLabel("Fichier", { exact: true })).toHaveValue(/^\$\{DOSSIER\}\/communes\.csv/);
 });

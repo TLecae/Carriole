@@ -11,6 +11,9 @@ import {
   applyCollapsed,
   followPortRenames,
   fromFlowDoc,
+  refersTo,
+  renameReferences,
+  renamesByIndex,
   idPrefix,
   inputFor,
   isBookmark,
@@ -125,7 +128,8 @@ let lastCommitAt = 0;
 let unsubscribe: (() => void) | undefined;
 let eventBuffer: RunEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
-const heldPorts = new Map<string, string>(); // port vidé dans les paramètres : son ancien nom, pour ses liaisons
+// nom vidé en cours de saisie (port, paramètre publié, variable) : son ancien nom, pour ses liaisons et ses références
+const heldPorts = new Map<string, string>();
 
 const select = (nodes: AppNode[], ids: Set<string>): AppNode[] => nodes.map((n) => (n.selected === ids.has(n.id) ? n : { ...n, selected: ids.has(n.id) }));
 
@@ -349,7 +353,22 @@ export const useEditor = create<EditorState>((set, get) => {
     saveAs: () => persist(true),
     setMeta: (patch) => {
       commit(`meta:${Object.keys(patch).join(",")}`);
+      const before = get().meta;
       set((s) => ({ meta: { ...s.meta, ...patch } }));
+      // paramètre publié ou variable renommé : les `${NOM}` des nœuds et des autres variables suivent
+      const renames = new Map([
+        ...(patch.publishedParams ? renamesByIndex(before.publishedParams.map((p) => p.name), patch.publishedParams.map((p) => p.name), heldPorts, "param") : []),
+        ...(patch.variables ? renamesByIndex(before.variables.map((v) => v.name), patch.variables.map((v) => v.name), heldPorts, "variable") : []),
+      ]);
+      const after = get().meta;
+      const defined = new Set([...after.publishedParams.map((p) => p.name), ...after.variables.map((v) => v.name)]);
+      for (const [from, to] of [...renames]) if (defined.has(from) || [...before.publishedParams, ...before.variables].some((x) => x.name === to)) renames.delete(from);
+      if (renames.size) {
+        set((s) => ({
+          nodes: s.nodes.map((n) => (isEtl(n) && refersTo(n.data.params, renames) ? ({ ...n, data: { ...n.data, params: renameReferences(n.data.params, renames) } } as AppNode) : n)),
+          meta: { ...s.meta, variables: renameReferences(s.meta.variables, renames) },
+        }));
+      }
       touch();
     },
     setNotice: (notice) => set({ notice }),
