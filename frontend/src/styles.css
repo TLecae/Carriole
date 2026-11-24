@@ -175,6 +175,8 @@ code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
    de la sélection ; on déplace toujours le groupe en tirant l'un des nœuds sélectionnés */
 .react-flow .react-flow__nodesselection-rect { pointer-events: none; }
 .port.rejected .react-flow__handle { background: var(--danger); }
+.port.orphan span { color: var(--danger); text-decoration: line-through; }
+.port.orphan .react-flow__handle { background: var(--danger-soft); border-color: var(--danger); }
 .etl-edge { stroke: var(--edge); stroke-width: 2; }
 .etl-edge.rejected { stroke: var(--danger); }
 .etl-edge.disabled { stroke-dasharray: 6 5; opacity: .5; }

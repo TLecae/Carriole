@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Editor: a link to a port that a setting removed (ClipRasterByMask *by*, ResampleRaster *align*, CreateGrid and
+  StacSearch *from_input*…) stays drawn, to a struck-out port, and can be deleted; it used to be invisible while the
+  node showed an error.
 - ReorderAttributes, a new modifier: puts attributes in the chosen order and keeps the others after (or before) them.
   File and database writers (except DXF) get a *Column order* setting. Both use a new form field: the received
   attributes, moved with arrows or by drag and drop.

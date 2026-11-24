@@ -68,6 +68,7 @@
  "Nouveau flux : l'original reste tel quel. Renommer : le flux change de nom.": "New flow: the original stays as it is. Rename: the flow gets the new name.",
  "Ordre": "Order",
  "Ordre reçu": "Received order",
+ "Port absent : supprimer sa liaison, ou rétablir le paramètre qui le créait": "Missing port: delete its link, or restore the setting that created it",
  "Pour choisir : plus de cœurs, des runs plus rapides mais un poste moins réactif pendant les calculs ; garder 2 ou 3 cœurs libres pour travailler à côté. Les changements s'appliquent au redémarrage du moteur.": "To choose: more cores, faster runs but a less responsive computer during computations; keep 2 or 3 cores free to work alongside. Changes apply when the engine restarts.",
  "Remettre {{name}} dans l'ordre reçu": "Put {{name}} back in the received order",
  "Renommer le fichier": "Rename the file",

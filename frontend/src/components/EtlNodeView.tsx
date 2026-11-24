@@ -1,7 +1,7 @@
 import { Handle, NodeToolbar, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { memo, useEffect } from "react";
 import { staleOf, useEditor } from "../store/editor";
-import type { EtlNode } from "../model/graph";
+import type { AppEdge, EtlNode } from "../model/graph";
 import type { ModifierInfo } from "../api/types";
 import { formatCount, formatNumber, t } from "../i18n";
 import { requestRun } from "../store/run";
@@ -140,6 +140,21 @@ function OutPort({ node, port, cached, picked }: { node: string; port: string; c
   );
 }
 
+/**
+ * Ports désignés par une liaison mais absents du nœud (paramètre changé : entrée « mask » retirée, sortie vidée…),
+ * en texte stable pour le sélecteur (« in\tnom » par ligne). Affichés barrés : la liaison reste visible et se
+ * supprime, au lieu d'être invisible et en erreur. Rien tant que l'analyse n'a pas donné les ports du nœud.
+ */
+function orphanPorts(ports: { inputs: string[]; outputs: string[] } | undefined, edges: AppEdge[], id: string): string {
+  if (!ports) return "";
+  const lost = new Set<string>();
+  for (const e of edges) {
+    if (e.target === id && !ports.inputs.includes(e.targetHandle ?? "input")) lost.add(`in\t${e.targetHandle ?? "input"}`);
+    if (e.source === id && !ports.outputs.includes(e.sourceHandle ?? "output")) lost.add(`out\t${e.sourceHandle ?? "output"}`);
+  }
+  return [...lost].sort().join("\n");
+}
+
 /** Lecteur dont la lecture est limitée (paramètre marqué `x-etl-row-limit`, « Lignes lues au plus ») : la limite. */
 function rowLimit(info: ModifierInfo, params: Record<string, unknown>): number | string | null {
   const props = info.params_schema.properties ?? {};
@@ -156,10 +171,11 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
   const runCache = useEditor((s) => s.run.cache);
   const stale = useEditor((s) => staleOf(s).has(id));
   const livePorts = useEditor((s) => s.analysis?.ports?.[id]);
+  const orphanKey = useEditor((s) => orphanPorts(s.analysis?.ports?.[id], s.edges, id));
   // ports changés (nommés par les paramètres) : React Flow re-mesure les poignées, sinon une sortie renommée sans
   // que le nœud change de taille n'est pas branchable
   const updateInternals = useUpdateNodeInternals();
-  const portKey = livePorts ? `${livePorts.inputs.join("\n")}\t${livePorts.outputs.join("\n")}` : "";
+  const portKey = livePorts ? `${livePorts.inputs.join("\n")}\t${livePorts.outputs.join("\n")}\t${orphanKey}` : "";
   useEffect(() => updateInternals(id), [id, portKey, updateInternals]);
   const picked = usePicked(id);
   const worst = useEditor((s) => {
@@ -184,7 +200,10 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
   const cached = status === "done" || status === "cached";
   const ins = livePorts?.inputs ?? info.inputs; // les ports peuvent dépendre des paramètres du nœud
   const outs = livePorts?.outputs ?? info.outputs;
-  const rows = Math.max(ins.length, outs.length, 1);
+  const lost = orphanKey ? orphanKey.split("\n").map((k) => k.split("\t") as ["in" | "out", string]) : [];
+  const lostIns = lost.filter(([side]) => side === "in").map(([, p]) => p);
+  const lostOuts = lost.filter(([side]) => side === "out").map(([, p]) => p);
+  const rows = Math.max(ins.length + lostIns.length, outs.length + lostOuts.length, 1);
   const limit = rowLimit(info, data.params);
   const classes = [
     "etl-node",
@@ -242,10 +261,22 @@ function EtlNodeViewBase({ id, data, selected }: NodeProps<EtlNode>) {
               <PortCount node={id} port={p} input />
             </div>
           ))}
+          {lostIns.map((p) => (
+            <div className="port orphan" key={`lost-${p}`} title={t("Port absent : supprimer sa liaison, ou rétablir le paramètre qui le créait")} data-testid={`orphan-${id}-${p}`}>
+              <Handle type="target" position={Position.Left} id={p} isConnectable={false} />
+              <span>{p}</span>
+            </div>
+          ))}
         </div>
         <div className="ports out">
           {outs.map((p) => (
             <OutPort key={p} node={id} port={p} cached={cached && !!runCache} picked={picked === `out/${p}`} />
+          ))}
+          {lostOuts.map((p) => (
+            <div className="port orphan" key={`lost-${p}`} title={t("Port absent : supprimer sa liaison, ou rétablir le paramètre qui le créait")} data-testid={`orphan-${id}-${p}`}>
+              <span>{p}</span>
+              <Handle type="source" position={Position.Right} id={p} isConnectable={false} />
+            </div>
           ))}
         </div>
       </div>

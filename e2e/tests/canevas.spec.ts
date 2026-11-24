@@ -116,6 +116,30 @@ test("réordonner des attributs : flèches dans le formulaire, ordre du port de 
   await expect(order.getByRole("listitem")).toHaveText([/id/, /nom/, /pop/, /dep/]);
 });
 
+test("port retiré par un paramètre : sa liaison reste visible, barrée, et se supprime", async ({ page }) => {
+  await page.goto("/#new");
+  await addFromPalette(page, "CsvReader");
+  await page.getByLabel("Fichier", { exact: true }).fill(`${IN}/communes.csv`);
+  await addFromPalette(page, "CreateGrid");
+  await page.getByLabel("Emprise des entités reçues", { exact: true }).check();
+  const grid = page.getByTestId("node-CreateGrid_1");
+  await expect(grid.locator('.react-flow__handle[data-handleid="input"]')).toBeVisible();
+  await page.getByTestId("node-CsvReader_1").locator(".node-head").click();
+  await page.getByRole("button", { name: "Brancher à un autre modificateur" }).click();
+  await grid.locator(".node-head").click();
+  await expect(edge(page, "CsvReader_1", "CreateGrid_1")).toHaveCount(1);
+
+  // l'entrée disparaît avec le paramètre : la liaison reste dessinée, vers un port barré
+  await grid.locator(".node-head").click();
+  await page.getByLabel("Emprise des entités reçues", { exact: true }).uncheck();
+  await expect(page.getByTestId("orphan-CreateGrid_1-input")).toBeVisible();
+  await expect(edge(page, "CsvReader_1", "CreateGrid_1")).toHaveCount(1);
+  await edge(page, "CsvReader_1", "CreateGrid_1").click({ force: true });
+  await page.keyboard.press("Delete");
+  await expect(edge(page, "CsvReader_1", "CreateGrid_1")).toHaveCount(0);
+  await expect(page.getByTestId("orphan-CreateGrid_1-input")).toHaveCount(0);
+});
+
 /** Glisse d'une poignée de port à une autre. */
 async function connect(page: Page, from: Locator, to: Locator) {
   const a = (await from.boundingBox())!;
