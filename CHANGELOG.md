@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.3
 
 - Editor: renaming a published parameter or a flow variable updates its `${NAME}` references in the nodes and in the
   other variables (also when the name is cleared, then typed again); they used to stop the run as unknown.
